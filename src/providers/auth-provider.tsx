@@ -10,7 +10,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkSession = async () => {
       setLoading(true)
       try {
-        const res = await fetch('/api/auth/login', {
+        const res = await fetch('/api/auth/session', {
           method: 'GET',
         })
         if (res.ok) {

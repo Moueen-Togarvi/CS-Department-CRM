@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, type UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { type ColumnDef, type SortingState } from '@tanstack/react-table'
 import { z } from 'zod'
@@ -402,6 +402,18 @@ export function StudentModule() {
       section: '',
     },
   })
+
+  const sessionVal = form.watch('session')
+  useEffect(() => {
+    if (sessionVal) {
+      const match = sessionVal.match(/\b\d{4}\b/)
+      if (match) {
+        const year = match[0]
+        form.setValue('batch', `Batch-${year}`)
+        form.setValue('enrollmentYear', Number(year))
+      }
+    }
+  }, [sessionVal, form])
 
   const resetForm = useCallback(() => {
     form.reset({
@@ -865,7 +877,7 @@ function StudentFormDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
   editingStudent: StudentRow | null
-  form: ReturnType<typeof useForm<FormValues>>
+  form: UseFormReturn<FormValues>
   onSubmit: (values: FormValues) => void
   isSubmitting: boolean
   onAiOpen?: () => void
@@ -1043,21 +1055,36 @@ function StudentFormDialog({
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="batch" render={({ field }) => (
+                <FormField control={form.control} name="session" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Batch</FormLabel>
-                    <Select value={field.value || ''} onValueChange={field.onChange}>
-                      <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select batch" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="Batch-2023">2023</SelectItem>
-                        <SelectItem value="Batch-2024">2024</SelectItem>
-                        <SelectItem value="Batch-2025">2025</SelectItem>
-                        <SelectItem value="Batch-2026">2026</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Session</FormLabel>
+                    <FormControl><Input placeholder="e.g. 2022-2026" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
+                <FormField control={form.control} name="batch" render={({ field }) => {
+                  const batchValue = field.value || ''
+                  const predefinedBatches = ['Batch-2023', 'Batch-2024', 'Batch-2025', 'Batch-2026']
+                  const options = predefinedBatches.includes(batchValue) || !batchValue
+                    ? predefinedBatches
+                    : [batchValue, ...predefinedBatches]
+                  return (
+                    <FormItem>
+                      <FormLabel>Batch</FormLabel>
+                      <Select value={batchValue} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select batch" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {options.map((opt) => (
+                            <SelectItem key={opt} value={opt}>
+                              {opt.replace('Batch-', '')}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )
+                }} />
                 <FormField control={form.control} name="currentSemester" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Current Semester</FormLabel>
@@ -1198,7 +1225,7 @@ function StudentFormSheet({
   open: boolean
   onOpenChange: (open: boolean) => void
   editingStudent: StudentRow | null
-  form: ReturnType<typeof useForm<FormValues>>
+  form: UseFormReturn<FormValues>
   onSubmit: (values: FormValues) => void
   isSubmitting: boolean
 }) {
@@ -1363,21 +1390,36 @@ function StudentFormSheet({
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <FormField control={form.control} name="batch" render={({ field }) => (
+                  <FormField control={form.control} name="session" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Batch</FormLabel>
-                      <Select value={field.value || ''} onValueChange={field.onChange}>
-                        <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select batch" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          <SelectItem value="Batch-2023">2023</SelectItem>
-                          <SelectItem value="Batch-2024">2024</SelectItem>
-                          <SelectItem value="Batch-2025">2025</SelectItem>
-                          <SelectItem value="Batch-2026">2026</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Session</FormLabel>
+                      <FormControl><Input placeholder="e.g. 2022-2026" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
+                  <FormField control={form.control} name="batch" render={({ field }) => {
+                    const batchValue = field.value || ''
+                    const predefinedBatches = ['Batch-2023', 'Batch-2024', 'Batch-2025', 'Batch-2026']
+                    const options = predefinedBatches.includes(batchValue) || !batchValue
+                      ? predefinedBatches
+                      : [batchValue, ...predefinedBatches]
+                    return (
+                      <FormItem>
+                        <FormLabel>Batch</FormLabel>
+                        <Select value={batchValue} onValueChange={field.onChange}>
+                          <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select batch" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {options.map((opt) => (
+                              <SelectItem key={opt} value={opt}>
+                                {opt.replace('Batch-', '')}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }} />
                   <FormField control={form.control} name="currentSemester" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Current Semester</FormLabel>
@@ -1609,6 +1651,7 @@ function ProfileTab({ student }: { student: StudentDetail }) {
 
         <Section title="Academic Details">
           <InfoRow icon={<GraduationCap className="size-4" />} label="Program" value={`${student.program} ${student.department.name}`} />
+          <InfoRow icon={<Calendar className="size-4" />} label="Session" value={student.session || 'N/A'} />
           <InfoRow icon={<Calendar className="size-4" />} label="Batch" value={student.batch?.replace('Batch-', '') || 'N/A'} />
           <InfoRow icon={<Shield className="size-4" />} label="Student ID" value={student.studentId} />
           <InfoRow icon={<Calendar className="size-4" />} label="Enrollment Year" value={String(student.enrollmentYear)} />

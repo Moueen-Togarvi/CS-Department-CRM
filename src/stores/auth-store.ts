@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { signOut } from 'next-auth/react'
 
 type UserRole = 'ADMIN' | 'FACULTY' | 'STUDENT'
 
@@ -26,5 +27,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   setUser: (user) =>
     set({ user, isAuthenticated: !!user, isLoading: false }),
   setLoading: (loading) => set({ isLoading: loading }),
-  logout: () => set({ user: null, isAuthenticated: false, isLoading: false }),
+  logout: () => {
+    signOut({ redirect: false })
+    set({ user: null, isAuthenticated: false, isLoading: false })
+  },
 }))

@@ -37,7 +37,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
-          <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-8 lg:px-10">
             {children}
           </div>
         </main>

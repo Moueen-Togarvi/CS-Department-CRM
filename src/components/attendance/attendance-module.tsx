@@ -63,11 +63,11 @@ interface Course {
 
 interface EnrolledStudent {
   id: string
-  studentId: string
   student: {
     id: string
     studentId: string
-    user: { name: string; email: string }
+    name: string
+    email: string
   }
 }
 
@@ -117,7 +117,7 @@ function MarkAttendancePanel({
       const params = new URLSearchParams({ limit: '200' })
       const res = await fetch(`/api/courses/${courseId}/enrollments?${params}`)
       const json = await res.json()
-      return json.data as EnrolledStudent[]
+      return (json.data?.enrollments || []) as EnrolledStudent[]
     },
     enabled: !!courseId,
   })
@@ -162,7 +162,7 @@ function MarkAttendancePanel({
       const allStatuses: Record<string, AttendanceStatusType> = {}
       if (enrollments) {
         for (const e of enrollments) {
-          allStatuses[e.studentId] = getStatus(e.studentId)
+          allStatuses[e.student.id] = getStatus(e.student.id)
         }
       }
       const records = Object.entries(allStatuses).map(([studentId, status]) => ({
@@ -196,7 +196,7 @@ function MarkAttendancePanel({
     if (!enrollments) return
     const all: Record<string, AttendanceStatusType> = {}
     for (const e of enrollments) {
-      all[e.studentId] = 'PRESENT'
+      all[e.student.id] = 'PRESENT'
     }
     setStatusOverrides(all)
   }
@@ -270,11 +270,11 @@ function MarkAttendancePanel({
                 </TableHeader>
                 <TableBody>
                   {enrollments.map((e, idx) => {
-                    const status = getStatus(e.studentId)
-                    const wasExisting = !!existingMap[e.studentId]
+                    const status = getStatus(e.student.id)
+                    const wasExisting = !!existingMap[e.student.id]
                     return (
                       <TableRow
-                        key={e.studentId}
+                        key={e.student.id}
                         className={cn(
                           'transition-colors',
                           STATUS_BG[status],
@@ -285,7 +285,7 @@ function MarkAttendancePanel({
                           {idx + 1}
                         </TableCell>
                         <TableCell className="font-medium text-sm">
-                          {e.student.user.name}
+                          {e.student.name}
                         </TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground">
                           {e.student.studentId}
@@ -293,7 +293,7 @@ function MarkAttendancePanel({
                         <TableCell className="text-center">
                           <Select
                             value={status}
-                            onValueChange={(v) => handleStatusChange(e.studentId, v as AttendanceStatusType)}
+                            onValueChange={(v) => handleStatusChange(e.student.id, v as AttendanceStatusType)}
                           >
                             <SelectTrigger className={cn(
                               'h-8 w-[140px] text-xs font-medium border-0',

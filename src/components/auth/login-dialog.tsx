@@ -23,6 +23,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/auth-store'
+import { signIn } from 'next-auth/react'
 import { toast } from 'sonner'
 
 const loginSchema = z.object({
@@ -55,23 +56,28 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     setError('')
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+      const result = await signIn('credentials', {
+        email: values.email,
+        password: values.password,
+        redirect: false,
       })
 
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || 'Login failed')
+      if (result?.error) {
+        setError(result.error)
         return
       }
 
-      setUser(data.user)
-      toast.success(`Welcome back, ${data.user.name}!`)
-      onOpenChange(false)
-      form.reset()
+      // Fetch the full profile from session endpoint
+      const sessionRes = await fetch('/api/auth/session')
+      if (sessionRes.ok) {
+        const sessionData = await sessionRes.json()
+        setUser(sessionData.user)
+        toast.success(`Welcome back, ${sessionData.user.name}!`)
+        onOpenChange(false)
+        form.reset()
+      } else {
+        setError('Failed to load session profile')
+      }
     } catch {
       setError('Network error. Please try again.')
     } finally {
