@@ -3,19 +3,23 @@
 import { useEffect, useState } from 'react'
 
 export function ServiceWorkerRegistration() {
-  const [isOffline, setIsOffline] = useState(!typeof window !== 'undefined' ? !navigator.onLine : false)
+  const [isOffline, setIsOffline] = useState(false)
 
   useEffect(() => {
-    // Register service worker
+    if (typeof window !== 'undefined') {
+      setIsOffline(!navigator.onLine)
+    }
+    // Unregister service worker to prevent caching issues
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then(() => {
-          console.log('Service Worker registered')
-        })
-        .catch((err) => {
-          console.log('Service Worker registration failed:', err)
-        })
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const registration of registrations) {
+          registration.unregister().then((success) => {
+            if (success) {
+              console.log('Service Worker unregistered successfully')
+            }
+          })
+        }
+      })
     }
 
     // Online/offline detection

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cs-dept-v1';
+const CACHE_NAME = 'cs-dept-v2';
 const STATIC_ASSETS = ['/', '/manifest.json'];
 
 self.addEventListener('install', (e) => {
@@ -33,6 +33,27 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (url.pathname.startsWith('/api/') || url.protocol === 'chrome-extension:') return;
 
+  // For navigation (HTML) requests, use Network-First strategy
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => {
+          if (res.status === 200) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+          }
+          return res;
+        })
+        .catch(() => {
+          return caches.match('/').then((cached) => {
+            return cached || new Response('Offline', { status: 503 });
+          });
+        })
+    );
+    return;
+  }
+
+  // For other static assets, use Cache-First with Network Fallback
   e.respondWith(
     caches.match(e.request).then(
       (cached) =>
@@ -46,10 +67,6 @@ self.addEventListener('fetch', (e) => {
             return res;
           })
           .catch(() => {
-            // Return offline page for navigation requests
-            if (e.request.mode === 'navigate') {
-              return caches.match('/');
-            }
             return new Response('Offline', { status: 503 });
           })
     )

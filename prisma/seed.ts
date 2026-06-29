@@ -262,7 +262,7 @@ async function main() {
   const studentRecords: { user: any; student: any }[] = [];
 
   for (const s of studentDefs) {
-    const email = `${s.studentId}@student.csdept.edu`;
+    const email = `${s.studentId.toLowerCase()}@student.csdept.edu`;
     const user = await prisma.user.create({
       data: {
         email,
