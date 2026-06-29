@@ -540,7 +540,7 @@ export function DashboardModule() {
                     <ChartTooltip
                       content={
                         <ChartTooltipContent
-                          formatter={(value: number) => [`${value}%`, 'Attendance']}
+                          formatter={(value: any) => [`${value}%`, 'Attendance']}
                         />
                       }
                     />

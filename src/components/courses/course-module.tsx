@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   useQuery,
   useMutation,
@@ -320,6 +320,7 @@ export function CourseModule() {
   const [search, setSearch] = useState('')
   const [courseTypeFilter, setCourseTypeFilter] = useState<string>('_all')
   const [creditFilter, setCreditFilter] = useState<string>('_all')
+  const [semesterFilter, setSemesterFilter] = useState<string>('_all')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'code', desc: false }])
 
   // Dialog / Sheet
@@ -331,6 +332,7 @@ export function CourseModule() {
   // Enroll dialog
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false)
   const [enrollCourseId, setEnrollCourseId] = useState<string | null>(null)
+  const [enrollCourseSemesterOffered, setEnrollCourseSemesterOffered] = useState<number | null>(null)
   const [importOpen, setImportOpen] = useState(false)
 
   // Build query string
@@ -341,8 +343,9 @@ export function CourseModule() {
     if (search) params.set('search', search)
     if (courseTypeFilter !== '_all') params.set('courseType', courseTypeFilter)
     if (creditFilter !== '_all') params.set('creditHours', creditFilter)
+    if (semesterFilter !== '_all') params.set('semesterOffered', semesterFilter)
     return params.toString()
-  }, [page, search, courseTypeFilter, creditFilter])
+  }, [page, search, courseTypeFilter, creditFilter, semesterFilter])
 
   // Data queries
   const { data: courseData, isLoading } = useQuery<PaginatedResponse<CourseListItem>>({
@@ -713,6 +716,25 @@ export function CourseModule() {
               <SelectItem value="4">4 Credits</SelectItem>
             </SelectContent>
           </Select>
+          <Select
+            value={semesterFilter}
+            onValueChange={(v) => {
+              setSemesterFilter(v)
+              setPage(1)
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectValue placeholder="Semester" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_all">All Semesters</SelectItem>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
+                <SelectItem key={num} value={String(num)}>
+                  Semester {num}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </Card>
 
@@ -875,6 +897,7 @@ export function CourseModule() {
             isAdmin={isAdmin}
             onEnroll={() => {
               setEnrollCourseId(detailCourseId)
+              setEnrollCourseSemesterOffered(detailData?.data?.semesterOffered || null)
               setEnrollDialogOpen(true)
             }}
           />
@@ -886,9 +909,13 @@ export function CourseModule() {
         open={enrollDialogOpen}
         onOpenChange={(open) => {
           setEnrollDialogOpen(open)
-          if (!open) setEnrollCourseId(null)
+          if (!open) {
+            setEnrollCourseId(null)
+            setEnrollCourseSemesterOffered(null)
+          }
         }}
         courseId={enrollCourseId}
+        semesterOffered={enrollCourseSemesterOffered}
         existingEnrollments={enrollmentsData?.data?.enrollments ?? []}
         onEnroll={({ studentIds, semesterId, section }) => {
           if (enrollCourseId) {
@@ -962,7 +989,7 @@ function CourseFormDialog({
   const isEdit = !!editingCourse
 
   const form = useForm<CreateCourseInput | UpdateCourseInput>({
-    resolver: zodResolver(isEdit ? updateCourseSchema : createCourseSchema),
+    resolver: zodResolver(isEdit ? updateCourseSchema : createCourseSchema) as any,
     defaultValues: isEdit
       ? {
           name: editingCourse.name,
@@ -1647,6 +1674,7 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin, onEnroll }: Cou
           if (!open) setEnrollCourseId(null)
         }}
         courseId={enrollCourseId}
+        semesterOffered={detail.semesterOffered}
         existingEnrollments={enrollmentsData?.enrollments ?? []}
         onEnroll={({ studentIds, semesterId, section }) => {
           // Use the enrollment mutation from parent
@@ -1682,6 +1710,7 @@ interface EnrollmentDialogProps {
   existingEnrollments: CourseEnrollment[]
   onEnroll: (data: { studentIds: string[]; semesterId: string; section: string }) => void
   isSubmitting: boolean
+  semesterOffered?: number | null
 }
 
 function EnrollmentDialog({
@@ -1691,20 +1720,21 @@ function EnrollmentDialog({
   existingEnrollments,
   onEnroll,
   isSubmitting,
+  semesterOffered,
 }: EnrollmentDialogProps) {
   const [studentSearch, setStudentSearch] = useState('')
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set())
   const [section, setSection] = useState('A')
   const [semesterId, setSemesterId] = useState<string>('')
+  const [filterSemester, setFilterSemester] = useState<string>('')
+  const [hasAutoSelected, setHasAutoSelected] = useState(false)
+  const [initialized, setInitialized] = useState(false)
 
   // Fetch current semester
   const { data: semesters } = useQuery<SemesterOption[]>({
     queryKey: ['semesters-for-enroll'],
     queryFn: async () => {
-      // We need to get semesters - use the announcements or a direct DB query approach
-      // For now, use a simple approach
       const res = await fetch('/api/departments')
-      // We'll fetch semesters via the enrollments' semester info
       return []
     },
     enabled: open,
@@ -1723,11 +1753,14 @@ function EnrollmentDialog({
       status: string
     }>
   >({
-    queryKey: ['students-for-enrollment', studentSearch],
+    queryKey: ['students-for-enrollment', studentSearch, filterSemester],
     queryFn: async () => {
       const params = new URLSearchParams()
-      params.set('limit', '50')
+      params.set('limit', '200')
       params.set('status', 'ACTIVE')
+      if (filterSemester && filterSemester !== 'all') {
+        params.set('semester', filterSemester)
+      }
       if (studentSearch) params.set('search', studentSearch)
       const res = await fetch(`/api/students?${params}`)
       if (!res.ok) throw new Error('Failed to fetch students')
@@ -1740,24 +1773,46 @@ function EnrollmentDialog({
   const currentSemesterId = existingEnrollments.length > 0 ? existingEnrollments[0].semester.id : ''
   const currentSemesterName = existingEnrollments.length > 0 ? existingEnrollments[0].semester.name : ''
 
-  // Set semester when dialog opens
-  const [initialized, setInitialized] = useState(false)
-  if (open && !initialized && currentSemesterId) {
-    setSemesterId(currentSemesterId)
+  // Set semester and filterSemester when dialog opens
+  if (open && !initialized) {
+    if (currentSemesterId) setSemesterId(currentSemesterId)
+    setFilterSemester(semesterOffered ? String(semesterOffered) : '')
     setInitialized(true)
   }
-  if (!open && initialized) {
-    setInitialized(false)
-    setSelectedStudents(new Set())
-    setStudentSearch('')
-    setSection('A')
-    setSemesterId('')
-  }
 
-  const existingStudentIds = new Set(existingEnrollments.map((e) => e.student.id))
-  const availableStudents = (studentResults?.data ?? []).filter(
-    (s) => s.status !== 'INACTIVE' && !existingStudentIds.has(s.id)
-  )
+  // Clean states when dialog is closed
+  useEffect(() => {
+    if (!open && initialized) {
+      setInitialized(false)
+      setSelectedStudents(new Set())
+      setStudentSearch('')
+      setSection('A')
+      setSemesterId('')
+      setFilterSemester('')
+      setHasAutoSelected(false)
+    }
+  }, [open, initialized])
+
+  const existingStudentIds = useMemo(() => new Set(existingEnrollments.map((e) => e.student.id)), [existingEnrollments])
+
+  const availableStudents = useMemo(() => {
+    return (studentResults?.data ?? []).filter(
+      (s) => s.status !== 'INACTIVE' && !existingStudentIds.has(s.id)
+    )
+  }, [studentResults?.data, existingStudentIds])
+
+  // Reset auto-select trigger when student results change
+  useEffect(() => {
+    setHasAutoSelected(false)
+  }, [studentResults?.data])
+
+  // Auto-select all matching active students by default
+  useEffect(() => {
+    if (availableStudents.length > 0 && !hasAutoSelected && open) {
+      setSelectedStudents(new Set(availableStudents.map((s) => s.id)))
+      setHasAutoSelected(true)
+    }
+  }, [availableStudents, hasAutoSelected, open])
 
   const toggleStudent = (id: string) => {
     setSelectedStudents((prev) => {
@@ -1828,6 +1883,24 @@ function EnrollmentDialog({
             </Select>
           </div>
 
+          {/* Student Semester Filter */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Student Semester Filter</label>
+            <Select value={filterSemester || 'all'} onValueChange={(v) => setFilterSemester(v === 'all' ? '' : v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Semesters" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Semesters</SelectItem>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
+                  <SelectItem key={num} value={String(num)}>
+                    Semester {num}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Student Search */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Search Students</label>
@@ -1843,21 +1916,29 @@ function EnrollmentDialog({
           </div>
 
           {/* Selected Count */}
-          {selectedStudents.size > 0 && (
-            <div className="flex items-center justify-between rounded-lg bg-primary/5 border border-primary/20 p-2.5">
-              <span className="text-sm font-medium">
-                {selectedStudents.size} student(s) selected
-              </span>
+          <div className="flex items-center justify-between rounded-lg bg-primary/5 border border-primary/20 p-2.5">
+            <span className="text-sm font-medium text-primary">
+              {selectedStudents.size} student(s) selected
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedStudents(new Set(availableStudents.map(s => s.id)))}
+                className="text-xs h-7 text-primary hover:text-primary hover:bg-primary/10"
+              >
+                Select All
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedStudents(new Set())}
-                className="text-xs h-7"
+                className="text-xs h-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               >
                 Clear
               </Button>
             </div>
-          )}
+          </div>
 
           {/* Student List */}
           <div className="max-h-64 overflow-auto rounded-lg border">

@@ -374,7 +374,7 @@ export function TimetableModule() {
   // ---- Build flat slot list for the grid ----
   const flatSlots = useMemo(() => {
     if (!weeklyData) return []
-    const result: (GridSlot & { _dayIdx: number })[] = []
+    const result: (GridSlot & { _dayIdx: number; _tsIdx: number })[] = []
     for (const day of weeklyData.days) {
       const dayIdx = weeklyData.days.indexOf(day)
       for (const ts of weeklyData.timeSlots) {

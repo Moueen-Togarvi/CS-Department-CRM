@@ -14,6 +14,9 @@ export async function GET(request: NextRequest) {
     const creditHours = searchParams.get("creditHours")
       ? parseInt(searchParams.get("creditHours")!)
       : undefined;
+    const semesterOffered = searchParams.get("semesterOffered")
+      ? parseInt(searchParams.get("semesterOffered")!)
+      : undefined;
 
     const where: Prisma.CourseWhereInput = { isActive: true };
 
@@ -30,6 +33,10 @@ export async function GET(request: NextRequest) {
 
     if (creditHours) {
       where.creditHours = creditHours;
+    }
+
+    if (semesterOffered) {
+      where.semesterOffered = semesterOffered;
     }
 
     const orderBy: Prisma.CourseOrderByWithRelationInput = {};

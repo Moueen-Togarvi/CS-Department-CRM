@@ -375,7 +375,7 @@ export function StudentModule() {
 
   // Form
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as any,
     defaultValues: {
       name: '',
       email: '',
