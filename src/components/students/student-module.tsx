@@ -37,7 +37,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
@@ -119,6 +119,7 @@ interface StudentRow {
   gender: string | null
   department: { id: string; name: string; code: string }
   isActive: boolean
+  profilePicture: string | null
   createdAt: string
   updatedAt: string
 }
@@ -147,6 +148,13 @@ interface StudentDetail {
   guardianName: string | null
   guardianPhone: string | null
   emergencyContact: string | null
+  profilePicture: string | null
+  fatherName: string | null
+  cnic: string | null
+  mobileNumber: string | null
+  fatherPhone: string | null
+  session: string | null
+  section: string | null
   createdAt: string
   updatedAt: string
   user: {
@@ -220,6 +228,13 @@ const formSchema = z.object({
   guardianName: z.string().optional(),
   guardianPhone: z.string().optional(),
   emergencyContact: z.string().optional(),
+  profilePicture: z.string().optional(),
+  fatherName: z.string().optional(),
+  cnic: z.string().optional(),
+  mobileNumber: z.string().optional(),
+  fatherPhone: z.string().optional(),
+  session: z.string().optional(),
+  section: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -236,6 +251,7 @@ export function StudentModule() {
   const [batchFilter, setBatchFilter] = useState('all')
   const [semesterFilter, setSemesterFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [sectionFilter, setSectionFilter] = useState('all')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [sorting, setSorting] = useState<SortingState>([])
@@ -260,12 +276,13 @@ export function StudentModule() {
     if (batchFilter !== 'all') params.set('batch', batchFilter)
     if (semesterFilter !== 'all') params.set('semester', semesterFilter)
     if (statusFilter !== 'all') params.set('status', statusFilter)
+    if (sectionFilter !== 'all') params.set('section', sectionFilter)
     if (sorting.length > 0) {
       params.set('sort', sorting[0].id)
       params.set('order', sorting[0].desc ? 'desc' : 'asc')
     }
     return params.toString()
-  }, [page, pageSize, search, batchFilter, semesterFilter, statusFilter, sorting])
+  }, [page, pageSize, search, batchFilter, semesterFilter, statusFilter, sectionFilter, sorting])
 
   // Queries
   const { data: studentsData, isLoading } = useQuery<PaginatedResponse<StudentRow>>({
@@ -376,6 +393,13 @@ export function StudentModule() {
       guardianName: '',
       guardianPhone: '',
       emergencyContact: '',
+      profilePicture: '',
+      fatherName: '',
+      cnic: '',
+      mobileNumber: '',
+      fatherPhone: '',
+      session: '',
+      section: '',
     },
   })
 
@@ -397,6 +421,13 @@ export function StudentModule() {
       guardianName: '',
       guardianPhone: '',
       emergencyContact: '',
+      profilePicture: '',
+      fatherName: '',
+      cnic: '',
+      mobileNumber: '',
+      fatherPhone: '',
+      session: '',
+      section: '',
     })
   }, [form])
 
@@ -407,22 +438,42 @@ export function StudentModule() {
   }, [resetForm, form])
 
   const openEditForm = useCallback(
-    (student: StudentRow) => {
+    async (student: StudentRow) => {
       setEditingStudent(student)
-      form.setValue('name', student.name)
-      form.setValue('email', student.email)
-      form.setValue('studentId', student.studentId)
-      form.setValue('currentSemester', student.currentSemester)
-      form.setValue('program', student.program)
-      form.setValue('batch', student.batch || '')
-      form.setValue('gender', student.gender || '')
-      // For editing, we don't know the full details, so we set departmentId empty
-      // It will be fetched on detail view
-      form.setValue('departmentId', '')
-      form.setValue('enrollmentYear', new Date().getFullYear())
+      resetForm()
       setFormOpen(true)
+      
+      try {
+        const res = await fetch(`/api/students/${student.id}`).then((r) => r.json())
+        if (res.success && res.data) {
+          const detail = res.data
+          form.setValue('name', detail.user.name || '')
+          form.setValue('email', detail.user.email || '')
+          form.setValue('studentId', detail.studentId || '')
+          form.setValue('currentSemester', detail.currentSemester || 1)
+          form.setValue('program', detail.program || 'BS')
+          form.setValue('batch', detail.batch || '')
+          form.setValue('gender', detail.gender || '')
+          form.setValue('departmentId', detail.departmentId || '')
+          form.setValue('enrollmentYear', detail.enrollmentYear || new Date().getFullYear())
+          form.setValue('phone', detail.user.phone || '')
+          form.setValue('address', detail.address || '')
+          form.setValue('guardianName', detail.guardianName || '')
+          form.setValue('guardianPhone', detail.guardianPhone || '')
+          form.setValue('emergencyContact', detail.emergencyContact || '')
+          form.setValue('profilePicture', detail.profilePicture || '')
+          form.setValue('fatherName', detail.fatherName || '')
+          form.setValue('cnic', detail.cnic || '')
+          form.setValue('mobileNumber', detail.mobileNumber || '')
+          form.setValue('fatherPhone', detail.fatherPhone || '')
+          form.setValue('session', detail.session || '')
+          form.setValue('section', detail.section || '')
+        }
+      } catch (err) {
+        console.error('Failed to load student details for editing', err)
+      }
     },
-    [form]
+    [form, resetForm]
   )
 
   const openDetail = useCallback((student: StudentRow) => {
@@ -459,6 +510,9 @@ export function StudentModule() {
           return (
             <div className="flex items-center gap-2">
               <Avatar className="size-7">
+                {row.original.profilePicture && (
+                  <AvatarImage src={row.original.profilePicture} alt={name} className="object-cover" />
+                )}
                 <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
                   {name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
                 </AvatarFallback>
@@ -587,7 +641,7 @@ export function StudentModule() {
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           <StatCard label="Total Students" value={stats.total} icon={<GraduationCap className="size-4" />} />
           <StatCard label="Active" value={stats.active} icon={<Users className="size-4" />} accent />
           {Object.entries(stats.byBatch).map(([batch, count]) => (
@@ -612,7 +666,7 @@ export function StudentModule() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={batchFilter} onValueChange={(v) => { setBatchFilter(v); setPage(1) }}>
-            <SelectTrigger size="sm" className="w-[130px]">
+            <SelectTrigger size="sm" className="w-[140px]">
               <SelectValue placeholder="Batch" />
             </SelectTrigger>
             <SelectContent>
@@ -623,7 +677,7 @@ export function StudentModule() {
             </SelectContent>
           </Select>
           <Select value={semesterFilter} onValueChange={(v) => { setSemesterFilter(v); setPage(1) }}>
-            <SelectTrigger size="sm" className="w-[120px]">
+            <SelectTrigger size="sm" className="w-[140px]">
               <SelectValue placeholder="Semester" />
             </SelectTrigger>
             <SelectContent>
@@ -633,8 +687,22 @@ export function StudentModule() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={sectionFilter} onValueChange={(v) => { setSectionFilter(v); setPage(1) }}>
+            <SelectTrigger size="sm" className="w-[140px]">
+              <SelectValue placeholder="Section" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sections</SelectItem>
+              <SelectItem value="Morning A">Morning A</SelectItem>
+              <SelectItem value="Morning B">Morning B</SelectItem>
+              <SelectItem value="Evening A">Evening A</SelectItem>
+              <SelectItem value="Evening B">Evening B</SelectItem>
+              <SelectItem value="A">Section A</SelectItem>
+              <SelectItem value="B">Section B</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
-            <SelectTrigger size="sm" className="w-[120px]">
+            <SelectTrigger size="sm" className="w-[140px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -802,10 +870,12 @@ function StudentFormDialog({
   isSubmitting: boolean
   onAiOpen?: () => void
 }) {
+  const [uploading, setUploading] = useState(false)
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] p-0 flex flex-col overflow-hidden">
+        <DialogHeader className="p-6 md:p-8 pb-0 shrink-0 pr-16">
           <div className="flex items-center justify-between">
             <DialogTitle>{editingStudent ? 'Edit Student' : 'Add New Student'}</DialogTitle>
             {!editingStudent && onAiOpen && (
@@ -819,12 +889,13 @@ function StudentFormDialog({
             {editingStudent ? 'Update student information below.' : 'Fill in the details to create a new student account.'}
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 pt-4">
+          <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Personal Section */}
             <div>
               <h3 className="text-sm font-semibold mb-3">Personal Information</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-5">
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Full Name *</FormLabel>
@@ -832,22 +903,6 @@ function StudentFormDialog({
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="email" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email *</FormLabel>
-                    <FormControl><Input type="email" placeholder="student@csdept.edu" {...field} disabled={!!editingStudent} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                {!editingStudent && (
-                  <FormField control={form.control} name="password" render={({ field }) => (
-                    <FormItem className="sm:col-span-2">
-                      <FormLabel>Password *</FormLabel>
-                      <FormControl><Input type="password" placeholder="Min. 6 characters" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                )}
                 <FormField control={form.control} name="phone" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Phone</FormLabel>
@@ -855,11 +910,25 @@ function StudentFormDialog({
                     <FormMessage />
                   </FormItem>
                 )} />
+                <FormField control={form.control} name="mobileNumber" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Student Mobile Number</FormLabel>
+                    <FormControl><Input placeholder="+92 300 1234567" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="cnic" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CNIC Number</FormLabel>
+                    <FormControl><Input placeholder="37405-1234567-8" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <FormField control={form.control} name="gender" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Gender</FormLabel>
                     <Select value={field.value || ''} onValueChange={field.onChange}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger></FormControl>
+                      <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select gender" /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="MALE">Male</SelectItem>
                         <SelectItem value="FEMALE">Female</SelectItem>
@@ -876,6 +945,74 @@ function StudentFormDialog({
                     <FormMessage />
                   </FormItem>
                 )} />
+                <FormField control={form.control} name="profilePicture" render={({ field }) => {
+                  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    
+                    setUploading(true)
+                    const formData = new FormData()
+                    formData.append('file', file)
+                    
+                    try {
+                      const res = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData,
+                      })
+                      if (!res.ok) throw new Error('Upload failed')
+                      const data = await res.json()
+                      field.onChange(data.url)
+                      toast.success('Profile picture uploaded successfully')
+                    } catch (err) {
+                      console.error(err)
+                      toast.error('Failed to upload image')
+                    } finally {
+                      setUploading(false)
+                    }
+                  }
+
+                  return (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>Profile Picture</FormLabel>
+                      <FormControl>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3 border rounded-lg bg-muted/20">
+                          <Avatar className="size-16 border">
+                            {field.value ? (
+                              <AvatarImage src={field.value} alt="Preview" className="object-cover" />
+                            ) : null}
+                            <AvatarFallback className="bg-primary/10 text-primary text-xl font-semibold">
+                              {form.getValues('name') ? form.getValues('name').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 space-y-1.5">
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              className="max-w-xs cursor-pointer text-xs"
+                              onChange={handleFileChange}
+                              disabled={uploading}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              {uploading ? 'Uploading picture...' : 'PNG, JPG or WEBP. Max 5MB.'}
+                            </p>
+                          </div>
+                          {field.value && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:bg-destructive/10"
+                              onClick={() => field.onChange('')}
+                            >
+                              Remove
+                            </Button>
+                          )}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )
+                }} />
               </div>
             </div>
 
@@ -884,7 +1021,7 @@ function StudentFormDialog({
             {/* Academic Section */}
             <div>
               <h3 className="text-sm font-semibold mb-3">Academic Information</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-5">
                 <FormField control={form.control} name="studentId" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Student ID *</FormLabel>
@@ -896,7 +1033,7 @@ function StudentFormDialog({
                   <FormItem>
                     <FormLabel>Program</FormLabel>
                     <Select value={field.value || 'BS'} onValueChange={field.onChange}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="BS">BS</SelectItem>
                         <SelectItem value="MS">MS</SelectItem>
@@ -910,7 +1047,7 @@ function StudentFormDialog({
                   <FormItem>
                     <FormLabel>Batch</FormLabel>
                     <Select value={field.value || ''} onValueChange={field.onChange}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Select batch" /></SelectTrigger></FormControl>
+                      <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select batch" /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="Batch-2023">2023</SelectItem>
                         <SelectItem value="Batch-2024">2024</SelectItem>
@@ -925,7 +1062,7 @@ function StudentFormDialog({
                   <FormItem>
                     <FormLabel>Current Semester</FormLabel>
                     <Select value={String(field.value || '1')} onValueChange={(v) => field.onChange(Number(v))}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
                           <SelectItem key={s} value={String(s)}>Semester {s}</SelectItem>
@@ -953,6 +1090,21 @@ function StudentFormDialog({
                     <FormMessage />
                   </FormItem>
                 )} />
+                <FormField control={form.control} name="section" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Section</FormLabel>
+                    <Select value={field.value || ''} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select section" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="Morning A">Morning A</SelectItem>
+                        <SelectItem value="Morning B">Morning B</SelectItem>
+                        <SelectItem value="Evening A">Evening A</SelectItem>
+                        <SelectItem value="Evening B">Evening B</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
               </div>
             </div>
 
@@ -961,17 +1113,17 @@ function StudentFormDialog({
             {/* Guardian Section */}
             <div>
               <h3 className="text-sm font-semibold mb-3">Guardian Information</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <FormField control={form.control} name="guardianName" render={({ field }) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-5">
+                <FormField control={form.control} name="fatherName" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Guardian Name</FormLabel>
-                    <FormControl><Input placeholder="Guardian full name" {...field} /></FormControl>
+                    <FormLabel>Father Name</FormLabel>
+                    <FormControl><Input placeholder="Father's full name" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="guardianPhone" render={({ field }) => (
+                <FormField control={form.control} name="fatherPhone" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Guardian Phone</FormLabel>
+                    <FormLabel>Father's Mobile Number</FormLabel>
                     <FormControl><Input placeholder="+92 300 1234567" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -993,6 +1145,31 @@ function StudentFormDialog({
               </div>
             </div>
 
+            <Separator />
+
+            {/* Account Credentials */}
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Account Credentials</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-5">
+                <FormField control={form.control} name="email" render={({ field }) => (
+                  <FormItem className={editingStudent ? "sm:col-span-2" : ""}>
+                    <FormLabel>Email *</FormLabel>
+                    <FormControl><Input type="email" placeholder="student@csdept.edu" {...field} disabled={!!editingStudent} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                {!editingStudent && (
+                  <FormField control={form.control} name="password" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password *</FormLabel>
+                      <FormControl><Input type="password" placeholder="Min. 6 characters" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                )}
+              </div>
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
                 Cancel
@@ -1004,6 +1181,7 @@ function StudentFormDialog({
             </DialogFooter>
           </form>
         </Form>
+        </div>
       </DialogContent>
     </Dialog>
   )
@@ -1024,6 +1202,8 @@ function StudentFormSheet({
   onSubmit: (values: FormValues) => void
   isSubmitting: boolean
 }) {
+  const [uploading, setUploading] = useState(false)
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[90vh]">
@@ -1038,7 +1218,7 @@ function StudentFormSheet({
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-4">
               <div>
                 <h3 className="text-sm font-semibold mb-3">Personal Information</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-5">
                   <FormField control={form.control} name="name" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Full Name *</FormLabel>
@@ -1046,22 +1226,6 @@ function StudentFormSheet({
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <FormField control={form.control} name="email" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email *</FormLabel>
-                      <FormControl><Input type="email" placeholder="student@csdept.edu" {...field} disabled={!!editingStudent} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  {!editingStudent && (
-                    <FormField control={form.control} name="password" render={({ field }) => (
-                      <FormItem className="sm:col-span-2">
-                        <FormLabel>Password *</FormLabel>
-                        <FormControl><Input type="password" placeholder="Min. 6 characters" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  )}
                   <FormField control={form.control} name="phone" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Phone</FormLabel>
@@ -1069,11 +1233,25 @@ function StudentFormSheet({
                       <FormMessage />
                     </FormItem>
                   )} />
+                  <FormField control={form.control} name="mobileNumber" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Student Mobile Number</FormLabel>
+                      <FormControl><Input placeholder="+92 300 1234567" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="cnic" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CNIC Number</FormLabel>
+                      <FormControl><Input placeholder="37405-1234567-8" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                   <FormField control={form.control} name="gender" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Gender</FormLabel>
                       <Select value={field.value || ''} onValueChange={field.onChange}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select gender" /></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value="MALE">Male</SelectItem>
                           <SelectItem value="FEMALE">Female</SelectItem>
@@ -1090,12 +1268,80 @@ function StudentFormSheet({
                       <FormMessage />
                     </FormItem>
                   )} />
+                  <FormField control={form.control} name="profilePicture" render={({ field }) => {
+                    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      
+                      setUploading(true)
+                      const formData = new FormData()
+                      formData.append('file', file)
+                      
+                      try {
+                        const res = await fetch('/api/upload', {
+                          method: 'POST',
+                          body: formData,
+                        })
+                        if (!res.ok) throw new Error('Upload failed')
+                        const data = await res.json()
+                        field.onChange(data.url)
+                        toast.success('Profile picture uploaded successfully')
+                      } catch (err) {
+                        console.error(err)
+                        toast.error('Failed to upload image')
+                      } finally {
+                        setUploading(false)
+                      }
+                    }
+
+                    return (
+                      <FormItem className="sm:col-span-2">
+                        <FormLabel>Profile Picture</FormLabel>
+                        <FormControl>
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3 border rounded-lg bg-muted/20">
+                            <Avatar className="size-16 border">
+                              {field.value ? (
+                                <AvatarImage src={field.value} alt="Preview" className="object-cover" />
+                              ) : null}
+                              <AvatarFallback className="bg-primary/10 text-primary text-xl font-semibold">
+                                {form.getValues('name') ? form.getValues('name').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 space-y-1.5">
+                              <Input
+                                type="file"
+                                accept="image/*"
+                                className="max-w-xs cursor-pointer text-xs"
+                                onChange={handleFileChange}
+                                disabled={uploading}
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                {uploading ? 'Uploading picture...' : 'PNG, JPG or WEBP. Max 5MB.'}
+                              </p>
+                            </div>
+                            {field.value && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="text-destructive hover:bg-destructive/10"
+                                onClick={() => field.onChange('')}
+                              >
+                                Remove
+                              </Button>
+                            )}
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }} />
                 </div>
               </div>
               <Separator />
               <div>
                 <h3 className="text-sm font-semibold mb-3">Academic Information</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-5">
                   <FormField control={form.control} name="studentId" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Student ID *</FormLabel>
@@ -1107,7 +1353,7 @@ function StudentFormSheet({
                     <FormItem>
                       <FormLabel>Program</FormLabel>
                       <Select value={field.value || 'BS'} onValueChange={field.onChange}>
-                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value="BS">BS</SelectItem>
                           <SelectItem value="MS">MS</SelectItem>
@@ -1121,7 +1367,7 @@ function StudentFormSheet({
                     <FormItem>
                       <FormLabel>Batch</FormLabel>
                       <Select value={field.value || ''} onValueChange={field.onChange}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select batch" /></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select batch" /></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value="Batch-2023">2023</SelectItem>
                           <SelectItem value="Batch-2024">2024</SelectItem>
@@ -1136,7 +1382,7 @@ function StudentFormSheet({
                     <FormItem>
                       <FormLabel>Current Semester</FormLabel>
                       <Select value={String(field.value || '1')} onValueChange={(v) => field.onChange(Number(v))}>
-                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
                         <SelectContent>
                           {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
                             <SelectItem key={s} value={String(s)}>Semester {s}</SelectItem>
@@ -1160,22 +1406,37 @@ function StudentFormSheet({
                       <FormMessage />
                     </FormItem>
                   )} />
+                  <FormField control={form.control} name="section" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Section</FormLabel>
+                      <Select value={field.value || ''} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select section" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="Morning A">Morning A</SelectItem>
+                          <SelectItem value="Morning B">Morning B</SelectItem>
+                          <SelectItem value="Evening A">Evening A</SelectItem>
+                          <SelectItem value="Evening B">Evening B</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                 </div>
               </div>
               <Separator />
               <div>
                 <h3 className="text-sm font-semibold mb-3">Guardian Information</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <FormField control={form.control} name="guardianName" render={({ field }) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-5">
+                  <FormField control={form.control} name="fatherName" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Guardian Name</FormLabel>
-                      <FormControl><Input placeholder="Guardian full name" {...field} /></FormControl>
+                      <FormLabel>Father Name</FormLabel>
+                      <FormControl><Input placeholder="Father's full name" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <FormField control={form.control} name="guardianPhone" render={({ field }) => (
+                  <FormField control={form.control} name="fatherPhone" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Guardian Phone</FormLabel>
+                      <FormLabel>Father's Mobile Number</FormLabel>
                       <FormControl><Input placeholder="+92 300 1234567" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -1194,6 +1455,29 @@ function StudentFormSheet({
                       <FormMessage />
                     </FormItem>
                   )} />
+                </div>
+              </div>
+              <Separator />
+              {/* Account Credentials */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3">Account Credentials</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-5">
+                  <FormField control={form.control} name="email" render={({ field }) => (
+                    <FormItem className={editingStudent ? "sm:col-span-2" : ""}>
+                      <FormLabel>Email *</FormLabel>
+                      <FormControl><Input type="email" placeholder="student@csdept.edu" {...field} disabled={!!editingStudent} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  {!editingStudent && (
+                    <FormField control={form.control} name="password" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password *</FormLabel>
+                        <FormControl><Input type="password" placeholder="Min. 6 characters" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  )}
                 </div>
               </div>
               <div className="flex gap-2 pt-2">
@@ -1240,6 +1524,9 @@ function StudentDetailPanel({ student }: { student: StudentDetail }) {
         </SheetHeader>
         <div className="flex items-start gap-3">
           <Avatar className="size-12">
+            {student.profilePicture && (
+              <AvatarImage src={student.profilePicture} alt={student.user.name} className="object-cover" />
+            )}
             <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
               {initials}
             </AvatarFallback>
@@ -1250,7 +1537,10 @@ function StudentDetailPanel({ student }: { student: StudentDetail }) {
               {statusBadge}
             </div>
             <p className="text-sm text-muted-foreground font-mono">{student.studentId}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{student.department.name} &middot; {student.program} &middot; Batch {student.batch?.replace('Batch-', '') || 'N/A'}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {student.department.name} &middot; {student.program} &middot; Batch {student.batch?.replace('Batch-', '') || 'N/A'}
+              {student.section && ` &middot; Section: ${student.section}`}
+            </p>
           </div>
         </div>
       </div>
@@ -1313,6 +1603,7 @@ function ProfileTab({ student }: { student: StudentDetail }) {
         <Section title="Contact Information">
           <InfoRow icon={<Mail className="size-4" />} label="Email" value={student.user.email} />
           <InfoRow icon={<Phone className="size-4" />} label="Phone" value={student.user.phone || 'Not provided'} />
+          {student.mobileNumber && <InfoRow icon={<Phone className="size-4" />} label="Student Mobile" value={student.mobileNumber} />}
           <InfoRow icon={<MapPin className="size-4" />} label="Address" value={student.address || 'Not provided'} />
         </Section>
 
@@ -1321,16 +1612,18 @@ function ProfileTab({ student }: { student: StudentDetail }) {
           <InfoRow icon={<Calendar className="size-4" />} label="Batch" value={student.batch?.replace('Batch-', '') || 'N/A'} />
           <InfoRow icon={<Shield className="size-4" />} label="Student ID" value={student.studentId} />
           <InfoRow icon={<Calendar className="size-4" />} label="Enrollment Year" value={String(student.enrollmentYear)} />
+          {student.section && <InfoRow icon={<Users className="size-4" />} label="Section" value={student.section} />}
         </Section>
 
         <Section title="Personal Details">
           <InfoRow icon={<Users className="size-4" />} label="Gender" value={student.gender || 'Not specified'} />
           <InfoRow icon={<Calendar className="size-4" />} label="Date of Birth" value={student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString() : 'Not specified'} />
+          {student.cnic && <InfoRow icon={<Shield className="size-4" />} label="CNIC Number" value={student.cnic} />}
         </Section>
 
-        <Section title="Guardian Information">
-          <InfoRow icon={<Users className="size-4" />} label="Guardian Name" value={student.guardianName || 'Not provided'} />
-          <InfoRow icon={<Phone className="size-4" />} label="Guardian Phone" value={student.guardianPhone || 'Not provided'} />
+        <Section title="Guardian & Parent Information">
+          {student.fatherName && <InfoRow icon={<Users className="size-4" />} label="Father Name" value={student.fatherName} />}
+          {student.fatherPhone && <InfoRow icon={<Phone className="size-4" />} label="Father Phone" value={student.fatherPhone} />}
           <InfoRow icon={<Phone className="size-4" />} label="Emergency Contact" value={student.emergencyContact || 'Not provided'} />
         </Section>
       </div>

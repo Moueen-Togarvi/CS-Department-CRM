@@ -17,6 +17,13 @@ export const createStudentSchema = z.object({
   guardianName: z.string().optional(),
   guardianPhone: z.string().optional(),
   emergencyContact: z.string().optional(),
+  profilePicture: z.string().optional(),
+  fatherName: z.string().optional(),
+  cnic: z.string().optional(),
+  mobileNumber: z.string().optional(),
+  fatherPhone: z.string().optional(),
+  session: z.string().optional(),
+  section: z.string().optional(),
 })
 
 export type CreateStudentInput = z.infer<typeof createStudentSchema>
@@ -34,6 +41,13 @@ export const updateStudentSchema = z.object({
   guardianName: z.string().optional(),
   guardianPhone: z.string().optional(),
   emergencyContact: z.string().optional(),
+  profilePicture: z.string().optional(),
+  fatherName: z.string().optional(),
+  cnic: z.string().optional(),
+  mobileNumber: z.string().optional(),
+  fatherPhone: z.string().optional(),
+  session: z.string().optional(),
+  section: z.string().optional(),
 })
 
 export type UpdateStudentInput = z.infer<typeof updateStudentSchema>

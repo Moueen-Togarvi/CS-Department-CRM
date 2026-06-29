@@ -49,6 +49,13 @@ export async function POST(request: NextRequest) {
         const program = row.program || 'BS'
         const guardianName = row.guardianname || row.guardian_name || row.guardian || ''
         const guardianPhone = row.guardianphone || row.guardian_phone || row.phone || ''
+        const profilePicture = row.profilepicture || row.profile_picture || row.picture || row.pic || row.avatar || ''
+        const fatherName = row.fathername || row.father_name || ''
+        const cnic = row.cnic || row.cnic_number || row.cnicnumber || ''
+        const mobileNumber = row.mobilenumber || row.mobile_number || row.mobile || row.student_mobile || ''
+        const fatherPhone = row.fatherphone || row.father_phone || row.father_mobile || ''
+        const session = row.session || ''
+        const section = row.section || ''
 
         // Validation
         if (!studentId) {
@@ -91,7 +98,7 @@ export async function POST(request: NextRequest) {
               password: hashedPassword,
               name,
               role: 'STUDENT',
-              phone: guardianPhone || null,
+              phone: mobileNumber || guardianPhone || null,
             },
           })
 
@@ -107,6 +114,13 @@ export async function POST(request: NextRequest) {
               gender: gender || null,
               guardianName: guardianName || null,
               guardianPhone: guardianPhone || null,
+              profilePicture: profilePicture || null,
+              fatherName: fatherName || null,
+              cnic: cnic || null,
+              mobileNumber: mobileNumber || null,
+              fatherPhone: fatherPhone || null,
+              session: session || null,
+              section: section || null,
             },
           })
         })

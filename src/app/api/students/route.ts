@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
     const batch = searchParams.get('batch') || undefined
     const semester = searchParams.get('semester') || undefined
     const status = searchParams.get('status') || undefined
+    const section = searchParams.get('section') || undefined
+    const session = searchParams.get('session') || undefined
 
     const where: Prisma.StudentWhereInput = {
       status: { not: 'INACTIVE' },
@@ -27,16 +29,24 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    if (batch) {
+    if (batch && batch !== 'all') {
       where.batch = batch
     }
 
-    if (semester) {
+    if (semester && semester !== 'all') {
       where.currentSemester = parseInt(semester)
     }
 
-    if (status) {
+    if (status && status !== 'all') {
       where.status = status
+    }
+
+    if (section && section !== 'all') {
+      where.section = section
+    }
+
+    if (session && session !== 'all') {
+      where.session = session
     }
 
     const orderBy: Prisma.StudentOrderByWithRelationInput = {}
@@ -89,6 +99,7 @@ export async function GET(request: NextRequest) {
       gender: s.gender,
       department: s.department,
       isActive: s.user.isActive,
+      profilePicture: s.profilePicture,
       createdAt: s.createdAt,
       updatedAt: s.updatedAt,
     }))
@@ -158,6 +169,13 @@ export async function POST(request: NextRequest) {
           guardianName: data.guardianName || null,
           guardianPhone: data.guardianPhone || null,
           emergencyContact: data.emergencyContact || null,
+          profilePicture: data.profilePicture || null,
+          fatherName: data.fatherName || null,
+          cnic: data.cnic || null,
+          mobileNumber: data.mobileNumber || null,
+          fatherPhone: data.fatherPhone || null,
+          session: data.session || null,
+          section: data.section || null,
         },
         include: {
           user: {

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { parsePaginationParams, skipTake } from "@/lib/pagination";
 import { paginatedResponse, errorResponse, successResponse } from "@/lib/api-response";
-import { requireRole } from "@/lib/auth";
+import { requireRole, requireAuth } from "@/lib/auth";
 import { createFacultySchema } from "@/lib/validators/faculty";
 import bcrypt from "bcryptjs";
 

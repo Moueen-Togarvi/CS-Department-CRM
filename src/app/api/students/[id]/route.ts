@@ -176,6 +176,27 @@ export async function PUT(
     if (data.emergencyContact !== undefined) {
       studentUpdateData.emergencyContact = data.emergencyContact
     }
+    if (data.profilePicture !== undefined) {
+      studentUpdateData.profilePicture = data.profilePicture
+    }
+    if (data.fatherName !== undefined) {
+      studentUpdateData.fatherName = data.fatherName
+    }
+    if (data.cnic !== undefined) {
+      studentUpdateData.cnic = data.cnic
+    }
+    if (data.mobileNumber !== undefined) {
+      studentUpdateData.mobileNumber = data.mobileNumber
+    }
+    if (data.fatherPhone !== undefined) {
+      studentUpdateData.fatherPhone = data.fatherPhone
+    }
+    if (data.session !== undefined) {
+      studentUpdateData.session = data.session
+    }
+    if (data.section !== undefined) {
+      studentUpdateData.section = data.section
+    }
 
     const student = await db.$transaction(async (tx) => {
       if (Object.keys(userUpdateData).length > 0) {
