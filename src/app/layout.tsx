@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   keywords: ["CS Department", "University", "Management System", "Education"],
   authors: [{ name: "CS Department" }],
   manifest: "/manifest.json",
-  appleMobileWebApp: {
+  appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "CS Dept",

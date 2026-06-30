@@ -1,5 +1,7 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { promises as fs } from 'fs'
+import path from 'path'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,11 +43,67 @@ export async function GET() {
       bySemester[String(item.currentSemester)] = item._count
     }
 
-    const bySemesterSection = bySemesterSectionRaw.map((item) => ({
-      semester: item.currentSemester,
-      section: item.section || 'Unassigned',
-      count: item._count,
-    }))
+    const filePath = path.join(process.cwd(), 'data', 'class-rooms.json')
+    let fileMappings: Record<string, { roomId?: string; roomName?: string; floor?: number | null }> = {}
+    try {
+      const fileData = await fs.readFile(filePath, 'utf-8')
+      fileMappings = JSON.parse(fileData)
+    } catch (e) {
+      // Ignore if file doesn't exist
+    }
+
+    const bySemesterSection = await Promise.all(
+      bySemesterSectionRaw.map(async (item) => {
+        const semester = item.currentSemester
+        const section = item.section || 'Unassigned'
+        const key = `${semester}-${section}`
+        const customMapping = fileMappings[key]
+
+        let roomName = 'N/A'
+        let floor: number | null = null
+        let building: string | null = null
+        let shift = 'Morning'
+
+        if (section.toLowerCase().includes('evening')) {
+          shift = 'Evening'
+        } else if (section.toLowerCase().includes('morning')) {
+          shift = 'Morning'
+        }
+
+        if (customMapping) {
+          roomName = customMapping.roomName || 'N/A'
+          floor = customMapping.floor !== undefined ? customMapping.floor : null
+        } else if (section !== 'Unassigned') {
+          const timetableEntry = await db.timetable.findFirst({
+            where: {
+              section: section,
+              course: {
+                semesterOffered: semester,
+              },
+            },
+            include: {
+              room: true,
+            },
+          })
+
+          if (timetableEntry?.room) {
+            roomName = timetableEntry.room.name
+            floor = timetableEntry.room.floor
+            building = timetableEntry.room.building
+          }
+        }
+
+        return {
+          semester,
+          section,
+          count: item._count,
+          room: roomName,
+          floor: floor,
+          building: building,
+          shift: shift,
+        }
+      })
+    )
 
     return successResponse({ total, active, byBatch, bySemester, bySemesterSection })
   } catch (error) {
