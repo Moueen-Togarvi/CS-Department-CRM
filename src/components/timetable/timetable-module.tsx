@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   CalendarDays,
@@ -35,6 +35,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -81,11 +83,12 @@ interface CourseItem {
   code: string
   name: string
   courseType: string
+  semesterOffered?: number | null
 }
 
 interface GridSlot {
   id: string
-  course: { id: string; code: string; name: string; courseType: string }
+  course: { id: string; code: string; name: string; courseType: string; semesterOffered?: number | null }
   faculty: { id: string; name: string; designation: string }
   room: { id: string; name: string; building: string }
   section: string
@@ -161,7 +164,9 @@ export function TimetableModule() {
   const isAdmin = user?.role === 'ADMIN'
 
   const [selectedSemester, setSelectedSemester] = useState<string>('')
-  const [selectedSection, setSelectedSection] = useState<string>('')
+  const [selectedAcademicSemester, setSelectedAcademicSemester] = useState<string>('1')
+  const [selectedShift, setSelectedShift] = useState<string>('Morning')
+  const [selectedSection, setSelectedSection] = useState<string>('Morning')
   const [selectedFaculty, setSelectedFaculty] = useState<string>('')
   const [selectedRoom, setSelectedRoom] = useState<string>('')
   const [viewMode, setViewMode] = useState<ViewMode>('section')
@@ -173,13 +178,36 @@ export function TimetableModule() {
   const [formCourseId, setFormCourseId] = useState('')
   const [formFacultyId, setFormFacultyId] = useState('')
   const [formRoomId, setFormRoomId] = useState('')
-  const [formSection, setFormSection] = useState('A')
+  const [formShift, setFormShift] = useState('Morning')
+  const [formSection, setFormSection] = useState('Morning')
   const [formDay, setFormDay] = useState('MONDAY')
   const [formStartTime, setFormStartTime] = useState('09:00')
   const [formEndTime, setFormEndTime] = useState('10:00')
   const [formSlotType, setFormSlotType] = useState('THEORY')
   const [conflictWarning, setConflictWarning] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+
+  // Enforce Section filter changes when Shift filter changes
+  useEffect(() => {
+    if (selectedShift === 'Morning') {
+      setSelectedSection('Morning')
+    } else if (selectedShift === 'Evening') {
+      if (selectedSection !== 'Evening A' && selectedSection !== 'Evening B') {
+        setSelectedSection('Evening A')
+      }
+    }
+  }, [selectedShift])
+
+  // Enforce Form Section changes when Form Shift changes
+  useEffect(() => {
+    if (formShift === 'Morning') {
+      setFormSection('Morning')
+    } else if (formShift === 'Evening') {
+      if (formSection !== 'Evening A' && formSection !== 'Evening B') {
+        setFormSection('Evening A')
+      }
+    }
+  }, [formShift])
 
   // ---- Queries ----
   const { data: semesters } = useQuery({
@@ -217,41 +245,59 @@ export function TimetableModule() {
         code: c.code,
         name: c.name,
         courseType: c.courseType,
+        semesterOffered: c.semesterOffered,
       } as CourseItem))
     ),
   })
 
+  // Group courses by semesterOffered
+  const groupedCourses = useMemo(() => {
+    if (!allCourses) return {}
+    const groups: Record<string, CourseItem[]> = {}
+    for (const c of allCourses) {
+      const sem = c.semesterOffered ? `Semester ${c.semesterOffered}` : 'General / Other'
+      if (!groups[sem]) groups[sem] = []
+      groups[sem].push(c)
+    }
+    return groups
+  }, [allCourses])
+
+  // Filter courses by selected academic semester
+  const filteredCourses = useMemo(() => {
+    if (!allCourses) return []
+    const targetSem = parseInt(selectedAcademicSemester, 10)
+    if (isNaN(targetSem)) return allCourses
+    return allCourses.filter((c) => c.semesterOffered === targetSem)
+  }, [allCourses, selectedAcademicSemester])
+
   // Weekly grid
-  const effectiveSection = selectedSection && selectedSection !== '__all__' ? selectedSection : undefined
-  const effectiveFaculty = selectedFaculty && selectedFaculty !== '__all__' ? selectedFaculty : undefined
-  const effectiveRoom = selectedRoom && selectedRoom !== '__all__' ? selectedRoom : undefined
+  const effectiveSection = viewMode === 'section' ? selectedSection : undefined
+  const effectiveFaculty = viewMode === 'faculty' && selectedFaculty && selectedFaculty !== '__all__' ? selectedFaculty : undefined
+  const effectiveRoom = viewMode === 'room' && selectedRoom && selectedRoom !== '__all__' ? selectedRoom : undefined
+  const effectiveAcademicSemester = viewMode === 'section' ? selectedAcademicSemester : undefined
 
   const { data: weeklyData, isLoading: isLoadingGrid } = useQuery({
-    queryKey: ['timetable-weekly', currentSemester, effectiveSection, viewMode, effectiveFaculty, effectiveRoom],
+    queryKey: ['timetable-weekly', currentSemester, effectiveSection, viewMode, effectiveFaculty, effectiveRoom, effectiveAcademicSemester],
     queryFn: async () => {
       const params = new URLSearchParams({ semesterId: currentSemester })
-      if (effectiveSection) params.set('section', effectiveSection)
-      if (viewMode === 'faculty' && effectiveFaculty) params.set('facultyId', effectiveFaculty)
-      if (viewMode === 'room' && effectiveRoom) params.set('roomId', effectiveRoom)
+      if (effectiveSection && effectiveSection !== '__all__') {
+        params.set('section', effectiveSection)
+      }
+      if (effectiveAcademicSemester && effectiveAcademicSemester !== '__all__') {
+        params.set('academicSemester', effectiveAcademicSemester)
+      }
+      if (viewMode === 'faculty' && effectiveFaculty) {
+        params.set('facultyId', effectiveFaculty)
+      }
+      if (viewMode === 'room' && effectiveRoom) {
+        params.set('roomId', effectiveRoom)
+      }
       const res = await fetch('/api/timetable/weekly?' + params.toString())
       const json = await res.json()
       return json.data as WeeklyData
     },
     enabled: !!currentSemester,
   })
-
-  const sections = useMemo(() => {
-    if (!weeklyData) return []
-    const set = new Set<string>()
-    for (const day of weeklyData.days) {
-      for (const ts of weeklyData.timeSlots) {
-        for (const s of (weeklyData.grid[day]?.[ts] || [])) {
-          if (s.section) set.add(s.section)
-        }
-      }
-    }
-    return Array.from(set).sort()
-  }, [weeklyData])
 
   // ---- Mutations ----
   const createMutation = useMutation({
@@ -317,10 +363,53 @@ export function TimetableModule() {
     setFormCourseId('')
     setFormFacultyId('')
     setFormRoomId('')
-    setFormSection('A')
+    setFormSection('Morning')
+    setFormShift('Morning')
     setFormDay('MONDAY')
     setFormStartTime('09:00')
     setFormEndTime('10:00')
+    setFormSlotType('THEORY')
+    setShowCreateDialog(true)
+  }
+
+  function openCreateDialogForSlot(day: string, startTime: string) {
+    if (!isAdmin) return
+    setEditingSlot(null)
+    setConflictWarning(null)
+    setFormCourseId('')
+    
+    // Auto select room if filter views have room selected
+    if (viewMode === 'room' && effectiveRoom) {
+      setFormRoomId(effectiveRoom)
+    } else {
+      setFormRoomId('')
+    }
+    
+    // Auto select faculty if filter views have faculty selected
+    if (viewMode === 'faculty' && effectiveFaculty) {
+      setFormFacultyId(effectiveFaculty)
+    } else {
+      setFormFacultyId('')
+    }
+
+    // Auto select section if section is filtered
+    if (effectiveSection) {
+      setFormSection(effectiveSection)
+      const derivedShift = effectiveSection.startsWith('Evening') ? 'Evening' : 'Morning'
+      setFormShift(derivedShift)
+    } else {
+      setFormSection('Morning')
+      setFormShift('Morning')
+    }
+
+    setFormDay(day)
+    setFormStartTime(startTime)
+    
+    // Calculate end time (1 hour later)
+    const tsIdx = TIME_SLOTS.indexOf(startTime)
+    const nextTime = tsIdx !== -1 && tsIdx < TIME_SLOTS.length - 1 ? TIME_SLOTS[tsIdx + 1] : '17:00'
+    setFormEndTime(nextTime)
+    
     setFormSlotType('THEORY')
     setShowCreateDialog(true)
   }
@@ -332,6 +421,14 @@ export function TimetableModule() {
     setFormFacultyId(slot.facultyId)
     setFormRoomId(slot.roomId)
     setFormSection(slot.section)
+    const sectionVal = slot.section || ''
+    let derivedShift = ''
+    if (sectionVal.startsWith('Evening')) {
+      derivedShift = 'Evening'
+    } else if (sectionVal.startsWith('Morning') || sectionVal === 'Morning') {
+      derivedShift = 'Morning'
+    }
+    setFormShift(derivedShift)
     setFormDay(slot.day)
     setFormStartTime(slot.startTime)
     setFormEndTime(slot.endTime)
@@ -393,14 +490,6 @@ export function TimetableModule() {
       <PageHeader
         title="Timetable"
         description="View and manage class schedules"
-        actions={
-          isAdmin && (
-            <Button onClick={openCreateDialog} size="sm">
-              <Plus className="size-4 mr-1.5" />
-              Add Slot
-            </Button>
-          )
-        }
       />
 
       {/* Filters */}
@@ -408,9 +497,9 @@ export function TimetableModule() {
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Semester</Label>
+              <Label className="text-xs font-medium text-muted-foreground">Session</Label>
               <Select value={selectedSemester || currentSemester} onValueChange={(v) => setSelectedSemester(v === '__none__' ? '' : v)}>
-                <SelectTrigger className="w-[180px] h-9">
+                <SelectTrigger className="w-[150px] h-9">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -423,21 +512,60 @@ export function TimetableModule() {
               </Select>
             </div>
 
-            {sections.length > 1 && (
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs font-medium text-muted-foreground">Section</Label>
-                <Select value={selectedSection || '__all__'} onValueChange={setSelectedSection}>
-                  <SelectTrigger className="w-[110px] h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">All</SelectItem>
-                    {sections.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            {viewMode === 'section' && (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">Semester</Label>
+                  <Select value={selectedAcademicSemester} onValueChange={setSelectedAcademicSemester}>
+                    <SelectTrigger className="w-[130px] h-9">
+                      <SelectValue placeholder="Semester" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1st Semester</SelectItem>
+                      <SelectItem value="2">2nd Semester</SelectItem>
+                      <SelectItem value="3">3rd Semester</SelectItem>
+                      <SelectItem value="4">4th Semester</SelectItem>
+                      <SelectItem value="5">5th Semester</SelectItem>
+                      <SelectItem value="6">6th Semester</SelectItem>
+                      <SelectItem value="7">7th Semester</SelectItem>
+                      <SelectItem value="8">8th Semester</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">Shift</Label>
+                  <Select value={selectedShift} onValueChange={setSelectedShift}>
+                    <SelectTrigger className="w-[110px] h-9">
+                      <SelectValue placeholder="Shift" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Morning">Morning</SelectItem>
+                      <SelectItem value="Evening">Evening</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">Section</Label>
+                  <Select value={selectedSection} onValueChange={setSelectedSection}>
+                    <SelectTrigger className="w-[120px] h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectedShift === 'Morning' && (
+                        <SelectItem value="Morning">Morning</SelectItem>
+                      )}
+                      {selectedShift === 'Evening' && (
+                        <>
+                          <SelectItem value="Evening A">Evening A</SelectItem>
+                          <SelectItem value="Evening B">Evening B</SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
             )}
 
             <div className="flex flex-col gap-1.5">
@@ -561,12 +689,20 @@ export function TimetableModule() {
                     return weeklyData.timeSlots.map((ts, tsIdx) => (
                       <div
                         key={`${day}-${ts}`}
-                        className="border-b border-r last:border-r-0 hover:bg-muted/10 transition-colors"
+                        className={cn(
+                          "border-b border-r last:border-r-0 hover:bg-muted/10 transition-colors flex items-center justify-center group",
+                          isAdmin && "cursor-pointer"
+                        )}
                         style={{
                           gridColumn: `${dayIdx + 2}`,
                           gridRow: `${tsIdx + 1}`,
                         }}
-                      />
+                        onClick={() => openCreateDialogForSlot(day, ts)}
+                      >
+                        {isAdmin && (
+                          <Plus className="size-4 text-muted-foreground/0 group-hover:text-muted-foreground/40 transition-colors" />
+                        )}
+                      </div>
                     ))
                   })}
 
@@ -589,8 +725,22 @@ export function TimetableModule() {
                         }}
                         onClick={() => {
                           if (isAdmin) {
-                            // Find full slot from list for editing
-                            toast.info(`${slot.course.code} - Click edit in list below`)
+                            const fakeSlot: any = {
+                              id: slot.id,
+                              courseId: slot.course.id,
+                              course: slot.course,
+                              facultyId: slot.faculty.id,
+                              faculty: { id: slot.faculty.id, facultyId: '', name: slot.faculty.name, designation: slot.faculty.designation },
+                              semesterId: currentSemester,
+                              roomId: slot.room.id,
+                              room: slot.room,
+                              section: slot.section,
+                              day: weeklyData.days[slot._dayIdx!],
+                              startTime: slot.startTime,
+                              endTime: slot.endTime,
+                              slotType: slot.slotType,
+                            }
+                            openEditDialog(fakeSlot)
                           }
                         }}
                       >
@@ -701,6 +851,7 @@ export function TimetableModule() {
       <SlotList
         semesterId={currentSemester}
         section={effectiveSection}
+        academicSemester={effectiveAcademicSemester}
         onEdit={openEditDialog}
         onDelete={(s) => setDeletingSlot(s)}
         isAdmin={isAdmin}
@@ -708,14 +859,18 @@ export function TimetableModule() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={(o) => !o && closeDialog()}>
-        <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingSlot ? 'Edit Slot' : 'Add Timetable Slot'}</DialogTitle>
+        <DialogContent className="sm:max-w-[420px] max-h-[90vh] overflow-y-auto p-5 gap-4">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="text-base font-semibold">
+              {editingSlot 
+                ? `Edit Slot: ${editingSlot.course?.code}` 
+                : `Add Slot — ${DAY_FULL[formDay]}, ${formStartTime}–${formEndTime}`}
+            </DialogTitle>
           </DialogHeader>
 
           {conflictWarning && (
-            <div className="flex items-start gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-              <AlertTriangle className="size-4 mt-0.5 shrink-0" />
+            <div className="flex items-start gap-2 p-2.5 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-[13px] leading-tight">
+              <AlertTriangle className="size-4 shrink-0" />
               <span className="flex-1">{conflictWarning}</span>
               <button onClick={() => setConflictWarning(null)} className="shrink-0"><X className="size-3.5" /></button>
             </div>
@@ -723,21 +878,28 @@ export function TimetableModule() {
 
           <div className="grid gap-3.5 py-1">
             <div className="grid gap-1.5">
-              <Label className="text-sm">Course *</Label>
+              <Label className="text-xs font-semibold">Course *</Label>
               <Select value={formCourseId} onValueChange={setFormCourseId}>
-                <SelectTrigger><SelectValue placeholder="Select course" /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Select course" /></SelectTrigger>
                 <SelectContent>
-                  {allCourses?.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
+                  {filteredCourses.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.code} — {c.name}
+                    </SelectItem>
                   ))}
+                  {filteredCourses.length === 0 && (
+                    <SelectItem value="__none__" disabled className="text-muted-foreground text-xs text-center py-2">
+                      No courses found for Semester {selectedAcademicSemester}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid gap-1.5">
-              <Label className="text-sm">Faculty *</Label>
+              <Label className="text-xs font-semibold">Faculty *</Label>
               <Select value={formFacultyId} onValueChange={setFormFacultyId}>
-                <SelectTrigger><SelectValue placeholder="Select faculty" /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Select faculty" /></SelectTrigger>
                 <SelectContent>
                   {facultyList?.map((f) => (
                     <SelectItem key={f.id} value={f.id}>{f.name} ({f.designation})</SelectItem>
@@ -747,68 +909,39 @@ export function TimetableModule() {
             </div>
 
             <div className="grid gap-1.5">
-              <Label className="text-sm">Room *</Label>
+              <Label className="text-xs font-semibold">Room *</Label>
               <Select value={formRoomId} onValueChange={setFormRoomId}>
-                <SelectTrigger><SelectValue placeholder="Select room" /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Select room" /></SelectTrigger>
                 <SelectContent>
                   {rooms?.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>{r.name} — {r.building} (Cap: {r.capacity})</SelectItem>
+                    <SelectItem key={r.id} value={r.id}>{r.name} — {r.building}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="grid gap-1.5">
-              <Label className="text-sm">Day *</Label>
-              <Select value={formDay} onValueChange={setFormDay}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {DAYS.map((d) => (
-                    <SelectItem key={d} value={d}>{DAY_FULL[d]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3.5">
               <div className="grid gap-1.5">
-                <Label className="text-sm">Start *</Label>
-                <Select value={formStartTime} onValueChange={setFormStartTime}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Label className="text-xs font-semibold">Day *</Label>
+                <Select value={formDay} onValueChange={setFormDay}>
+                  <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {TIME_SLOTS.map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    {DAYS.map((d) => (
+                      <SelectItem key={d} value={d}>{DAY_FULL[d]}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-1.5">
-                <Label className="text-sm">End *</Label>
-                <Select value={formEndTime} onValueChange={setFormEndTime}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {TIME_SLOTS.filter((t) => t > formStartTime).map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label className="text-sm">Section</Label>
-                <Input value={formSection} onChange={(e) => setFormSection(e.target.value)} placeholder="A" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label className="text-sm">Slot Type</Label>
+                <Label className="text-xs font-semibold">Slot Type</Label>
                 <Select value={formSlotType} onValueChange={setFormSlotType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {SLOT_TYPE_OPTIONS.map((t) => (
                       <SelectItem key={t} value={t}>
                         <div className="flex items-center gap-2">
-                          <div className={cn('w-2.5 h-2.5 rounded-sm', SLOT_TYPE_DOT[t])} />
+                          <div className={cn('w-2 h-2 rounded-sm', SLOT_TYPE_DOT[t])} />
                           {t}
                         </div>
                       </SelectItem>
@@ -817,11 +950,37 @@ export function TimetableModule() {
                 </Select>
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Start *</Label>
+                <Select value={formStartTime} onValueChange={setFormStartTime}>
+                  <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {TIME_SLOTS.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">End *</Label>
+                <Select value={formEndTime} onValueChange={setFormEndTime}>
+                  <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {TIME_SLOTS.filter((t) => t > formStartTime).map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>Cancel</Button>
-            <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>
+          <DialogFooter className="mt-2">
+            <Button variant="outline" size="sm" onClick={closeDialog}>Cancel</Button>
+            <Button size="sm" onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>
               {createMutation.isPending || updateMutation.isPending ? 'Saving...' : editingSlot ? 'Update' : 'Create'}
             </Button>
           </DialogFooter>
@@ -861,21 +1020,24 @@ export function TimetableModule() {
 function SlotList({
   semesterId,
   section,
+  academicSemester,
   onEdit,
   onDelete,
   isAdmin,
 }: {
   semesterId: string
   section: string | undefined
+  academicSemester: string | undefined
   onEdit: (slot: TimetableSlot) => void
   onDelete: (slot: TimetableSlot) => void
   isAdmin: boolean
 }) {
   const { data, isLoading } = useQuery({
-    queryKey: ['timetable-list', semesterId, section],
+    queryKey: ['timetable-list', semesterId, section, academicSemester],
     queryFn: async () => {
       const params = new URLSearchParams({ semesterId, limit: '100', sort: 'day', order: 'asc' })
       if (section) params.set('section', section)
+      if (academicSemester) params.set('academicSemester', academicSemester)
       const res = await fetch('/api/timetable?' + params.toString())
       return res.json()
     },

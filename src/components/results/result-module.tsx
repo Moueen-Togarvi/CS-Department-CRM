@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   BarChart3,
@@ -213,6 +213,7 @@ function CourseResultsTab() {
   const queryClient = useQueryClient()
   const [selectedCourse, setSelectedCourse] = useState<string>('')
   const [selectedSemester, setSelectedSemester] = useState<string>('')
+  const [selectedAcademicSemester, setSelectedAcademicSemester] = useState<string>('1')
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
   // Tracks only user modifications to marks fields
   const [dirtyEdits, setDirtyEdits] = useState<Record<string, Record<string, string | number>>>({})
@@ -223,7 +224,7 @@ function CourseResultsTab() {
     queryFn: async () => {
       const res = await fetch('/api/courses?limit=100')
       const json = await res.json()
-      return (json.data || []) as Array<{ id: string; code: string; name: string }>
+      return (json.data || []) as Array<{ id: string; code: string; name: string; semesterOffered?: number | null }>
     },
   })
 
@@ -236,6 +237,33 @@ function CourseResultsTab() {
       return (json.data || []) as Array<{ id: string; name: string; isCurrent: boolean }>
     },
   })
+
+  // Filter courses by selected academic semester
+  const filteredCourses = useMemo(() => {
+    if (!courses) return []
+    const targetSem = parseInt(selectedAcademicSemester, 10)
+    return courses.filter((c) => c.semesterOffered === targetSem)
+  }, [courses, selectedAcademicSemester])
+
+  // Reset course selection if it is no longer in the filtered list
+  useEffect(() => {
+    if (selectedCourse) {
+      const exists = filteredCourses.some((c) => c.id === selectedCourse)
+      if (!exists) {
+        setSelectedCourse('')
+      }
+    }
+  }, [filteredCourses, selectedCourse])
+
+  // Default selected semester to current semester
+  useEffect(() => {
+    if (semesters && semesters.length > 0 && !selectedSemester) {
+      const current = semesters.find((s) => s.isCurrent) || semesters[0]
+      if (current) {
+        setSelectedSemester(current.id)
+      }
+    }
+  }, [semesters, selectedSemester])
 
   // Fetch entry data
   const { data: entryData, isLoading: entryLoading } = useQuery({
@@ -382,25 +410,16 @@ function CourseResultsTab() {
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1 space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Course</label>
-              <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+              <label className="text-xs font-medium text-muted-foreground">Session</label>
+              <Select
+                value={selectedSemester}
+                onValueChange={(v) => {
+                  setSelectedSemester(v)
+                  setSelectedCourse('')
+                }}
+              >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select course" />
-                </SelectTrigger>
-                <SelectContent>
-                  {courses?.map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.code} — {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex-1 space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Semester</label>
-              <Select value={selectedSemester} onValueChange={setSelectedSemester}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select semester" />
+                  <SelectValue placeholder="Select session" />
                 </SelectTrigger>
                 <SelectContent>
                   {semesters?.map(s => (
@@ -408,6 +427,41 @@ function CourseResultsTab() {
                       {s.name} {s.isCurrent && '(Current)'}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Semester</label>
+              <Select value={selectedAcademicSemester} onValueChange={setSelectedAcademicSemester}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                    <SelectItem key={num} value={String(num)}>
+                      Semester {num}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Course</label>
+              <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select course" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredCourses.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.code} — {c.name}
+                    </SelectItem>
+                  ))}
+                  {filteredCourses.length === 0 && (
+                    <SelectItem value="__none__" disabled className="text-muted-foreground text-xs text-center py-2">
+                      No courses found for Semester {selectedAcademicSemester}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -802,6 +856,16 @@ function ReportsTab() {
       return (json.data || []) as Array<{ id: string; name: string; isCurrent: boolean }>
     },
   })
+
+  // Default selected semester to current semester
+  useEffect(() => {
+    if (semesters && semesters.length > 0 && !selectedSemester) {
+      const current = semesters.find((s) => s.isCurrent) || semesters[0]
+      if (current) {
+        setSelectedSemester(current.id)
+      }
+    }
+  }, [semesters, selectedSemester])
 
   // Fetch reports
   const { data: reports, isLoading: reportsLoading } = useQuery({

@@ -42,7 +42,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (section && section !== 'all') {
-      where.section = section
+      if (section === 'Unassigned') {
+        where.section = null
+      } else {
+        where.section = section
+      }
     }
 
     if (session && session !== 'all') {

@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     const facultyId = searchParams.get('facultyId') || undefined
     const roomId = searchParams.get('roomId') || undefined
     const section = searchParams.get('section') || undefined
+    const academicSemester = searchParams.get('academicSemester') || undefined
 
     const where: Prisma.TimetableWhereInput = {}
 
@@ -32,6 +33,11 @@ export async function GET(request: NextRequest) {
     if (facultyId) where.facultyId = facultyId
     if (roomId) where.roomId = roomId
     if (section) where.section = section
+    if (academicSemester) {
+      where.course = {
+        semesterOffered: parseInt(academicSemester, 10),
+      }
+    }
 
     const orderBy: Prisma.TimetableOrderByWithRelationInput = {}
     if (sort === 'day') {
@@ -51,7 +57,7 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           course: {
-            select: { id: true, code: true, name: true, courseType: true, creditHours: true },
+            select: { id: true, code: true, name: true, courseType: true, creditHours: true, semesterOffered: true },
           },
           faculty: {
             select: { id: true, facultyId: true, user: { select: { name: true } }, designation: true },
@@ -73,7 +79,14 @@ export async function GET(request: NextRequest) {
     const data = slots.map((s) => ({
       id: s.id,
       courseId: s.courseId,
-      course: s.course,
+      course: {
+        id: s.course.id,
+        code: s.course.code,
+        name: s.course.name,
+        courseType: s.course.courseType,
+        creditHours: s.course.creditHours,
+        semesterOffered: s.course.semesterOffered,
+      },
       facultyId: s.facultyId,
       faculty: {
         id: s.faculty.id,
@@ -169,7 +182,6 @@ export async function POST(request: NextRequest) {
 
     return successResponse(
       {
-        id: slot.id,
         ...slot,
         faculty: { ...slot.faculty, name: slot.faculty.user.name },
       },

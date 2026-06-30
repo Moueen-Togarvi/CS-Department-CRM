@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
       totalStudents,
       totalFaculty,
       totalCourses,
+      totalRooms,
       totalAnnouncements,
       activeSemester,
       currentSemesterEnrollments,
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
       db.student.count(),
       db.faculty.count(),
       db.course.count({ where: { isActive: true } }),
+      db.room.count(),
       db.announcement.count({ where: { isPublished: true } }),
       db.semester.findFirst({ where: { isCurrent: true } }),
       db.semester.findFirst({
@@ -50,6 +52,7 @@ export async function GET(request: NextRequest) {
       totalStudents,
       totalFaculty,
       totalCourses,
+      totalRooms,
       totalAnnouncements,
       activeSemester: activeSemester
         ? {

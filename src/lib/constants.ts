@@ -9,6 +9,7 @@ import {
   Megaphone,
   FolderKanban,
   FileText,
+  School,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -23,6 +24,7 @@ export type ModuleId =
   | 'announcements'
   | 'fyp'
   | 'documents'
+  | 'rooms'
 
 export type RoleAccess = 'ALL' | 'ADMIN' | 'FACULTY' | 'STUDENT'
 
@@ -94,6 +96,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Documents',
     icon: FileText,
     roles: ['ALL'],
+  },
+  {
+    id: 'rooms',
+    label: 'Rooms',
+    icon: School,
+    roles: ['ADMIN'],
   },
 ]
 

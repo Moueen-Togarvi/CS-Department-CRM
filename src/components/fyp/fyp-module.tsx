@@ -939,7 +939,7 @@ export function FYPModule() {
                     ) : (
                       detail.evaluations.map((ev) => {
                         let scores: Record<string, number> = {}
-                        try { scores = JSON.parse(ev.criteriaScores) } catch {}
+                        try { scores = JSON.parse(ev.criteriaScores) } catch { }
                         return (
                           <div key={ev.id} className="rounded-lg border p-3 space-y-2">
                             <div className="flex items-center justify-between">

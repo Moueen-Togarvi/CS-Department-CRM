@@ -11,6 +11,7 @@ export type ModuleId =
   | 'announcements'
   | 'fyp'
   | 'documents'
+  | 'rooms'
 
 interface AppState {
   activeModule: ModuleId

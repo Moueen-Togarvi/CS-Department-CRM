@@ -1,9 +1,11 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
-    const [total, active, byBatchRaw, bySemesterRaw] = await Promise.all([
+    const [total, active, byBatchRaw, bySemesterRaw, bySemesterSectionRaw] = await Promise.all([
       db.student.count({
         where: { status: { not: 'INACTIVE' } },
       }),
@@ -17,6 +19,11 @@ export async function GET() {
       }),
       db.student.groupBy({
         by: ['currentSemester'],
+        where: { status: { not: 'INACTIVE' } },
+        _count: true,
+      }),
+      db.student.groupBy({
+        by: ['currentSemester', 'section'],
         where: { status: { not: 'INACTIVE' } },
         _count: true,
       }),
@@ -34,7 +41,13 @@ export async function GET() {
       bySemester[String(item.currentSemester)] = item._count
     }
 
-    return successResponse({ total, active, byBatch, bySemester })
+    const bySemesterSection = bySemesterSectionRaw.map((item) => ({
+      semester: item.currentSemester,
+      section: item.section || 'Unassigned',
+      count: item._count,
+    }))
+
+    return successResponse({ total, active, byBatch, bySemester, bySemesterSection })
   } catch (error) {
     console.error('GET /api/students/stats error:', error)
     return errorResponse('Failed to fetch student stats', 500)

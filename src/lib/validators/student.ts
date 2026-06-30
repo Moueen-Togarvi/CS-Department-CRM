@@ -23,6 +23,7 @@ export const createStudentSchema = z.object({
   mobileNumber: z.string().optional(),
   fatherPhone: z.string().optional(),
   session: z.string().optional(),
+  shift: z.string().optional(),
   section: z.string().optional(),
 })
 
@@ -47,6 +48,7 @@ export const updateStudentSchema = z.object({
   mobileNumber: z.string().optional(),
   fatherPhone: z.string().optional(),
   session: z.string().optional(),
+  shift: z.string().optional(),
   section: z.string().optional(),
 })
 

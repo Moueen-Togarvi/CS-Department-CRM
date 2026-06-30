@@ -34,17 +34,23 @@ export async function GET(request: NextRequest) {
     const section = searchParams.get('section') || undefined
     const facultyId = searchParams.get('facultyId') || undefined
     const roomId = searchParams.get('roomId') || undefined
+    const academicSemester = searchParams.get('academicSemester') || undefined
 
     const where: any = { semesterId }
     if (section) where.section = section
     if (facultyId) where.facultyId = facultyId
     if (roomId) where.roomId = roomId
+    if (academicSemester) {
+      where.course = {
+        semesterOffered: parseInt(academicSemester, 10),
+      }
+    }
 
     const slots = await db.timetable.findMany({
       where,
       include: {
         course: {
-          select: { id: true, code: true, name: true, courseType: true, creditHours: true },
+          select: { id: true, code: true, name: true, courseType: true, creditHours: true, semesterOffered: true },
         },
         faculty: {
           select: { id: true, facultyId: true, user: { select: { name: true } }, designation: true },
@@ -59,7 +65,7 @@ export async function GET(request: NextRequest) {
     // Build the grid
     const grid: Record<string, Record<string, Array<{
       id: string
-      course: { id: string; code: string; name: string; courseType: string }
+      course: { id: string; code: string; name: string; courseType: string; creditHours?: number; semesterOffered?: number | null }
       faculty: { id: string; name: string; designation: string }
       room: { id: string; name: string; building: string }
       section: string
@@ -89,7 +95,14 @@ export async function GET(request: NextRequest) {
       if (grid[day][timeKey] !== undefined) {
         grid[day][timeKey].push({
           id: slot.id,
-          course: slot.course,
+          course: {
+            id: slot.course.id,
+            code: slot.course.code,
+            name: slot.course.name,
+            courseType: slot.course.courseType,
+            creditHours: slot.course.creditHours,
+            semesterOffered: slot.course.semesterOffered,
+          },
           faculty: {
             id: slot.faculty.id,
             name: slot.faculty.user.name,

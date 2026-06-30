@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ClipboardCheck,
@@ -59,6 +59,7 @@ interface Course {
   code: string
   name: string
   courseType: string
+  semesterOffered?: number | null
 }
 
 interface EnrolledStudent {
@@ -330,6 +331,7 @@ export function AttendanceModule() {
 
   // Filters
   const [selectedSemester, setSelectedSemester] = useState<string>('')
+  const [selectedAcademicSemester, setSelectedAcademicSemester] = useState<string>('_all')
   const [selectedCourseId, setSelectedCourseId] = useState<string>('')
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [dateFrom, setDateFrom] = useState<Date>(subDays(new Date(), 30))
@@ -353,6 +355,24 @@ export function AttendanceModule() {
     enabled: !!currentSemesterId,
   })
 
+  // Filter courses by selected academic semester
+  const filteredCourses = useMemo(() => {
+    if (!courses) return []
+    if (selectedAcademicSemester === '_all') return courses
+    const targetSem = parseInt(selectedAcademicSemester, 10)
+    return courses.filter((c) => c.semesterOffered === targetSem)
+  }, [courses, selectedAcademicSemester])
+
+  // Reset course selection if it is no longer in the filtered list
+  useEffect(() => {
+    if (selectedCourseId) {
+      const exists = filteredCourses.some((c) => c.id === selectedCourseId)
+      if (!exists) {
+        setSelectedCourseId('')
+      }
+    }
+  }, [filteredCourses, selectedCourseId])
+
   // Course attendance summary (for Summary tab)
   const { data: courseSummary, isLoading: isLoadingSummary } = useQuery({
     queryKey: ['attendance-course-summary', selectedCourseId, currentSemesterId],
@@ -368,7 +388,7 @@ export function AttendanceModule() {
 
   // Reports (for Reports tab)
   const { data: reports } = useQuery({
-    queryKey: ['attendance-reports', selectedCourseId, format(dateFrom, 'yyyy-MM-dd'), format(dateTo, 'yyyy-MM-dd')],
+    queryKey: ['attendance-reports', selectedCourseId, format(dateFrom, 'yyyy-MM-dd'), format(dateTo, 'yyyy-MM-dd'), currentSemesterId],
     queryFn: async () => {
       const params = new URLSearchParams({
         dateFrom: format(dateFrom, 'yyyy-MM-dd'),
@@ -380,7 +400,7 @@ export function AttendanceModule() {
       const json = await res.json()
       return json.data as any
     },
-    enabled: activeTab === 'reports',
+    enabled: activeTab === 'history',
   })
 
   const getPercentageColor = (pct: number) => {
@@ -410,7 +430,7 @@ export function AttendanceModule() {
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Semester</Label>
+              <Label className="text-xs font-medium text-muted-foreground">Session</Label>
               <Select value={selectedSemester || currentSemesterId} onValueChange={(v) => setSelectedSemester(v === '__none__' ? '' : v)}>
                 <SelectTrigger className="w-[180px] h-9">
                   <SelectValue placeholder="Select" />
@@ -426,20 +446,62 @@ export function AttendanceModule() {
             </div>
 
             <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">Academic Semester</Label>
+              <Select value={selectedAcademicSemester} onValueChange={setSelectedAcademicSemester}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_all">All Semesters</SelectItem>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                    <SelectItem key={num} value={String(num)}>
+                      Semester {num}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>             <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-medium text-muted-foreground">Course</Label>
               <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
                 <SelectTrigger className="w-[250px] h-9">
                   <SelectValue placeholder="Select a course" />
                 </SelectTrigger>
                 <SelectContent>
-                  {courses?.map((c) => (
+                  {filteredCourses.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.code} — {c.name}
                     </SelectItem>
                   ))}
+                  {filteredCourses.length === 0 && (
+                    <SelectItem value="__none__" disabled className="text-muted-foreground text-xs text-center py-2">
+                      No courses found for Semester {selectedAcademicSemester}
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
+
+            {activeTab === 'mark' && (
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[180px] h-9 justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 size-3.5" />
+                      {format(selectedDate, 'MMM dd, yyyy')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(d) => d && setSelectedDate(d)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -453,39 +515,16 @@ export function AttendanceModule() {
           </TabsTrigger>
           <TabsTrigger value="summary" className="gap-1.5">
             <BarChart3 className="size-3.5" />
-            View Reports
+            Course Summary
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-1.5">
+            <Clock className="size-3.5" />
+            Previous Records
           </TabsTrigger>
         </TabsList>
 
         {/* ===== MARK ATTENDANCE TAB ===== */}
         <TabsContent value="mark" className="mt-4 space-y-4">
-          {/* Date Picker */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-[180px] h-9 justify-start text-left font-normal">
-                        <CalendarIcon className="mr-2 size-3.5" />
-                        {format(selectedDate, 'MMM dd, yyyy')}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={(d) => d && setSelectedDate(d)}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Mark attendance panel - remounts on key change for clean state */}
           {selectedCourseId && currentSemesterId ? (
             <MarkAttendancePanel
@@ -618,6 +657,168 @@ export function AttendanceModule() {
               </Card>
             </>
           )}
+        </TabsContent>
+
+        {/* ===== HISTORY / PREVIOUS RECORDS TAB ===== */}
+        <TabsContent value="history" className="mt-4 space-y-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">From Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-[180px] h-9 justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 size-3.5" />
+                        {format(dateFrom, 'MMM dd, yyyy')}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateFrom}
+                        onSelect={(d) => d && setDateFrom(d)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">To Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-[180px] h-9 justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 size-3.5" />
+                        {format(dateTo, 'MMM dd, yyyy')}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateTo}
+                        onSelect={(d) => d && setDateTo(d)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Stats overview */}
+          {reports?.stats && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Card className="p-4">
+                <div className="text-2xl font-bold">{reports.stats.totalRecords}</div>
+                <div className="text-xs text-muted-foreground">Total Attendance Records</div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-2xl font-bold text-emerald-600">
+                  {reports.stats.overallPercentage}%
+                </div>
+                <div className="text-xs text-muted-foreground">Average Attendance Rate</div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-2xl font-bold text-blue-600">
+                  {reports.stats.totalPresent}
+                </div>
+                <div className="text-xs text-muted-foreground">Total Present (incl. Late)</div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-2xl font-bold text-red-600">
+                  {reports.stats.totalAbsent}
+                </div>
+                <div className="text-xs text-muted-foreground">Total Absent</div>
+              </Card>
+            </div>
+          )}
+
+          {/* History log list */}
+          <Card>
+            <CardContent className="p-0">
+              {!reports?.dailyBreakdown || reports.dailyBreakdown.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <Clock className="size-12 text-muted-foreground/30 mb-3" />
+                  <p className="text-sm text-muted-foreground">No attendance records found for this period</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {reports.dailyBreakdown.map((dayItem: any) => {
+                    const parsedDate = new Date(dayItem.date)
+                    const formattedDayName = format(parsedDate, 'EEEE')
+                    const formattedDateStr = format(parsedDate, 'MMM dd, yyyy')
+
+                    return (
+                      <div key={dayItem.date} className="p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                            <span className="text-primary">{formattedDayName}</span>
+                            <span className="text-muted-foreground font-normal">| {formattedDateStr}</span>
+                          </h4>
+                          <Badge variant="secondary" className="text-[10px] font-semibold">
+                            {dayItem.courses.length} Course(s)
+                          </Badge>
+                        </div>
+
+                        <div className="grid gap-2">
+                          {dayItem.courses.map((cItem: any) => {
+                            const attendanceRate = cItem.total > 0 ? Math.round(((cItem.present + cItem.late) / cItem.total) * 100) : 0
+                            return (
+                              <div
+                                key={cItem.courseId}
+                                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors"
+                              >
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono text-xs font-bold text-primary">{cItem.courseCode}</span>
+                                    <span className="text-sm font-medium">{cItem.courseName}</span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                    <span>Present: <strong className="text-emerald-600 font-semibold">{cItem.present}</strong></span>
+                                    <span>Late: <strong className="text-amber-600 font-semibold">{cItem.late}</strong></span>
+                                    <span>Absent: <strong className="text-red-600 font-semibold">{cItem.absent}</strong></span>
+                                    <span>Excused: <strong className="text-sky-600 font-semibold">{cItem.excused}</strong></span>
+                                    <span>Total Students: <strong>{cItem.total}</strong></span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-4 self-end sm:self-center">
+                                  <div className="flex items-center gap-2 w-[120px] sm:w-[150px]">
+                                    <Progress value={attendanceRate} className={cn('h-1.5 flex-1', getPercentageBarColor(attendanceRate))} />
+                                    <span className={cn('text-xs font-bold w-9 text-right', getPercentageColor(attendanceRate))}>
+                                      {attendanceRate}%
+                                    </span>
+                                  </div>
+
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const [y, m, d] = dayItem.date.split('-').map(Number)
+                                      const localDate = new Date(y, m - 1, d)
+                                      setSelectedDate(localDate)
+                                      setSelectedCourseId(cItem.courseId)
+                                      setActiveTab('mark')
+                                    }}
+                                    className="h-8 text-xs font-medium gap-1"
+                                  >
+                                    <ClipboardCheck className="size-3" />
+                                    View / Edit
+                                  </Button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

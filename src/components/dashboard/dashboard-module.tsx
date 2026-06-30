@@ -4,12 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import {
   GraduationCap,
   Users,
-  BookOpen,
   Megaphone,
   CalendarDays,
   MapPin,
-  TrendingUp,
   Loader2,
+  School,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -42,6 +41,7 @@ interface OverviewData {
   totalStudents: number
   totalFaculty: number
   totalCourses: number
+  totalRooms: number
   totalAnnouncements: number
   activeSemester: { id: string; name: string } | null
   currentSemesterStudents: number
@@ -68,41 +68,12 @@ interface RecentAnnouncement {
 
 // ==================== Chart Configs ====================
 
-const enrollmentChartConfig: ChartConfig = {
-  students: {
-    label: 'Students',
-    color: 'var(--color-emerald-500)',
-  },
-}
-
 const gradeChartConfig: ChartConfig = {
   count: {
     label: 'Count',
     color: 'var(--color-emerald-500)',
   },
 }
-
-const fypChartConfig: ChartConfig = {
-  Proposed: { label: 'Proposed', color: 'hsl(var(--chart-1))' },
-  Approved: { label: 'Approved', color: 'hsl(var(--chart-2))' },
-  'In Progress': { label: 'In Progress', color: 'hsl(var(--chart-3))' },
-  Submitted: { label: 'Submitted', color: 'hsl(var(--chart-4))' },
-  Evaluated: { label: 'Evaluated', color: 'hsl(var(--chart-5))' },
-  Defended: { label: 'Defended', color: 'hsl(160 60% 45%)' },
-  Passed: { label: 'Passed', color: 'hsl(142 71% 45%)' },
-  Failed: { label: 'Failed', color: 'hsl(0 84% 60%)' },
-}
-
-const FYP_COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-  'hsl(160 60% 45%)',
-  'hsl(142 71% 45%)',
-  'hsl(0 84% 60%)',
-]
 
 // ==================== Data Fetchers ====================
 
@@ -127,38 +98,38 @@ interface StatCardProps {
 function StatCard({ title, value, subtitle, icon: Icon, iconBg, isLoading }: StatCardProps) {
   return (
     <Card className="relative overflow-hidden border shadow-sm transition-shadow hover:shadow-md">
-      <CardContent className="p-5">
+      <CardContent className="p-3.5">
         <div className="flex items-start justify-between">
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {isLoading ? (
               <>
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-12" />
-                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-6 w-8" />
+                <Skeleton className="h-2 w-20" />
               </>
             ) : (
               <>
-                <p className="text-sm font-medium text-muted-foreground">{title}</p>
-                <p className="text-3xl font-bold tracking-tight">{value}</p>
+                <p className="text-xs font-semibold text-muted-foreground">{title}</p>
+                <p className="text-2xl font-bold tracking-tight">{value}</p>
                 {subtitle && (
-                  <p className="text-xs text-muted-foreground">{subtitle}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">{subtitle}</p>
                 )}
               </>
             )}
           </div>
           <div
-            className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${iconBg}`}
+            className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${iconBg}`}
           >
             {isLoading ? (
-              <Loader2 className="size-5 animate-spin text-white/70" />
+              <Loader2 className="size-4 animate-spin text-white/70" />
             ) : (
-              <Icon className="size-5 text-white" />
+              <Icon className="size-4 text-white" />
             )}
           </div>
         </div>
       </CardContent>
       {/* Decorative accent line at bottom */}
-      <div className={`absolute bottom-0 left-0 h-1 w-full ${iconBg.replace('bg-', 'bg-').replace('/90', '/60')}`} />
+      <div className={`absolute bottom-0 left-0 h-0.5 w-full ${iconBg}`} />
     </Card>
   )
 }
@@ -186,14 +157,14 @@ function StatCardsSkeleton() {
     <>
       {Array.from({ length: 4 }).map((_, i) => (
         <Card key={i} className="relative overflow-hidden border shadow-sm">
-          <CardContent className="p-5">
+          <CardContent className="p-3.5">
             <div className="flex items-start justify-between">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-12" />
-                <Skeleton className="h-3 w-32" />
+              <div className="space-y-1.5">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-6 w-8" />
+                <Skeleton className="h-2 w-20" />
               </div>
-              <Skeleton className="size-11 rounded-xl" />
+              <Skeleton className="size-9 rounded-lg" />
             </div>
           </CardContent>
         </Card>
@@ -246,11 +217,6 @@ export function DashboardModule() {
   })
 
   // Fetch chart data
-  const { data: enrollmentData, isLoading: enrollmentLoading } = useQuery({
-    queryKey: ['dashboard-enrollment-trend'],
-    queryFn: () => fetchJSON<ChartDataPoint[]>('/api/dashboard/charts/enrollment-trend'),
-  })
-
   const { data: gradeData, isLoading: gradeLoading } = useQuery({
     queryKey: ['dashboard-grade-distribution'],
     queryFn: () => fetchJSON<ChartDataPoint[]>('/api/dashboard/charts/grade-distribution'),
@@ -259,11 +225,6 @@ export function DashboardModule() {
   const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
     queryKey: ['dashboard-attendance-trend'],
     queryFn: () => fetchJSON<ChartDataPoint[]>('/api/dashboard/charts/attendance-trend'),
-  })
-
-  const { data: fypData, isLoading: fypLoading } = useQuery({
-    queryKey: ['dashboard-fyp-status'],
-    queryFn: () => fetchJSON<ChartDataPoint[]>('/api/dashboard/charts/fyp-status'),
   })
 
   const { data: recentAnnouncements, isLoading: announcementsLoading } = useQuery({
@@ -306,10 +267,10 @@ export function DashboardModule() {
               iconBg="bg-sky-600"
             />
             <StatCard
-              title="Active Courses"
-              value={overview?.totalCourses ?? 0}
-              subtitle={`${semName} semester`}
-              icon={BookOpen}
+              title="Classrooms"
+              value={overview?.totalRooms ?? 0}
+              subtitle="Classrooms & labs"
+              icon={School}
               iconBg="bg-amber-600"
             />
             <StatCard
@@ -325,64 +286,6 @@ export function DashboardModule() {
 
       {/* ==================== Charts Grid ==================== */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Enrollment Trend - Line Chart */}
-        {enrollmentLoading ? (
-          <ChartSkeleton />
-        ) : (
-          <Card className="shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="size-4 text-emerald-600" />
-                <CardTitle className="text-base">Enrollment Trend</CardTitle>
-              </div>
-              <p className="text-xs text-muted-foreground">Students per batch</p>
-            </CardHeader>
-            <CardContent>
-              {enrollmentData && enrollmentData.length > 0 ? (
-                <ChartContainer
-                  config={enrollmentChartConfig}
-                  className="h-[250px] w-full"
-                >
-                  <LineChart
-                    data={enrollmentData}
-                    margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis
-                      dataKey="semester"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      fontSize={12}
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      fontSize={12}
-                    />
-                    <ChartTooltip
-                      content={<ChartTooltipContent />}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="students"
-                      stroke="var(--color-students)"
-                      strokeWidth={2.5}
-                      dot={{ r: 4, fill: 'var(--color-students)' }}
-                      activeDot={{ r: 6, fill: 'var(--color-students)' }}
-                    />
-                  </LineChart>
-                </ChartContainer>
-              ) : (
-                <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
-                  No enrollment data available
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
         {/* Grade Distribution - Bar Chart */}
         {gradeLoading ? (
           <ChartSkeleton />
@@ -434,60 +337,6 @@ export function DashboardModule() {
               ) : (
                 <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
                   No grade data available
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* FYP Status - Donut/Pie Chart */}
-        {fypLoading ? (
-          <ChartSkeleton />
-        ) : (
-          <Card className="shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <FolderKanbanIcon className="size-4 text-emerald-600" />
-                <CardTitle className="text-base">FYP Project Status</CardTitle>
-              </div>
-              <p className="text-xs text-muted-foreground">Breakdown by project status</p>
-            </CardHeader>
-            <CardContent>
-              {fypData && fypData.length > 0 ? (
-                <ChartContainer
-                  config={fypChartConfig}
-                  className="mx-auto h-[250px] w-full"
-                >
-                  <PieChart>
-                    <ChartTooltip
-                      content={<ChartTooltipContent nameKey="status" />}
-                    />
-                    <Pie
-                      data={fypData}
-                      dataKey="count"
-                      nameKey="status"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={90}
-                      paddingAngle={2}
-                      strokeWidth={2}
-                    >
-                      {fypData.map((_entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={FYP_COLORS[index % FYP_COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <ChartLegend
-                      content={<ChartLegendContent nameKey="status" />}
-                    />
-                  </PieChart>
-                </ChartContainer>
-              ) : (
-                <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
-                  No FYP projects found
                 </div>
               )}
             </CardContent>
@@ -713,27 +562,7 @@ function BarChart3Icon({ className }: { className?: string }) {
   )
 }
 
-function FolderKanbanIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
-      <path d="M8 10v4" />
-      <path d="M12 10v2" />
-      <path d="M16 10v6" />
-    </svg>
-  )
-}
+
 
 function ClipboardCheckIcon({ className }: { className?: string }) {
   return (

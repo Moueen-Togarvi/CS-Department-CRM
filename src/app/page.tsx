@@ -13,6 +13,7 @@ import { ResultModule } from '@/components/results/result-module'
 import { AnnouncementModule } from '@/components/announcements/announcement-module'
 import { FYPModule } from '@/components/fyp/fyp-module'
 import { DocumentModule } from '@/components/documents/document-module'
+import { RoomsModule } from '@/components/rooms/rooms-module'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 
 export default function Home() {
@@ -32,6 +33,7 @@ export default function Home() {
         {activeModule === 'announcements' && <AnnouncementModule />}
         {activeModule === 'fyp' && <FYPModule />}
         {activeModule === 'documents' && <DocumentModule />}
+        {activeModule === 'rooms' && <RoomsModule />}
       </ModuleErrorBoundary>
     </AppLayout>
   )

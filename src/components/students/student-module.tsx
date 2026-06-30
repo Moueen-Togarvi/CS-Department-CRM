@@ -27,6 +27,7 @@ import {
   Loader2,
   Inbox,
   Sparkles,
+  ArrowLeft,
 } from 'lucide-react'
 
 import { PageHeader } from '@/components/shared/page-header'
@@ -35,6 +36,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useIsMobile } from '@/hooks/use-mobile'
 
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -129,6 +131,11 @@ interface StudentStats {
   active: number
   byBatch: Record<string, number>
   bySemester: Record<string, number>
+  bySemesterSection: Array<{
+    semester: number
+    section: string
+    count: number
+  }>
 }
 
 interface StudentDetail {
@@ -234,6 +241,7 @@ const formSchema = z.object({
   mobileNumber: z.string().optional(),
   fatherPhone: z.string().optional(),
   session: z.string().optional(),
+  shift: z.string().optional(),
   section: z.string().optional(),
 })
 
@@ -252,6 +260,7 @@ export function StudentModule() {
   const [semesterFilter, setSemesterFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sectionFilter, setSectionFilter] = useState('all')
+  const [selectedGroup, setSelectedGroup] = useState<{ semester: number; section: string } | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [sorting, setSorting] = useState<SortingState>([])
@@ -290,9 +299,9 @@ export function StudentModule() {
     queryFn: () => fetch(`/api/students?${queryString}`).then((r) => r.json()),
   })
 
-  const { data: statsRaw } = useQuery<{ success: boolean; data: StudentStats }>({
+  const { data: statsRaw, isLoading: isLoadingStats } = useQuery<{ success: boolean; data: StudentStats }>({
     queryKey: ['students', 'stats'],
-    queryFn: () => fetch('/api/students/stats').then((r) => r.json()),
+    queryFn: () => fetch('/api/students/stats', { cache: 'no-store' }).then((r) => r.json()),
   })
   const stats = statsRaw?.data
 
@@ -399,6 +408,7 @@ export function StudentModule() {
       mobileNumber: '',
       fatherPhone: '',
       session: '',
+      shift: '',
       section: '',
     },
   })
@@ -414,6 +424,24 @@ export function StudentModule() {
       }
     }
   }, [sessionVal, form])
+
+  const shiftVal = form.watch('shift')
+  useEffect(() => {
+    if (!shiftVal) {
+      form.setValue('section', '')
+      return
+    }
+    const currentSection = form.getValues('section')
+    if (shiftVal === 'Morning') {
+      if (currentSection !== 'Morning') {
+        form.setValue('section', 'Morning')
+      }
+    } else if (shiftVal === 'Evening') {
+      if (currentSection !== 'Evening A' && currentSection !== 'Evening B') {
+        form.setValue('section', 'Evening A')
+      }
+    }
+  }, [shiftVal, form])
 
   const resetForm = useCallback(() => {
     form.reset({
@@ -439,6 +467,7 @@ export function StudentModule() {
       mobileNumber: '',
       fatherPhone: '',
       session: '',
+      shift: '',
       section: '',
     })
   }, [form])
@@ -479,7 +508,16 @@ export function StudentModule() {
           form.setValue('mobileNumber', detail.mobileNumber || '')
           form.setValue('fatherPhone', detail.fatherPhone || '')
           form.setValue('session', detail.session || '')
-          form.setValue('section', detail.section || '')
+          
+          const sectionVal = detail.section || ''
+          let derivedShift = ''
+          if (sectionVal.startsWith('Evening')) {
+            derivedShift = 'Evening'
+          } else if (sectionVal.startsWith('Morning') || sectionVal === 'Morning') {
+            derivedShift = 'Morning'
+          }
+          form.setValue('shift', derivedShift)
+          form.setValue('section', sectionVal)
         }
       } catch (err) {
         console.error('Failed to load student details for editing', err)
@@ -662,94 +700,166 @@ export function StudentModule() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, ID, email..."
-            className="pl-9 h-9"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value)
-              setPage(1)
-            }}
-          />
+      {selectedGroup === null ? (
+        <div className="space-y-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-base font-semibold tracking-tight">Academic Classes</h2>
+            <p className="text-xs text-muted-foreground">Select a class section to view and manage its student directory</p>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {isLoadingStats ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i} className="animate-pulse border shadow-sm h-36">
+                  <CardContent className="p-5 flex flex-col justify-between h-full">
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-6 w-32" />
+                    </div>
+                    <Skeleton className="h-4 w-20" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : stats?.bySemesterSection && stats.bySemesterSection.length > 0 ? (
+              [...stats.bySemesterSection]
+                .sort((a, b) => a.semester - b.semester || a.section.localeCompare(b.section))
+                .map((item) => (
+                  <Card
+                    key={`${item.semester}-${item.section}`}
+                    className="group relative cursor-pointer overflow-hidden border shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-md"
+                    onClick={() => {
+                      setSelectedGroup({ semester: item.semester, section: item.section })
+                      setSemesterFilter(String(item.semester))
+                      setSectionFilter(item.section)
+                      setPage(1)
+                    }}
+                  >
+                    <CardContent className="p-5 flex flex-col justify-between h-36">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Semester {item.semester}</p>
+                          <h3 className="text-lg font-bold mt-1 text-card-foreground group-hover:text-primary transition-colors">
+                            Section {item.section}
+                          </h3>
+                        </div>
+                        <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors duration-200">
+                          <Users className="size-4" />
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-xs text-muted-foreground mt-4">
+                        <span className="font-medium bg-secondary px-2 py-0.5 rounded-full text-[10px]">
+                          {item.count} {item.count === 1 ? 'Student' : 'Students'}
+                        </span>
+                        <span className="text-primary font-semibold text-[11px] opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          View Directory &rarr;
+                        </span>
+                      </div>
+                    </CardContent>
+                    <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+                  </Card>
+                ))
+            ) : (
+              <div className="col-span-full py-12 flex flex-col items-center justify-center border-2 border-dashed rounded-xl bg-muted/20">
+                <Users className="size-10 text-muted-foreground/30 mb-2" />
+                <p className="text-sm font-medium text-muted-foreground">No class groups found</p>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={batchFilter} onValueChange={(v) => { setBatchFilter(v); setPage(1) }}>
-            <SelectTrigger size="sm" className="w-[140px]">
-              <SelectValue placeholder="Batch" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Batches</SelectItem>
-              <SelectItem value="Batch-2023">2023</SelectItem>
-              <SelectItem value="Batch-2024">2024</SelectItem>
-              <SelectItem value="Batch-2025">2025</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={semesterFilter} onValueChange={(v) => { setSemesterFilter(v); setPage(1) }}>
-            <SelectTrigger size="sm" className="w-[140px]">
-              <SelectValue placeholder="Semester" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Semesters</SelectItem>
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
-                <SelectItem key={s} value={String(s)}>Semester {s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={sectionFilter} onValueChange={(v) => { setSectionFilter(v); setPage(1) }}>
-            <SelectTrigger size="sm" className="w-[140px]">
-              <SelectValue placeholder="Section" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sections</SelectItem>
-              <SelectItem value="Morning A">Morning A</SelectItem>
-              <SelectItem value="Morning B">Morning B</SelectItem>
-              <SelectItem value="Evening A">Evening A</SelectItem>
-              <SelectItem value="Evening B">Evening B</SelectItem>
-              <SelectItem value="A">Section A</SelectItem>
-              <SelectItem value="B">Section B</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
-            <SelectTrigger size="sm" className="w-[140px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="SUSPENDED">Suspended</SelectItem>
-              <SelectItem value="GRADUATED">Graduated</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedGroup(null)
+                setSemesterFilter('all')
+                setSectionFilter('all')
+                setPage(1)
+              }}
+              className="h-8 gap-1.5"
+            >
+              <ArrowLeft className="size-4" />
+              <span>Back to Classes</span>
+            </Button>
+            <Separator orientation="vertical" className="h-6" />
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">
+                Semester {selectedGroup.semester} - Section {selectedGroup.section}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Showing student records for Semester {selectedGroup.semester}, Section {selectedGroup.section}
+              </p>
+            </div>
+          </div>
 
-      {/* Data Table */}
-      <Card>
-        <CardContent className="p-0">
-          <DataTable
-            columns={columns}
-            data={students}
-            isLoading={isLoading}
-            pageCount={pagination?.totalPages}
-            pageIndex={page - 1}
-            pageSize={pageSize}
-            onPaginationChange={(p, s) => {
-              setPage(p + 1)
-              setPageSize(s)
-            }}
-            onSortingChange={setSorting}
-            sorting={sorting}
-            manualPagination
-            onRowClick={openDetail}
-            emptyMessage="No students found matching your criteria."
-            emptyIcon={<GraduationCap className="size-10 text-muted-foreground/40" />}
-          />
-        </CardContent>
-      </Card>
+          {/* Filters */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, ID, email..."
+                className="pl-9 h-9"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setPage(1)
+                }}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={batchFilter} onValueChange={(v) => { setBatchFilter(v); setPage(1) }}>
+                <SelectTrigger size="sm" className="w-[140px]">
+                  <SelectValue placeholder="Batch" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Batches</SelectItem>
+                  <SelectItem value="Batch-2023">2023</SelectItem>
+                  <SelectItem value="Batch-2024">2024</SelectItem>
+                  <SelectItem value="Batch-2025">2025</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
+                <SelectTrigger size="sm" className="w-[140px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="SUSPENDED">Suspended</SelectItem>
+                  <SelectItem value="GRADUATED">Graduated</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Data Table */}
+          <Card>
+            <CardContent className="p-0">
+              <DataTable
+                columns={columns}
+                data={students}
+                isLoading={isLoading}
+                pageCount={pagination?.totalPages}
+                pageIndex={page - 1}
+                pageSize={pageSize}
+                onPaginationChange={(p, s) => {
+                  setPage(p + 1)
+                  setPageSize(s)
+                }}
+                onSortingChange={setSorting}
+                sorting={sorting}
+                manualPagination
+                onRowClick={openDetail}
+                emptyMessage="No students found matching your criteria."
+                emptyIcon={<GraduationCap className="size-10 text-muted-foreground/40" />}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Student Form Dialog / Sheet */}
       {isMobile ? (
@@ -1108,30 +1218,54 @@ function StudentFormDialog({
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="departmentId" render={({ field }) => (
+                <FormField control={form.control} name="shift" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Department</FormLabel>
-                    <FormControl>
-                      <Input value="Computer Science" disabled />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="section" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Section</FormLabel>
+                    <FormLabel>Shift *</FormLabel>
                     <Select value={field.value || ''} onValueChange={field.onChange}>
-                      <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select section" /></SelectTrigger></FormControl>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select shift" />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
-                        <SelectItem value="Morning A">Morning A</SelectItem>
-                        <SelectItem value="Morning B">Morning B</SelectItem>
-                        <SelectItem value="Evening A">Evening A</SelectItem>
-                        <SelectItem value="Evening B">Evening B</SelectItem>
+                        <SelectItem value="Morning">Morning</SelectItem>
+                        <SelectItem value="Evening">Evening</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )} />
+                <FormField control={form.control} name="section" render={({ field }) => {
+                  const shift = form.watch('shift')
+                  return (
+                    <FormItem>
+                      <FormLabel>Section *</FormLabel>
+                      <Select 
+                        value={field.value || ''} 
+                        onValueChange={field.onChange}
+                        disabled={!shift}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder={shift ? "Select section" : "Select shift first"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {shift === 'Morning' && (
+                            <SelectItem value="Morning">Morning</SelectItem>
+                          )}
+                          {shift === 'Evening' && (
+                            <>
+                              <SelectItem value="Evening A">Evening A</SelectItem>
+                              <SelectItem value="Evening B">Evening B</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )
+                }} />
               </div>
             </div>
 
@@ -1441,28 +1575,54 @@ function StudentFormSheet({
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <FormField control={form.control} name="departmentId" render={() => (
+                  <FormField control={form.control} name="shift" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Department</FormLabel>
-                      <FormControl><Input value="Computer Science" disabled /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="section" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Section</FormLabel>
+                      <FormLabel>Shift *</FormLabel>
                       <Select value={field.value || ''} onValueChange={field.onChange}>
-                        <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select section" /></SelectTrigger></FormControl>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select shift" />
+                          </SelectTrigger>
+                        </FormControl>
                         <SelectContent>
-                          <SelectItem value="Morning A">Morning A</SelectItem>
-                          <SelectItem value="Morning B">Morning B</SelectItem>
-                          <SelectItem value="Evening A">Evening A</SelectItem>
-                          <SelectItem value="Evening B">Evening B</SelectItem>
+                          <SelectItem value="Morning">Morning</SelectItem>
+                          <SelectItem value="Evening">Evening</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
                     </FormItem>
                   )} />
+                  <FormField control={form.control} name="section" render={({ field }) => {
+                    const shift = form.watch('shift')
+                    return (
+                      <FormItem>
+                        <FormLabel>Section *</FormLabel>
+                        <Select 
+                          value={field.value || ''} 
+                          onValueChange={field.onChange}
+                          disabled={!shift}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder={shift ? "Select section" : "Select shift first"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {shift === 'Morning' && (
+                              <SelectItem value="Morning">Morning</SelectItem>
+                            )}
+                            {shift === 'Evening' && (
+                              <>
+                                <SelectItem value="Evening A">Evening A</SelectItem>
+                                <SelectItem value="Evening B">Evening B</SelectItem>
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }} />
                 </div>
               </div>
               <Separator />
