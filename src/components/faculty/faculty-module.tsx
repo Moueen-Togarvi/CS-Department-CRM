@@ -846,6 +846,31 @@ interface FacultyFormDialogProps {
   onAiOpen?: () => void
 }
 
+async function fetchNextFacultyId() {
+  try {
+    const res = await fetch('/api/faculty?limit=100')
+    if (!res.ok) return 'F-006'
+    const json = await res.json()
+    const list = json.data || []
+    
+    let maxNum = 5
+    list.forEach((f: any) => {
+      const match = f.facultyId?.match(/^F-(\d+)$/)
+      if (match) {
+        const num = parseInt(match[1], 10)
+        if (num > maxNum) {
+          maxNum = num
+        }
+      }
+    })
+    const nextNum = maxNum + 1
+    return `F-${String(nextNum).padStart(3, '0')}`
+  } catch (error) {
+    console.error('Error fetching next faculty ID:', error)
+    return 'F-006'
+  }
+}
+
 function FacultyFormDialog({
   open,
   onOpenChange,
@@ -880,7 +905,7 @@ function FacultyFormDialog({
           designation: 'Asst Professor',
           specialization: '',
           highestDegree: '',
-          departmentId: '',
+          departmentId: departments[0]?.id || '',
           officeRoom: '',
           officeHours: '',
           phone: '',
@@ -915,7 +940,7 @@ function FacultyFormDialog({
         designation: 'Asst Professor',
         specialization: '',
         highestDegree: '',
-        departmentId: '',
+        departmentId: departments[0]?.id || '',
         officeRoom: '',
         officeHours: '',
         phone: '',
@@ -923,6 +948,18 @@ function FacultyFormDialog({
       })
     }
   }
+
+  // Fetch and auto-generate faculty ID and default department when dialog is opened in create mode
+  useEffect(() => {
+    if (open && !isEdit) {
+      fetchNextFacultyId().then((nextId) => {
+        form.setValue('facultyId', nextId)
+      })
+      if (departments.length > 0) {
+        form.setValue('departmentId', departments[0].id)
+      }
+    }
+  }, [open, isEdit, departments, form])
 
   // Listen for AI fill events
   useEffect(() => {
@@ -963,91 +1000,6 @@ function FacultyFormDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit((v) => onSubmit(v))} className="space-y-6">
-            {/* Personal Info */}
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                <UserCircle className="h-4 w-4" />
-                Personal Information
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Full Name *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Dr. Jane Smith" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email *</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="jane.smith@csdept.edu" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {!isEdit && (
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password *</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Min 6 characters" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
-                      <FormControl>
-                        <Input placeholder="+92-300-1234567" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="sm:col-span-2">
-                  <FormField
-                    control={form.control}
-                    name="bio"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bio</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Brief bio about the faculty member..."
-                            rows={3}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
             {/* Professional Info */}
             <div>
               <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
@@ -1055,21 +1007,6 @@ function FacultyFormDialog({
                 Professional Information
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {!isEdit && (
-                  <FormField
-                    control={form.control}
-                    name="facultyId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Faculty ID *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="F-006" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
                 <FormField
                   control={form.control}
                   name="designation"
@@ -1120,26 +1057,40 @@ function FacultyFormDialog({
                     </FormItem>
                   )}
                 />
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Personal Info */}
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                <UserCircle className="h-4 w-4" />
+                Personal Information
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="departmentId"
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Department *</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select department" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {departments.map((d) => (
-                            <SelectItem key={d.id} value={d.id}>
-                              {d.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Full Name *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Dr. Jane Smith" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone</FormLabel>
+                      <FormControl>
+                        <Input placeholder="+92-300-1234567" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1149,46 +1100,41 @@ function FacultyFormDialog({
 
             <Separator />
 
-            {/* Office Info */}
+            {/* Account Credentials */}
             <div>
               <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Office Information
+                <Mail className="h-4 w-4" />
+                Account Credentials
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="officeRoom"
+                  name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Office Room</FormLabel>
+                      <FormLabel>Email *</FormLabel>
                       <FormControl>
-                        <Input placeholder="Room-205, Block A" {...field} />
+                        <Input type="email" placeholder="jane.smith@csdept.edu" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="officeHours"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Office Hours</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder={'{"Mon": "10:00-12:00", "Wed": "14:00-16:00"}'}
-                          rows={2}
-                          {...field}
-                        />
-                      </FormControl>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        JSON format: {'{"Mon": "10:00-12:00", "Wed": "14:00-16:00"}'}
-                      </p>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {!isEdit && (
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password *</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Min 6 characters" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </div>
             </div>
 

@@ -34,6 +34,10 @@ import {
   Loader2,
   X,
   Upload,
+  LayoutGrid,
+  List,
+  AlertTriangle,
+  UserCheck,
 } from 'lucide-react'
 
 import { toast } from 'sonner'
@@ -322,6 +326,7 @@ export function CourseModule() {
   const [creditFilter, setCreditFilter] = useState<string>('_all')
   const [semesterFilter, setSemesterFilter] = useState<string>('_all')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'code', desc: false }])
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
 
   // Dialog / Sheet
   const [formOpen, setFormOpen] = useState(false)
@@ -721,6 +726,11 @@ export function CourseModule() {
             onValueChange={(v) => {
               setSemesterFilter(v)
               setPage(1)
+              if (v !== '_all') {
+                setViewMode('cards')
+              } else {
+                setViewMode('table')
+              }
             }}
           >
             <SelectTrigger className="w-full sm:w-[150px]">
@@ -728,116 +738,375 @@ export function CourseModule() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="_all">All Semesters</SelectItem>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
                 <SelectItem key={num} value={String(num)}>
                   Semester {num}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-      </Card>
-
-      {/* Data Table */}
-      <Card>
-        <div className="max-h-[600px] overflow-auto">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((hg) => (
-                <TableRow key={hg.id}>
-                  {hg.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
-                      className="cursor-pointer select-none"
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      <div className="flex items-center gap-1">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {{
-                          asc: ' ↑',
-                          desc: ' ↓',
-                        }[header.column.getIsSorted() as string] ?? ''}
-                      </div>
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: columns.length }).map((_, j) => (
-                      <TableCell key={j}>
-                        <Skeleton className="h-5 w-full max-w-[120px]" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : table.getRowModel().rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-40 text-center">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <BookOpen className="h-10 w-10 opacity-30" />
-                      <p>No courses found</p>
-                      <p className="text-xs">Try adjusting your search or filters</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className="cursor-pointer"
-                    onClick={() => setDetailCourseId(row.original.id)}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} onClick={(e) => {
-                        if (cell.column.id === 'actions') e.stopPropagation()
-                      }}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between border-t px-4 py-3">
-            <p className="text-sm text-muted-foreground">
-              Showing {(pagination.page - 1) * pagination.limit + 1}–
-              {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-              {pagination.total}
-            </p>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pagination.page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                Previous
-              </Button>
-              <span className="px-3 text-sm font-medium">
-                {pagination.page} / {pagination.totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pagination.page >= pagination.totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
+          <div className="flex items-center gap-1 border rounded-lg p-1 bg-muted/50 self-end sm:self-auto shrink-0">
+            <Button
+              variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setViewMode('table')}
+              title="Table View"
+              type="button"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'cards' ? 'secondary' : 'ghost'}
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setViewMode('cards')}
+              title="Cards View"
+              type="button"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
           </div>
-        )}
+        </div>
       </Card>
+
+      {/* Course List (Table or Cards) */}
+      {viewMode === 'cards' ? (
+        <div className="space-y-6">
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Card key={i} className="p-3.5 space-y-3">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-5.5 w-16" />
+                    <Skeleton className="h-5.5 w-12" />
+                  </div>
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <Separator />
+                  <div className="flex justify-between">
+                    <Skeleton className="h-5 w-16" />
+                    <Skeleton className="h-5 w-16" />
+                  </div>
+                  <Skeleton className="h-8.5 w-full" />
+                </Card>
+              ))}
+            </div>
+          ) : courseList.length === 0 ? (
+            <Card className="p-12 text-center">
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <BookOpen className="h-12 w-12 opacity-30 animate-pulse" />
+                <h3 className="font-semibold text-lg">No courses found</h3>
+                <p className="text-sm">Try adjusting your filters or search query.</p>
+              </div>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {courseList.map((course) => {
+                const isUpdatingThis = updateMutation.isPending && updateMutation.variables?.id === course.id
+                const hasInstructor = !!course.instructor
+                
+                return (
+                  <Card 
+                    key={course.id} 
+                    className={cn(
+                      "flex flex-col justify-between overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg border border-muted/60 hover:border-primary/30",
+                      !hasInstructor && "border-amber-200/50 dark:border-amber-900/30 bg-amber-50/10 dark:bg-amber-950/5"
+                    )}
+                  >
+                    <CardContent className="p-3.5 flex-1 flex flex-col justify-between space-y-3">
+                      {/* Top Row */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono font-bold text-primary tracking-wider text-xs bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10">
+                            {course.code}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className={cn(courseTypeColor(course.courseType), "font-semibold")}>
+                              {course.courseType}
+                            </Badge>
+                            {/* Options dropdown menu */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-muted/80">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Actions</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setDetailCourseId(course.id)}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  View Details
+                                </DropdownMenuItem>
+                                {isAdmin && (
+                                  <>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setEditingCourse(course)
+                                        setFormOpen(true)
+                                      }}
+                                    >
+                                      <Pencil className="mr-2 h-4 w-4" />
+                                      Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onClick={() => setDeleteTarget(course)}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+
+                        {/* Title and Department */}
+                        <div>
+                          <h4 className="font-bold text-sm sm:text-base leading-snug tracking-tight text-foreground line-clamp-2 hover:text-primary transition-colors cursor-pointer" onClick={() => setDetailCourseId(course.id)}>
+                            {course.name}
+                          </h4>
+                          <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary/40 shrink-0"></span>
+                            <span className="truncate">{course.department.name}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <Separator className="my-0.5 opacity-70" />
+
+                      {/* Middle Info (Credits, Enrollments, Semester) */}
+                      <div className="grid grid-cols-2 gap-1.5 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-lg border border-muted/40">
+                          <Clock className="h-3.5 w-3.5 text-primary/70 shrink-0" />
+                          <div>
+                            <p className="text-[9px] uppercase tracking-wider text-muted-foreground/80 leading-none">Credits</p>
+                            <p className="font-semibold text-foreground mt-0.5">
+                              {course.creditHours}
+                              {course.labCreditHours > 0 && <span className="text-[10px] text-muted-foreground"> +{course.labCreditHours}L</span>}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-lg border border-muted/40 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setDetailCourseId(course.id)}>
+                          <Users className="h-3.5 w-3.5 text-primary/70 shrink-0" />
+                          <div>
+                            <p className="text-[9px] uppercase tracking-wider text-muted-foreground/80 leading-none">Students</p>
+                            <p className="font-semibold text-foreground mt-0.5">{course.enrollmentCount} enrolled</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Instructor Assignment Section */}
+                      <div className="pt-2 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Instructor</span>
+                          {isUpdatingThis && (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                          )}
+                        </div>
+                        
+                        {isAdmin ? (
+                          /* Admin View: Interactive Assignment Select */
+                          <div className="space-y-1">
+                            {!hasInstructor ? (
+                              <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg text-amber-600 dark:text-amber-400">
+                                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500 animate-pulse" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Not Assigned</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-lg text-emerald-600 dark:text-emerald-400">
+                                <UserCheck className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                                <span className="text-[10px] font-bold truncate">Assigned: {course.instructor?.name}</span>
+                              </div>
+                            )}
+                            
+                            <Select
+                              disabled={isUpdatingThis}
+                              value={course.instructor?.id || "_unassigned"}
+                              onValueChange={(value) => {
+                                const newInstructorId = value === "_unassigned" ? null : value
+                                updateMutation.mutate({
+                                  id: course.id,
+                                  values: { instructorId: newInstructorId }
+                                })
+                              }}
+                            >
+                              <SelectTrigger className="w-full h-9 bg-background border-muted hover:bg-accent/40 text-xs">
+                                <SelectValue placeholder="Assign Instructor..." />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-56">
+                                <SelectItem value="_unassigned" className="text-muted-foreground italic text-xs">
+                                  ❌ Not Assigned / None
+                                </SelectItem>
+                                {facultyList?.map((faculty) => (
+                                  <SelectItem key={faculty.id} value={faculty.id} className="text-xs">
+                                    👤 {faculty.name} ({faculty.facultyId})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : (
+                          /* Non-Admin View: Display Only */
+                          <div>
+                            {hasInstructor ? (
+                              <div className="flex items-center gap-1.5 bg-muted/40 border border-muted px-2 py-1 rounded-lg text-xs text-foreground">
+                                <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                <span className="font-medium truncate">{course.instructor?.name}</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/25 px-2 py-1 rounded-lg text-xs text-amber-600 dark:text-amber-400">
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                <span className="font-medium">Not Assigned</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Pagination for Cards View */}
+          {pagination && pagination.totalPages > 1 && (
+            <Card className="flex items-center justify-between px-4 py-3">
+              <p className="text-sm text-muted-foreground">
+                Showing {(pagination.page - 1) * pagination.limit + 1}–
+                {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                {pagination.total}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
+                <span className="px-3 text-sm font-medium">
+                  {pagination.page} / {pagination.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page >= pagination.totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </Card>
+          )}
+        </div>
+      ) : (
+        /* Data Table */
+        <Card>
+          <div className="max-h-[600px] overflow-auto">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((hg) => (
+                  <TableRow key={hg.id}>
+                    {hg.headers.map((header) => (
+                      <TableHead
+                        key={header.id}
+                        style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
+                        className="cursor-pointer select-none"
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        <div className="flex items-center gap-1">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          {{
+                            asc: ' ↑',
+                            desc: ' ↓',
+                          }[header.column.getIsSorted() as string] ?? ''}
+                        </div>
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <TableRow key={i}>
+                      {Array.from({ length: columns.length }).map((_, j) => (
+                        <TableCell key={j}>
+                          <Skeleton className="h-5 w-full max-w-[120px]" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : table.getRowModel().rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-40 text-center">
+                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                        <BookOpen className="h-10 w-10 opacity-30" />
+                        <p>No courses found</p>
+                        <p className="text-xs">Try adjusting your search or filters</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      className="cursor-pointer"
+                      onClick={() => setDetailCourseId(row.original.id)}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id} onClick={(e) => {
+                          if (cell.column.id === 'actions') e.stopPropagation()
+                        }}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between border-t px-4 py-3">
+              <p className="text-sm text-muted-foreground">
+                Showing {(pagination.page - 1) * pagination.limit + 1}–
+                {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                {pagination.total}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
+                <span className="px-3 text-sm font-medium">
+                  {pagination.page} / {pagination.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.page >= pagination.totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* ==================== FORM DIALOG ==================== */}
       <CourseFormDialog
@@ -1006,7 +1275,7 @@ function CourseFormDialog({
       : {
           code: '',
           name: '',
-          departmentId: '',
+          departmentId: departments[0]?.id || '',
           creditHours: 3,
           labCreditHours: 0,
           courseType: 'THEORY',
@@ -1039,7 +1308,7 @@ function CourseFormDialog({
       form.reset({
         code: '',
         name: '',
-        departmentId: '',
+        departmentId: departments[0]?.id || '',
         creditHours: 3,
         labCreditHours: 0,
         courseType: 'THEORY',
@@ -1051,6 +1320,13 @@ function CourseFormDialog({
       })
     }
   }
+
+  // Set default department when dialog is opened in create mode
+  useEffect(() => {
+    if (open && !isEdit && departments.length > 0) {
+      form.setValue('departmentId', departments[0].id)
+    }
+  }, [open, isEdit, departments, form])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1097,30 +1373,6 @@ function CourseFormDialog({
                       <FormControl>
                         <Input placeholder="Data Structures & Algorithms" {...field} />
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="departmentId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Department *</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select department" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {departments.map((d) => (
-                            <SelectItem key={d.id} value={d.id}>
-                              {d.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1234,70 +1486,6 @@ function CourseFormDialog({
               </div>
             </div>
 
-            <Separator />
-
-            {/* Description */}
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Details
-              </h3>
-              <div className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Brief course description..."
-                          rows={3}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="prerequisites"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Prerequisites</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="CS101, MTH101"
-                          {...field}
-                        />
-                      </FormControl>
-                      <p className="text-xs text-muted-foreground">
-                        Comma-separated course codes
-                      </p>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="objectives"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Course Objectives</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Course learning objectives..."
-                          rows={3}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -1892,7 +2080,7 @@ function EnrollmentDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Semesters</SelectItem>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
                   <SelectItem key={num} value={String(num)}>
                     Semester {num}
                   </SelectItem>
