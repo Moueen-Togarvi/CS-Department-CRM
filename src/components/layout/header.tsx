@@ -1,9 +1,8 @@
 'use client'
 
-import { Search, Bell, User, LogOut, Settings } from 'lucide-react'
+import { Search, Bell, User, LogOut, Settings, CheckCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,9 +11,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuthStore } from '@/stores/auth-store'
 import { useAppStore } from '@/stores/app-store'
-import { NAV_ITEMS, type ModuleId } from '@/lib/constants'
+import { NAV_ITEMS } from '@/lib/constants'
+import { useNotifications } from '@/hooks/use-notifications'
+import { SearchDialog } from '@/components/layout/search-dialog'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +24,9 @@ export function Header() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const activeModule = useAppStore((s) => s.activeModule)
+  const setActiveModule = useAppStore((s) => s.setActiveModule)
+  const setSearchOpen = useAppStore((s) => s.setSearchOpen)
+  const { unreadCount, notifications, markRead, markAllRead } = useNotifications()
 
   const initials = user?.name
     ? user.name
@@ -43,6 +48,7 @@ export function Header() {
       : 'bg-sky-50 text-sky-600 border-sky-200'
 
   return (
+    <>
     <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">
       <div className="flex h-14 items-center gap-3 px-4 sm:px-5">
         {/* Left: Page title with icon */}
@@ -67,6 +73,7 @@ export function Header() {
             variant="ghost"
             size="sm"
             className="hidden md:flex items-center gap-2 text-slate-400 hover:text-slate-600 h-9 px-3 rounded-lg hover:bg-slate-100"
+            onClick={() => setSearchOpen(true)}
           >
             <Search className="size-4" />
             <span className="text-xs font-medium">Search</span>
@@ -79,6 +86,7 @@ export function Header() {
             size="icon"
             className="md:hidden h-9 w-9 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
             aria-label="Search"
+            onClick={() => setSearchOpen(true)}
           >
             <Search className="size-[18px]" />
           </Button>
@@ -87,15 +95,74 @@ export function Header() {
           <div className="hidden sm:block h-5 w-px bg-slate-200 mx-1" />
 
           {/* Notifications */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative h-9 w-9 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-            aria-label="Notifications"
-          >
-            <Bell className="size-[18px]" />
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative h-9 w-9 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                aria-label="Notifications"
+              >
+                <Bell className="size-[18px]" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80 rounded-xl p-0 shadow-lg border-slate-200/80">
+              <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
+                <span className="text-sm font-semibold text-slate-800">Notifications</span>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={() => markAllRead()}
+                    className="text-[11px] font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                  >
+                    <CheckCheck className="size-3" /> Mark all read
+                  </button>
+                )}
+              </div>
+              <ScrollArea className="h-80">
+                {notifications.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                    <Bell className="size-7 mb-2 opacity-40" />
+                    <p className="text-xs">No notifications yet</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-50">
+                    {notifications.map((n) => (
+                      <button
+                        key={n.id}
+                        onClick={() => {
+                          if (!n.isRead) markRead(n.id)
+                          if (n.linkUrl) {
+                            const moduleId = n.linkUrl.replace('/', '')
+                            setActiveModule(moduleId as any)
+                          }
+                        }}
+                        className={cn(
+                          'flex w-full flex-col gap-0.5 px-3 py-2.5 text-left hover:bg-slate-50 transition-colors',
+                          !n.isRead && 'bg-emerald-50/40'
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className={cn('text-xs', n.isRead ? 'font-medium text-slate-700' : 'font-semibold text-slate-800')}>
+                            {n.title}
+                          </span>
+                          {!n.isRead && <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />}
+                        </div>
+                        <p className="text-[11px] text-slate-500 line-clamp-2">{n.message}</p>
+                        <span className="text-[10px] text-slate-400 mt-0.5">
+                          {formatRelativeTime(n.createdAt)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* User menu */}
           <DropdownMenu>
@@ -131,11 +198,14 @@ export function Header() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-slate-100" />
-              <DropdownMenuItem className="rounded-lg px-2 py-1.5 text-slate-600 focus:bg-slate-100 focus:text-slate-800 cursor-pointer">
+              <DropdownMenuItem
+                className="rounded-lg px-2 py-1.5 text-slate-600 focus:bg-slate-100 focus:text-slate-800 cursor-pointer"
+                onClick={() => setActiveModule('profile')}
+              >
                 <User className="mr-2 size-4" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem className="rounded-lg px-2 py-1.5 text-slate-600 focus:bg-slate-100 focus:text-slate-800 cursor-pointer">
+              <DropdownMenuItem className="rounded-lg px-2 py-1.5 text-slate-400 cursor-not-allowed opacity-50">
                 <Settings className="mr-2 size-4" />
                 Settings
               </DropdownMenuItem>
@@ -153,7 +223,23 @@ export function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </div>
-    </header>
-  )
+       </div>
+     </header>
+     <SearchDialog />
+    </>
+   )
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 7) return `${days}d ago`
+  const weeks = Math.floor(days / 7)
+  if (weeks < 4) return `${weeks}w ago`
+  return new Date(dateStr).toLocaleDateString()
 }

@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await db.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: email.trim().toLowerCase() },
       select: {
         id: true,
         email: true,

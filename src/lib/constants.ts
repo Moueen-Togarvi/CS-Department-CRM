@@ -10,6 +10,8 @@ import {
   FolderKanban,
   FileText,
   School,
+  CalendarClock,
+  UserCircle,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -18,6 +20,7 @@ export type ModuleId =
   | 'students'
   | 'faculty'
   | 'courses'
+  | 'course-offerings'
   | 'timetable'
   | 'attendance'
   | 'results'
@@ -25,6 +28,8 @@ export type ModuleId =
   | 'fyp'
   | 'documents'
   | 'rooms'
+  | 'profile'
+  | 'my-attendance'
 
 export type RoleAccess = 'ALL' | 'ADMIN' | 'FACULTY' | 'STUDENT'
 
@@ -62,6 +67,12 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['ALL'],
   },
   {
+    id: 'course-offerings',
+    label: 'Course Assign',
+    icon: CalendarClock,
+    roles: ['ADMIN'],
+  },
+  {
     id: 'timetable',
     label: 'Timetable',
     icon: CalendarDays,
@@ -72,6 +83,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Attendance',
     icon: ClipboardCheck,
     roles: ['ADMIN', 'FACULTY'],
+  },
+  {
+    id: 'my-attendance',
+    label: 'My Attendance',
+    icon: ClipboardCheck,
+    roles: ['STUDENT'],
   },
   {
     id: 'results',
@@ -103,10 +120,23 @@ export const NAV_ITEMS: NavItem[] = [
     icon: School,
     roles: ['ADMIN'],
   },
+  {
+    id: 'profile',
+    label: 'My Profile',
+    icon: UserCircle,
+    roles: ['ALL'],
+  },
 ]
 
-// First 4 items for mobile bottom nav (visible tabs)
-export const MOBILE_NAV_ITEMS: NavItem[] = NAV_ITEMS.slice(0, 4)
+// Role-aware mobile bottom nav: first few visible tabs per role
+export function getMobileNavItems(role: string): NavItem[] {
+  return NAV_ITEMS.filter((item) =>
+    item.roles.includes('ALL') || item.roles.includes(role as RoleAccess)
+  ).slice(0, 4)
+}
 
-// Remaining items (shown in "More" sheet)
-export const MORE_NAV_ITEMS: NavItem[] = NAV_ITEMS.slice(4)
+export function getMoreNavItems(role: string): NavItem[] {
+  return NAV_ITEMS.filter((item) =>
+    item.roles.includes('ALL') || item.roles.includes(role as RoleAccess)
+  ).slice(4)
+}

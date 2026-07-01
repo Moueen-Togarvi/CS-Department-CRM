@@ -1,8 +1,10 @@
 import { db } from '@/lib/db'
-import { successResponse, errorResponse } from '@/lib/api-response'
+import { successResponse } from '@/lib/api-response'
+import { requireAuth, handleApiError } from '@/lib/auth-utils'
 
 export async function GET() {
   try {
+    await requireAuth()
     const documents = await db.document.findMany({
       orderBy: { category: 'asc' },
       include: {
@@ -25,7 +27,6 @@ export async function GET() {
 
     return successResponse(grouped)
   } catch (error) {
-    console.error('Download center error:', error)
-    return errorResponse('Error loading download center', 500)
+    return handleApiError(error, 'Error loading download center')
   }
 }

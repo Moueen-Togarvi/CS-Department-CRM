@@ -5,9 +5,11 @@ import { paginatedResponse, errorResponse, successResponse } from '@/lib/api-res
 import { createStudentSchema } from '@/lib/validators/student'
 import { Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { requireFacultyOrAdmin, requireAdmin, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireFacultyOrAdmin()
     const { searchParams } = new URL(request.url)
     const { page, limit, search, sort, order } = parsePaginationParams(searchParams)
 
@@ -110,13 +112,13 @@ export async function GET(request: NextRequest) {
 
     return paginatedResponse(data, total, page, limit)
   } catch (error) {
-    console.error('GET /api/students error:', error)
-    return errorResponse('Failed to fetch students', 500)
+    return handleApiError(error, 'Failed to fetch students')
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin()
     const body = await request.json()
     const parsed = createStudentSchema.safeParse(body)
 
@@ -211,7 +213,6 @@ export async function POST(request: NextRequest) {
       201
     )
   } catch (error) {
-    console.error('POST /api/students error:', error)
-    return errorResponse('Failed to create student', 500)
+    return handleApiError(error, 'Failed to create student')
   }
 }

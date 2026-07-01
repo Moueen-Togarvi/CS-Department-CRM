@@ -70,8 +70,17 @@ export default function LoginPage() {
       const sessionRes = await fetch('/api/auth/session')
       if (sessionRes.ok) {
         const sessionData = await sessionRes.json()
-        setUser(sessionData.user)
-        toast.success(`Welcome back, ${sessionData.user.name}!`)
+        const u = sessionData.user
+        setUser({
+          id: u.id,
+          email: u.email,
+          name: u.name,
+          role: u.role,
+          avatar: u.avatar,
+          studentId: u.student?.id ?? null,
+          facultyId: u.faculty?.id ?? null,
+        })
+        toast.success(`Welcome back, ${u.name}!`)
         router.replace('/')
       } else {
         setError('Failed to load session profile')

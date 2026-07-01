@@ -2,9 +2,11 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { Prisma } from '@prisma/client'
+import { requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await requireFacultyOrAdmin()
     const { searchParams } = new URL(request.url)
     const courseId = searchParams.get('courseId') || undefined
     const dateFrom = searchParams.get('dateFrom') || undefined
@@ -18,6 +20,12 @@ export async function GET(request: NextRequest) {
       where.date = {}
       if (dateFrom) where.date.gte = new Date(dateFrom)
       if (dateTo) where.date.lte = new Date(dateTo)
+    }
+
+    // Faculty can only see reports for their own classes
+    if (session.user.role === 'FACULTY') {
+      const faculty = await db.faculty.findUnique({ where: { userId: session.user.id } })
+      where.facultyId = faculty?.id ?? '__none__'
     }
 
     // Get all attendance records grouped by date
@@ -96,7 +104,6 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('GET /api/attendance/reports error:', error)
-    return errorResponse('Failed to fetch attendance reports', 500)
+    return handleApiError(error, 'Failed to fetch attendance reports')
   }
 }

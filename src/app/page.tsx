@@ -7,13 +7,16 @@ import { DashboardModule } from '@/components/dashboard/dashboard-module'
 import { StudentModule } from '@/components/students/student-module'
 import { FacultyModule } from '@/components/faculty/faculty-module'
 import { CourseModule } from '@/components/courses/course-module'
+import { CourseOfferingModule } from '@/components/course-offerings/offering-module'
 import { TimetableModule } from '@/components/timetable/timetable-module'
 import { AttendanceModule } from '@/components/attendance/attendance-module'
+import { StudentAttendanceModule } from '@/components/attendance/student-attendance-module'
 import { ResultModule } from '@/components/results/result-module'
 import { AnnouncementModule } from '@/components/announcements/announcement-module'
 import { FYPModule } from '@/components/fyp/fyp-module'
 import { DocumentModule } from '@/components/documents/document-module'
 import { RoomsModule } from '@/components/rooms/rooms-module'
+import { ProfileModule } from '@/components/profile/profile-module'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 
 export default function Home() {
@@ -27,13 +30,16 @@ export default function Home() {
         {activeModule === 'students' && <StudentModule />}
         {activeModule === 'faculty' && <FacultyModule />}
         {activeModule === 'courses' && <CourseModule />}
+        {activeModule === 'course-offerings' && <CourseOfferingModule />}
         {activeModule === 'timetable' && <TimetableModule />}
         {activeModule === 'attendance' && <AttendanceModule />}
+        {activeModule === 'my-attendance' && <StudentAttendanceModule />}
         {activeModule === 'results' && <ResultModule />}
         {activeModule === 'announcements' && <AnnouncementModule />}
         {activeModule === 'fyp' && <FYPModule />}
         {activeModule === 'documents' && <DocumentModule />}
         {activeModule === 'rooms' && <RoomsModule />}
+        {activeModule === 'profile' && <ProfileModule />}
       </ModuleErrorBoundary>
     </AppLayout>
   )

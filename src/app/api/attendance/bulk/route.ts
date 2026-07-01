@@ -2,14 +2,17 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { AttendanceStatus } from '@prisma/client'
+import { requireFacultyOrAdmin, assertFacultyOwnsCourse, handleApiError } from '@/lib/auth-utils'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { courseId, semesterId, date, markedBy, records } = body
+    const session = await requireFacultyOrAdmin()
 
-    if (!courseId || !semesterId || !date || !markedBy || !Array.isArray(records)) {
-      return errorResponse('Missing required fields: courseId, semesterId, date, markedBy, records', 400)
+    const body = await request.json()
+    const { courseId, semesterId, date, records } = body
+
+    if (!courseId || !semesterId || !date || !Array.isArray(records)) {
+      return errorResponse('Missing required fields: courseId, semesterId, date, records', 400)
     }
 
     if (!records.length) {
@@ -25,6 +28,11 @@ export async function POST(request: NextRequest) {
         return errorResponse(`Invalid status: ${rec.status}. Must be PRESENT, ABSENT, LATE, or EXCUSED`, 400)
       }
     }
+
+    // Faculty (non-admin) may only mark attendance for their own courses
+    const faculty = session.user.role === 'FACULTY'
+      ? await assertFacultyOwnsCourse(session.user.id, courseId, semesterId)
+      : await db.faculty.findUnique({ where: { userId: session.user.id } })
 
     const dateObj = new Date(date)
 
@@ -43,7 +51,8 @@ export async function POST(request: NextRequest) {
           update: {
             status: rec.status,
             remarks: rec.remarks || null,
-            markedBy,
+            markedBy: session.user.id,
+            ...(faculty ? { facultyId: faculty.id } : {}),
           },
           create: {
             studentId: rec.studentId,
@@ -52,7 +61,8 @@ export async function POST(request: NextRequest) {
             date: dateObj,
             status: rec.status,
             remarks: rec.remarks || null,
-            markedBy,
+            markedBy: session.user.id,
+            ...(faculty ? { facultyId: faculty.id } : {}),
           },
         })
       )
@@ -63,7 +73,6 @@ export async function POST(request: NextRequest) {
       date: dateObj,
     }, 'Attendance saved successfully')
   } catch (error) {
-    console.error('POST /api/attendance/bulk error:', error)
-    return errorResponse('Failed to save attendance', 500)
+    return handleApiError(error, 'Failed to save attendance')
   }
 }

@@ -1,9 +1,12 @@
+import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse, paginatedResponse } from '@/lib/api-response'
 import { parsePaginationParams, skipTake } from '@/lib/pagination'
+import { requireAuth, requireFacultyOrAdmin, assertFacultyOwnsCourse, getStudentForUser, handleApiError } from '@/lib/auth-utils'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const session = await requireAuth()
     const { searchParams } = new URL(request.url)
     const { page, limit, sort, order } = parsePaginationParams(searchParams)
 
@@ -14,9 +17,25 @@ export async function GET(request: Request) {
 
     const where: Record<string, unknown> = {}
     if (courseId) where.courseId = courseId
-    if (studentId) where.studentId = studentId
     if (semesterId) where.semesterId = semesterId
     if (grade) where.grade = grade
+
+    // Role-based scoping
+    if (session.user.role === 'STUDENT') {
+      const student = await getStudentForUser(session.user.id)
+      where.studentId = student?.id ?? '__none__'
+    } else if (session.user.role === 'FACULTY') {
+      const faculty = await db.faculty.findUnique({ where: { userId: session.user.id } })
+      const offerings = faculty
+        ? await db.courseOffering.findMany({ where: { facultyId: faculty.id }, select: { courseId: true } })
+        : []
+      const courseIds = offerings.map((o) => o.courseId)
+      where.courseId = courseIds.length
+        ? { in: courseIds }
+        : (courseId ? courseId : '__none__')
+    } else if (studentId) {
+      where.studentId = studentId
+    }
 
     const allowedSortFields = [
       'totalMarks', 'percentage', 'gradePoint', 'createdAt', 'updatedAt',
@@ -65,13 +84,14 @@ export async function GET(request: Request) {
 
     return paginatedResponse(formatted, total, page, limit)
   } catch (error) {
-    console.error('GET /api/results error:', error)
-    return errorResponse('Failed to fetch results')
+    return handleApiError(error, 'Failed to fetch results')
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const session = await requireFacultyOrAdmin()
+
     const body = await request.json()
     const {
       enrollmentId,
@@ -95,6 +115,11 @@ export async function POST(request: Request) {
 
     if (!enrollment) {
       return errorResponse('Enrollment not found', 404)
+    }
+
+    // Faculty may only grade their own courses
+    if (session.user.role === 'FACULTY') {
+      await assertFacultyOwnsCourse(session.user.id, enrollment.courseId, enrollment.semesterId)
     }
 
     // Check if result is locked
@@ -149,7 +174,6 @@ export async function POST(request: Request) {
 
     return successResponse(result, 'Result saved successfully')
   } catch (error) {
-    console.error('POST /api/results error:', error)
-    return errorResponse('Failed to save result')
+    return handleApiError(error, 'Failed to save result')
   }
 }

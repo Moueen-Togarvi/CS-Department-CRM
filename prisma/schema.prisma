@@ -129,6 +129,8 @@ model User {
   attendanceMarked Attendance[]  @relation("AttendanceMarker")
   announcementsCreated Announcement[] @relation("AnnouncementAuthor")
   documentsUploaded   Document[] @relation("DocumentUploader")
+  announcementReads   AnnouncementRead[]
+  notifications       Notification[]
 
   @@index([email])
   @@index([role])
@@ -169,6 +171,7 @@ model Semester {
   results     Result[]
   projects    Project[]
   documents   Document[]
+  offerings   CourseOffering[]
 
   @@unique([type, year])
   @@index([isCurrent])
@@ -256,6 +259,7 @@ model Faculty {
   supervisedProjects Project[]  @relation("Supervisor")
   coSupervisedProjects Project[] @relation("CoSupervisor")
   fypEvaluations  FYPEvaluation[]
+  offerings       CourseOffering[]
 
   @@index([departmentId])
   @@index([facultyId])
@@ -287,6 +291,8 @@ model Course {
   attendance  Attendance[]
   results     Result[]
   documents   Document[]
+  offerings   CourseOffering[]
+  targetAnnouncements Announcement[] @relation("AnnouncementCourse")
 
   @@index([departmentId])
   @@index([instructorId])
@@ -402,6 +408,9 @@ model Announcement {
   type           AnnouncementType @default(GENERAL)
   priority       Int              @default(0)
   targetAudience String           @default("ALL")
+  targetCourseId String?
+  targetSemester Int?
+  targetSection  String?
   departmentId   String?
   eventDate      DateTime?
   eventLocation  String?
@@ -415,11 +424,15 @@ model Announcement {
 
   department       Department? @relation(fields: [departmentId], references: [id])
   createdByUser    User        @relation("AnnouncementAuthor", fields: [createdBy], references: [id])
+  targetCourse     Course?     @relation("AnnouncementCourse", fields: [targetCourseId], references: [id])
+  reads            AnnouncementRead[]
 
   @@index([type])
   @@index([isPublished, publishedAt])
   @@index([priority])
   @@index([targetAudience])
+  @@index([targetCourseId])
+  @@index([targetSemester])
 }
 
 model Project {
@@ -531,4 +544,53 @@ model Document {
   @@index([courseId])
   @@index([category])
   @@index([uploadedBy])
+}
+
+model CourseOffering {
+  id          String   @id @default(cuid())
+  courseId    String
+  facultyId   String
+  semesterId  String
+  section     String   @default("A")
+  slotType    String   @default("THEORY")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course    Course    @relation(fields: [courseId], references: [id])
+  faculty   Faculty   @relation(fields: [facultyId], references: [id])
+  semester  Semester  @relation(fields: [semesterId], references: [id])
+
+  @@unique([courseId, semesterId, section, slotType])
+  @@index([facultyId, semesterId])
+  @@index([courseId, semesterId])
+}
+
+model AnnouncementRead {
+  id             String   @id @default(cuid())
+  userId         String
+  announcementId String
+  readAt         DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, announcementId])
+  @@index([userId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   @default("GENERAL")
+  title     String
+  message   String
+  linkUrl   String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
 }

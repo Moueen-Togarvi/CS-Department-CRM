@@ -1,8 +1,10 @@
 import { db } from '@/lib/db'
-import { successResponse, errorResponse } from '@/lib/api-response'
+import { successResponse } from '@/lib/api-response'
+import { requireAuth, handleApiError } from '@/lib/auth-utils'
 
 export async function GET() {
   try {
+    await requireAuth()
     const now = new Date()
 
     const events = await db.announcement.findMany({
@@ -26,7 +28,6 @@ export async function GET() {
 
     return successResponse(events)
   } catch (error) {
-    console.error('Upcoming events error:', error)
-    return errorResponse('Error loading upcoming events', 500)
+    return handleApiError(error, 'Error loading upcoming events')
   }
 }

@@ -1,13 +1,25 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
+import { requireAuth, assertFacultyOwnsCourse, handleApiError } from "@/lib/auth-utils";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await requireAuth();
     const { id: courseId } = await params;
+
+    // Students may not fetch course enrollments (faculty/admin only)
+    if (session.user.role === "STUDENT") {
+      return errorResponse("Forbidden", 403);
+    }
+
+    // Faculty may only fetch enrollments for their own courses
+    if (session.user.role === "FACULTY") {
+      await assertFacultyOwnsCourse(session.user.id, courseId);
+    }
 
     const course = await db.course.findUnique({ where: { id: courseId } });
     if (!course) {
@@ -75,7 +87,6 @@ export async function GET(
         : null,
     });
   } catch (error) {
-    console.error("GET /api/courses/[id]/enrollments error:", error);
-    return errorResponse("Failed to fetch enrollments", 500);
+    return handleApiError(error, "Failed to fetch enrollments");
   }
 }

@@ -1,15 +1,20 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireAuth, assertCanViewStudent, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ studentId: string }> }
 ) {
   try {
+    const session = await requireAuth()
     const { studentId: studentParamId } = await params
     const { searchParams } = new URL(request.url)
     const semesterId = searchParams.get('semesterId') || undefined
+
+    // Students may only view their own attendance
+    await assertCanViewStudent(session, studentParamId)
 
     // Find the student
     const student = await db.student.findUnique({
@@ -66,7 +71,6 @@ export async function GET(
 
     return successResponse(summary)
   } catch (error) {
-    console.error('GET /api/attendance/student/[studentId]/summary error:', error)
-    return errorResponse('Failed to fetch student attendance summary', 500)
+    return handleApiError(error, 'Failed to fetch student attendance summary')
   }
 }

@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/sheet'
 import { useAppStore } from '@/stores/app-store'
 import { useAuthStore } from '@/stores/auth-store'
-import { MOBILE_NAV_ITEMS, MORE_NAV_ITEMS, type ModuleId } from '@/lib/constants'
+import { getMobileNavItems, getMoreNavItems, type ModuleId } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
 export function MobileBottomNav() {
@@ -19,15 +19,10 @@ export function MobileBottomNav() {
   const user = useAuthStore((s) => s.user)
   const [moreOpen, setMoreOpen] = useState(false)
 
-  const userRole = user?.role
+  const userRole = user?.role ?? 'STUDENT'
 
-  const filterByRole = (items: typeof MOBILE_NAV_ITEMS) =>
-    items.filter(
-      (item) => item.roles.includes('ALL') || item.roles.includes(userRole ?? 'STUDENT')
-    )
-
-  const visibleItems = filterByRole(MOBILE_NAV_ITEMS)
-  const moreItems = filterByRole(MORE_NAV_ITEMS)
+  const visibleItems = getMobileNavItems(userRole)
+  const moreItems = getMoreNavItems(userRole)
 
   const handleNav = (id: ModuleId) => {
     setActiveModule(id)

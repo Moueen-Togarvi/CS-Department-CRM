@@ -18,6 +18,7 @@ import {
   GraduationCap,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
 import {
   BarChart,
   Bar,
@@ -159,49 +160,52 @@ function calcGradeFromPercentage(pct: number): { grade: string; gradePoint: numb
 // ============ MAIN COMPONENT ============
 
 export function ResultModule() {
+  const user = useAuthStore((s) => s.user)
+  const isStudent = user?.role === 'STUDENT'
+  const defaultTab = isStudent ? 'transcript' : 'course-results'
+
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Results"
-        description="Enter, manage, and publish examination results"
-        actions={
-          <Button onClick={() => {
-            const tab = document.querySelector('[data-radix-collection-item][data-state="active"]')
-            // Navigate to course results tab
-          }}>
-            <BarChart3 className="size-4 mr-2" />
-            Enter Marks
-          </Button>
-        }
+        description={isStudent ? 'View your results and transcript' : 'Enter, manage, and publish examination results'}
       />
 
-      <Tabs defaultValue="course-results" className="space-y-4">
+      <Tabs defaultValue={defaultTab} className="space-y-4">
         <TabsList className="w-full sm:w-auto">
-          <TabsTrigger value="course-results" className="flex-1 sm:flex-initial">
-            <FileText className="size-4 mr-1.5 hidden sm:inline-block" />
-            Course Results
-          </TabsTrigger>
+          {!isStudent && (
+            <TabsTrigger value="course-results" className="flex-1 sm:flex-initial">
+              <FileText className="size-4 mr-1.5 hidden sm:inline-block" />
+              Course Results
+            </TabsTrigger>
+          )}
           <TabsTrigger value="transcript" className="flex-1 sm:flex-initial">
             <GraduationCap className="size-4 mr-1.5 hidden sm:inline-block" />
             Student Transcript
           </TabsTrigger>
-          <TabsTrigger value="reports" className="flex-1 sm:flex-initial">
-            <BarChart3 className="size-4 mr-1.5 hidden sm:inline-block" />
-            Reports
-          </TabsTrigger>
+          {!isStudent && (
+            <TabsTrigger value="reports" className="flex-1 sm:flex-initial">
+              <BarChart3 className="size-4 mr-1.5 hidden sm:inline-block" />
+              Reports
+            </TabsTrigger>
+          )}
         </TabsList>
 
-        <TabsContent value="course-results">
-          <CourseResultsTab />
-        </TabsContent>
+        {!isStudent && (
+          <TabsContent value="course-results">
+            <CourseResultsTab />
+          </TabsContent>
+        )}
 
         <TabsContent value="transcript">
           <StudentTranscriptTab />
         </TabsContent>
 
-        <TabsContent value="reports">
-          <ReportsTab />
-        </TabsContent>
+        {!isStudent && (
+          <TabsContent value="reports">
+            <ReportsTab />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   )
@@ -211,6 +215,8 @@ export function ResultModule() {
 
 function CourseResultsTab() {
   const queryClient = useQueryClient()
+  const user = useAuthStore((s) => s.user)
+  const isFaculty = user?.role === 'FACULTY'
   const [selectedCourse, setSelectedCourse] = useState<string>('')
   const [selectedSemester, setSelectedSemester] = useState<string>('')
   const [selectedAcademicSemester, setSelectedAcademicSemester] = useState<string>('1')
@@ -218,17 +224,7 @@ function CourseResultsTab() {
   // Tracks only user modifications to marks fields
   const [dirtyEdits, setDirtyEdits] = useState<Record<string, Record<string, string | number>>>({})
 
-  // Fetch courses
-  const { data: courses } = useQuery({
-    queryKey: ['results-courses'],
-    queryFn: async () => {
-      const res = await fetch('/api/courses?limit=100')
-      const json = await res.json()
-      return (json.data || []) as Array<{ id: string; code: string; name: string; semesterOffered?: number | null }>
-    },
-  })
-
-  // Fetch semesters
+  // Default selected semester to current semester
   const { data: semesters } = useQuery({
     queryKey: ['results-semesters'],
     queryFn: async () => {
@@ -238,12 +234,53 @@ function CourseResultsTab() {
     },
   })
 
+  const currentSemesterId = useMemo(() => {
+    return semesters?.find((s) => s.isCurrent)?.id || semesters?.[0]?.id || ''
+  }, [semesters])
+
+  // Faculty: only assigned courses
+  const { data: facultyOfferings } = useQuery({
+    queryKey: ['faculty-offerings', currentSemesterId],
+    queryFn: async () => {
+      const res = await fetch(`/api/faculty/me/offerings?semesterId=${currentSemesterId}`)
+      const json = await res.json()
+      return (json.data?.offerings || []) as Array<{ course: { id: string; code: string; name: string; semesterOffered?: number | null } }>
+    },
+    enabled: isFaculty && !!currentSemesterId,
+  })
+
+  // Admin: all courses
+  const { data: allCourses } = useQuery({
+    queryKey: ['results-courses'],
+    queryFn: async () => {
+      const res = await fetch('/api/courses?limit=100')
+      const json = await res.json()
+      return (json.data || []) as Array<{ id: string; code: string; name: string; semesterOffered?: number | null }>
+    },
+    enabled: !isFaculty,
+  })
+
+  const courses = useMemo(() => {
+    if (isFaculty) {
+      return (facultyOfferings || []).map((o) => o.course)
+    }
+    return allCourses || []
+  }, [isFaculty, facultyOfferings, allCourses])
+
+  // Default selected semester to current semester
+  useEffect(() => {
+    if (currentSemesterId && !selectedSemester) {
+      setSelectedSemester(currentSemesterId)
+    }
+  }, [currentSemesterId, selectedSemester])
+
   // Filter courses by selected academic semester
   const filteredCourses = useMemo(() => {
     if (!courses) return []
+    if (isFaculty) return courses
     const targetSem = parseInt(selectedAcademicSemester, 10)
     return courses.filter((c) => c.semesterOffered === targetSem)
-  }, [courses, selectedAcademicSemester])
+  }, [courses, selectedAcademicSemester, isFaculty])
 
   // Reset course selection if it is no longer in the filtered list
   useEffect(() => {
@@ -254,16 +291,6 @@ function CourseResultsTab() {
       }
     }
   }, [filteredCourses, selectedCourse])
-
-  // Default selected semester to current semester
-  useEffect(() => {
-    if (semesters && semesters.length > 0 && !selectedSemester) {
-      const current = semesters.find((s) => s.isCurrent) || semesters[0]
-      if (current) {
-        setSelectedSemester(current.id)
-      }
-    }
-  }, [semesters, selectedSemester])
 
   // Fetch entry data
   const { data: entryData, isLoading: entryLoading } = useQuery({
@@ -627,10 +654,19 @@ function CourseResultsTab() {
 // ============ STUDENT TRANSCRIPT TAB ============
 
 function StudentTranscriptTab() {
+  const user = useAuthStore((s) => s.user)
+  const isStudent = user?.role === 'STUDENT'
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStudentId, setSelectedStudentId] = useState('')
 
-  // Search students
+  // Students default to their own transcript
+  useEffect(() => {
+    if (isStudent && user?.studentId) {
+      setSelectedStudentId(user.studentId)
+    }
+  }, [isStudent, user?.studentId])
+
+  // Search students (faculty/admin only)
   const { data: studentResults } = useQuery({
     queryKey: ['transcript-search', searchQuery],
     queryFn: async () => {
@@ -640,6 +676,7 @@ function StudentTranscriptTab() {
       const json = await res.json()
       return (json.data || []) as Array<{ id: string; studentId: string; name: string; batch: string | null; program: string }>
     },
+    enabled: !isStudent,
   })
 
   // Fetch transcript
@@ -656,7 +693,8 @@ function StudentTranscriptTab() {
 
   return (
     <div className="space-y-4">
-      {/* Student Search */}
+      {/* Student Search (faculty/admin only) */}
+      {!isStudent && (
       <Card>
         <CardContent className="p-4">
           <div className="relative">
@@ -694,6 +732,7 @@ function StudentTranscriptTab() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Transcript Display */}
       {selectedStudentId && (

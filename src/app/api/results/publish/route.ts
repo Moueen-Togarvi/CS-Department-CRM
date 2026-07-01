@@ -1,13 +1,22 @@
+import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireFacultyOrAdmin, assertFacultyOwnsCourse, handleApiError } from '@/lib/auth-utils'
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const session = await requireFacultyOrAdmin()
+
     const body = await request.json()
     const { courseId, semesterId } = body
 
     if (!courseId || !semesterId) {
       return errorResponse('courseId and semesterId are required')
+    }
+
+    // Faculty may only publish their own courses
+    if (session.user.role === 'FACULTY') {
+      await assertFacultyOwnsCourse(session.user.id, courseId, semesterId)
     }
 
     // Check course and semester exist
@@ -72,7 +81,6 @@ export async function POST(request: Request) {
       total: enrollmentIds.length,
     }, `Results published for ${course.code} - ${semester.name}`)
   } catch (error) {
-    console.error('POST /api/results/publish error:', error)
-    return errorResponse('Failed to publish results')
+    return handleApiError(error, 'Failed to publish results')
   }
 }

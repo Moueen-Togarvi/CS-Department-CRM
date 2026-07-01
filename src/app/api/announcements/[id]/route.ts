@@ -1,12 +1,14 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { NextRequest } from 'next/server'
+import { requireAuth, requireRole, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAuth()
     const { id } = await params
     const announcement = await db.announcement.findUnique({
       where: { id },
@@ -25,8 +27,7 @@ export async function GET(
       createdByName: announcement.createdByUser.name,
     })
   } catch (error) {
-    console.error('Announcement detail error:', error)
-    return errorResponse('Error loading announcement', 500)
+    return handleApiError(error, 'Error loading announcement')
   }
 }
 
@@ -35,6 +36,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireRole('ADMIN')
     const { id } = await params
     const body = await request.json()
     const {
@@ -43,6 +45,9 @@ export async function PUT(
       type,
       priority,
       targetAudience,
+      targetCourseId,
+      targetSemester,
+      targetSection,
       eventDate,
       eventLocation,
       isPublished,
@@ -58,8 +63,11 @@ export async function PUT(
     if (title !== undefined) updateData.title = title
     if (content !== undefined) updateData.content = content
     if (type !== undefined) updateData.type = type
-    if (priority !== undefined) updateData.priority = Math.min(10, Math.max(1, priority))
+    if (priority !== undefined) updateData.priority = Math.min(10, Math.max(0, priority))
     if (targetAudience !== undefined) updateData.targetAudience = targetAudience
+    if (targetCourseId !== undefined) updateData.targetCourseId = targetCourseId || null
+    if (targetSemester !== undefined) updateData.targetSemester = targetSemester ? Number(targetSemester) : null
+    if (targetSection !== undefined) updateData.targetSection = targetSection || null
     if (eventDate !== undefined) updateData.eventDate = eventDate ? new Date(eventDate) : null
     if (eventLocation !== undefined) updateData.eventLocation = eventLocation
     if (isPublished !== undefined) {
@@ -83,8 +91,7 @@ export async function PUT(
       createdByName: announcement.createdByUser.name,
     })
   } catch (error) {
-    console.error('Update announcement error:', error)
-    return errorResponse('Error updating announcement', 500)
+    return handleApiError(error, 'Error updating announcement')
   }
 }
 
@@ -93,6 +100,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireRole('ADMIN')
     const { id } = await params
     const existing = await db.announcement.findUnique({ where: { id } })
     if (!existing) {
@@ -102,7 +110,6 @@ export async function DELETE(
     await db.announcement.delete({ where: { id } })
     return successResponse(null, 'Announcement deleted')
   } catch (error) {
-    console.error('Delete announcement error:', error)
-    return errorResponse('Error deleting announcement', 500)
+    return handleApiError(error, 'Error deleting announcement')
   }
 }

@@ -349,19 +349,45 @@ export function AttendanceModule() {
     return semesters?.find((s) => s.isCurrent)?.id || semesters?.[0]?.id || ''
   }, [semesters, selectedSemester])
 
-  const { data: courses } = useQuery({
+  const isFaculty = user?.role === 'FACULTY'
+
+  // Faculty: only the courses assigned to them this semester
+  const { data: facultyOfferings } = useQuery({
+    queryKey: ['faculty-offerings', currentSemesterId],
+    queryFn: () =>
+      fetch(`/api/faculty/me/offerings?semesterId=${currentSemesterId}`)
+        .then((r) => r.json())
+        .then((d: any) => d.data?.offerings || []),
+    enabled: isFaculty && !!currentSemesterId,
+  })
+
+  // Admin: all courses
+  const { data: allCourses } = useQuery({
     queryKey: ['courses-attendance', currentSemesterId],
     queryFn: () => fetch('/api/courses?limit=100').then((r) => r.json()).then((d: any) => (d.data || d || []) as Course[]),
-    enabled: !!currentSemesterId,
+    enabled: !isFaculty && !!currentSemesterId,
   })
+
+  const courses = useMemo(() => {
+    if (isFaculty) {
+      return (facultyOfferings || []).map((o: any) => ({
+        id: o.course.id,
+        code: o.course.code,
+        name: o.course.name,
+        courseType: o.course.courseType,
+        semesterOffered: o.course.semesterOffered,
+      }))
+    }
+    return allCourses || []
+  }, [isFaculty, facultyOfferings, allCourses])
 
   // Filter courses by selected academic semester
   const filteredCourses = useMemo(() => {
     if (!courses) return []
-    if (selectedAcademicSemester === '_all') return courses
+    if (isFaculty || selectedAcademicSemester === '_all') return courses
     const targetSem = parseInt(selectedAcademicSemester, 10)
     return courses.filter((c) => c.semesterOffered === targetSem)
-  }, [courses, selectedAcademicSemester])
+  }, [courses, selectedAcademicSemester, isFaculty])
 
   // Reset course selection if it is no longer in the filtered list
   useEffect(() => {

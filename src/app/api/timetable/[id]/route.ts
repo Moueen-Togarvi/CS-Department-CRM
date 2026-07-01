@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { DayOfWeek } from '@prisma/client'
+import { requireAdmin, handleApiError } from '@/lib/auth-utils'
 
 function timeOverlaps(startA: string, endA: string, startB: string, endB: string): boolean {
   const toMin = (t: string) => {
@@ -20,6 +21,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAdmin()
     const { id } = await params
     const existing = await db.timetable.findUnique({ where: { id } })
     if (!existing) {
@@ -107,8 +109,7 @@ export async function PUT(
       slotType: slot.slotType,
     }, 'Timetable slot updated successfully')
   } catch (error) {
-    console.error('PUT /api/timetable/[id] error:', error)
-    return errorResponse('Failed to update timetable slot', 500)
+    return handleApiError(error, 'Failed to update timetable slot')
   }
 }
 
@@ -117,6 +118,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAdmin()
     const { id } = await params
     const existing = await db.timetable.findUnique({ where: { id } })
     if (!existing) {
@@ -126,7 +128,6 @@ export async function DELETE(
     await db.timetable.delete({ where: { id } })
     return successResponse(null, 'Timetable slot deleted successfully')
   } catch (error) {
-    console.error('DELETE /api/timetable/[id] error:', error)
-    return errorResponse('Failed to delete timetable slot', 500)
+    return handleApiError(error, 'Failed to delete timetable slot')
   }
 }

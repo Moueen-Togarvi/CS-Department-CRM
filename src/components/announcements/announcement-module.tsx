@@ -66,6 +66,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
 
 // Types
 interface Announcement {
@@ -82,6 +83,7 @@ interface Announcement {
   expiresAt: string | null
   createdByName: string
   createdAt: string
+  isRead?: boolean
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -119,6 +121,8 @@ function truncate(str: string, len: number) {
 
 export function AnnouncementModule() {
   const queryClient = useQueryClient()
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = user?.role === 'ADMIN'
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -141,6 +145,8 @@ export function AnnouncementModule() {
     type: 'GENERAL',
     priority: 1,
     targetAudience: 'ALL',
+    targetSemester: '',
+    targetSection: '',
     eventDate: '',
     eventLocation: '',
     isPublished: true,
@@ -223,6 +229,14 @@ export function AnnouncementModule() {
     },
   })
 
+  const markReadMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/announcements/${id}/read`, { method: 'POST' }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['announcements'] })
+    },
+  })
+
   const detailQuery = useQuery({
     queryKey: ['announcement', selectedId],
     queryFn: () =>
@@ -238,6 +252,8 @@ export function AnnouncementModule() {
       type: 'GENERAL',
       priority: 1,
       targetAudience: 'ALL',
+      targetSemester: '',
+      targetSection: '',
       eventDate: '',
       eventLocation: '',
       isPublished: true,
@@ -259,6 +275,8 @@ export function AnnouncementModule() {
       type: item.type,
       priority: item.priority,
       targetAudience: item.targetAudience,
+      targetSemester: (item as any).targetSemester ? String((item as any).targetSemester) : '',
+      targetSection: (item as any).targetSection || '',
       eventDate: item.eventDate ? item.eventDate.slice(0, 16) : '',
       eventLocation: item.eventLocation || '',
       isPublished: item.isPublished,
@@ -270,6 +288,9 @@ export function AnnouncementModule() {
   function openDetail(id: string) {
     setSelectedId(id)
     setDetailOpen(true)
+    if (!isAdmin) {
+      markReadMutation.mutate(id)
+    }
   }
 
   function handleDelete(id: string) {
@@ -285,6 +306,8 @@ export function AnnouncementModule() {
     const body = {
       ...form,
       priority: Number(form.priority),
+      targetSemester: form.targetSemester ? Number(form.targetSemester) : undefined,
+      targetSection: form.targetSection || undefined,
       eventDate: form.eventDate || undefined,
       eventLocation: form.eventLocation || undefined,
       expiresAt: form.expiresAt || undefined,
@@ -304,10 +327,12 @@ export function AnnouncementModule() {
         title="Announcements"
         description="Create and manage department announcements and notices"
         actions={
-          <Button onClick={openCreate} size="sm">
-            <Plus className="size-4 mr-1.5" />
-            New Announcement
-          </Button>
+          isAdmin ? (
+            <Button onClick={openCreate} size="sm">
+              <Plus className="size-4 mr-1.5" />
+              New Announcement
+            </Button>
+          ) : undefined
         }
       />
 
@@ -390,16 +415,18 @@ export function AnnouncementModule() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(1) }}>
-            <SelectTrigger>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Status</SelectItem>
-              <SelectItem value="true">Published</SelectItem>
-              <SelectItem value="false">Draft</SelectItem>
-            </SelectContent>
-          </Select>
+          {isAdmin && (
+            <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(1) }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Status</SelectItem>
+                <SelectItem value="true">Published</SelectItem>
+                <SelectItem value="false">Draft</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
       )}
 
@@ -442,15 +469,19 @@ export function AnnouncementModule() {
                       <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(item.id) }}>
                         <Eye className="size-4 mr-2" /> View
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(item) }}>
-                        <Pencil className="size-4 mr-2" /> Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-red-600 dark:text-red-400"
-                        onClick={(e) => { e.stopPropagation(); handleDelete(item.id) }}
-                      >
-                        <Trash2 className="size-4 mr-2" /> Delete
-                      </DropdownMenuItem>
+                      {isAdmin && (
+                        <>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(item) }}>
+                            <Pencil className="size-4 mr-2" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600 dark:text-red-400"
+                            onClick={(e) => { e.stopPropagation(); handleDelete(item.id) }}
+                          >
+                            <Trash2 className="size-4 mr-2" /> Delete
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -537,17 +568,24 @@ export function AnnouncementModule() {
                           <MoreHorizontal className="size-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(item) }}>
-                          <Pencil className="size-4 mr-2" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-600 dark:text-red-400"
-                          onClick={(e) => { e.stopPropagation(); handleDelete(item.id) }}
-                        >
-                          <Trash2 className="size-4 mr-2" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(item.id) }}>
+                        <Eye className="size-4 mr-2" /> View
+                      </DropdownMenuItem>
+                      {isAdmin && (
+                        <>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(item) }}>
+                            <Pencil className="size-4 mr-2" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600 dark:text-red-400"
+                            onClick={(e) => { e.stopPropagation(); handleDelete(item.id) }}
+                          >
+                            <Trash2 className="size-4 mr-2" /> Delete
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
@@ -650,6 +688,30 @@ export function AnnouncementModule() {
                 </SelectContent>
               </Select>
             </div>
+
+            {form.targetAudience === 'STUDENTS' && (
+              <div className="grid grid-cols-2 gap-3 rounded-lg border p-3 bg-muted/30">
+                <div className="grid gap-2">
+                  <Label>Target Semester (optional)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={8}
+                    value={form.targetSemester}
+                    onChange={(e) => setForm({ ...form, targetSemester: e.target.value })}
+                    placeholder="e.g. 3"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Target Section (optional)</Label>
+                  <Input
+                    value={form.targetSection}
+                    onChange={(e) => setForm({ ...form, targetSection: e.target.value })}
+                    placeholder="e.g. A"
+                  />
+                </div>
+              </div>
+            )}
 
             {form.type === 'EVENT' && (
               <div className="grid grid-cols-2 gap-3 rounded-lg border p-3 bg-muted/30">
@@ -754,19 +816,21 @@ export function AnnouncementModule() {
                   </div>
                 )}
               </div>
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={() => { setDetailOpen(false); openEdit(detail as unknown as Announcement) }}>
-                  <Pencil className="size-4 mr-1.5" /> Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-red-600 dark:text-red-400"
-                  onClick={() => { setDetailOpen(false); handleDelete(detail.id) }}
-                >
-                  <Trash2 className="size-4 mr-1.5" /> Delete
-                </Button>
-              </div>
+              {isAdmin && (
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" size="sm" onClick={() => { setDetailOpen(false); openEdit(detail as unknown as Announcement) }}>
+                    <Pencil className="size-4 mr-1.5" /> Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 dark:text-red-400"
+                    onClick={() => { setDetailOpen(false); handleDelete(detail.id) }}
+                  >
+                    <Trash2 className="size-4 mr-1.5" /> Delete
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

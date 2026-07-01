@@ -3,9 +3,11 @@ import { successResponse, errorResponse, paginatedResponse } from '@/lib/api-res
 import { parsePaginationParams, skipTake } from '@/lib/pagination'
 import { NextRequest } from 'next/server'
 import { DocumentCategory } from '@prisma/client'
+import { requireAuth, requireRole, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth()
     const { searchParams } = new URL(request.url)
     const pagination = parsePaginationParams(searchParams)
     const { skip, take } = skipTake(pagination.page!, pagination.limit!)
@@ -47,13 +49,13 @@ export async function GET(request: NextRequest) {
 
     return paginatedResponse(data, total, pagination.page!, pagination.limit!)
   } catch (error) {
-    console.error('Documents list error:', error)
-    return errorResponse('Error loading documents', 500)
+    return handleApiError(error, 'Error loading documents')
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await requireRole('ADMIN')
     const body = await request.json()
     const {
       title,
@@ -71,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     const adminUser = await db.user.findFirst({ where: { role: 'ADMIN' } })
-    const uploadedBy = adminUser?.id || 'system'
+    const uploadedBy = session.user.id
 
     const currentSemester = await db.semester.findFirst({ where: { isCurrent: true } })
 
@@ -104,7 +106,6 @@ export async function POST(request: NextRequest) {
       201
     )
   } catch (error) {
-    console.error('Create document error:', error)
-    return errorResponse('Error creating document', 500)
+    return handleApiError(error, 'Error creating document')
   }
 }

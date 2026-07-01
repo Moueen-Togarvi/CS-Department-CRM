@@ -1,12 +1,15 @@
+import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { promises as fs } from 'fs'
 import path from 'path'
+import { requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    await requireFacultyOrAdmin()
     const [total, active, byBatchRaw, bySemesterRaw, bySemesterSectionRaw] = await Promise.all([
       db.student.count({
         where: { status: { not: 'INACTIVE' } },
@@ -107,7 +110,6 @@ export async function GET() {
 
     return successResponse({ total, active, byBatch, bySemester, bySemesterSection })
   } catch (error) {
-    console.error('GET /api/students/stats error:', error)
-    return errorResponse('Failed to fetch student stats', 500)
+    return handleApiError(error, 'Failed to fetch student stats')
   }
 }

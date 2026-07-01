@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { parsePaginationParams, skipTake } from '@/lib/pagination'
 import { paginatedResponse, successResponse, errorResponse } from '@/lib/api-response'
 import { Prisma, DayOfWeek } from '@prisma/client'
+import { requireAuth, requireAdmin, handleApiError } from '@/lib/auth-utils'
 
 function timeOverlaps(startA: string, endA: string, startB: string, endB: string): boolean {
   const toMin = (t: string) => {
@@ -18,6 +19,7 @@ function timeOverlaps(startA: string, endA: string, startB: string, endB: string
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth()
     const { searchParams } = new URL(request.url)
     const { page, limit, sort, order } = parsePaginationParams(searchParams)
 
@@ -112,13 +114,13 @@ export async function GET(request: NextRequest) {
 
     return paginatedResponse(data, total, page, limit)
   } catch (error) {
-    console.error('GET /api/timetable error:', error)
-    return errorResponse('Failed to fetch timetable slots', 500)
+    return handleApiError(error, 'Failed to fetch timetable slots')
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin()
     const body = await request.json()
     const { courseId, facultyId, semesterId, roomId, section, day, startTime, endTime, slotType } = body
 
@@ -189,7 +191,6 @@ export async function POST(request: NextRequest) {
       201
     )
   } catch (error) {
-    console.error('POST /api/timetable error:', error)
-    return errorResponse('Failed to create timetable slot', 500)
+    return handleApiError(error, 'Failed to create timetable slot')
   }
 }

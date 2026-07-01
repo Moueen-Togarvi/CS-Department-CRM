@@ -1,15 +1,23 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireFacultyOrAdmin, assertFacultyOwnsCourse, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
+    const session = await requireFacultyOrAdmin()
+
     const { courseId } = await params
     const { searchParams } = new URL(request.url)
     const semesterId = searchParams.get('semesterId') || undefined
+
+    // Faculty may only view attendance for their own courses
+    if (session.user.role === 'FACULTY') {
+      await assertFacultyOwnsCourse(session.user.id, courseId, semesterId)
+    }
 
     // Get all students enrolled in this course for the semester
     const enrollments = await db.enrollment.findMany({
@@ -84,7 +92,6 @@ export async function GET(
 
     return successResponse(summary)
   } catch (error) {
-    console.error('GET /api/attendance/course/[courseId]/summary error:', error)
-    return errorResponse('Failed to fetch course attendance summary', 500)
+    return handleApiError(error, 'Failed to fetch course attendance summary')
   }
 }

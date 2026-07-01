@@ -1,9 +1,13 @@
+import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { calculateTotalMarks, calculateGrade } from '@/lib/calculations/grade'
+import { requireFacultyOrAdmin, assertFacultyOwnsCourse, handleApiError, AuthError } from '@/lib/auth-utils'
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const session = await requireFacultyOrAdmin()
+
     const body = await request.json()
     const { results: resultsData } = body
 
@@ -11,7 +15,7 @@ export async function POST(request: Request) {
       return errorResponse('results array is required and must not be empty')
     }
 
-    const processedResults = []
+    const processedResults: Array<Record<string, unknown>> = []
     const errors: string[] = []
 
     for (const item of resultsData) {
@@ -32,6 +36,11 @@ export async function POST(request: Request) {
         if (!enrollment) {
           errors.push(`Enrollment ${enrollmentId} not found`)
           continue
+        }
+
+        // Faculty may only grade their own courses
+        if (session.user.role === 'FACULTY') {
+          await assertFacultyOwnsCourse(session.user.id, enrollment.courseId, enrollment.semesterId)
         }
 
         // Check locked
@@ -85,6 +94,7 @@ export async function POST(request: Request) {
 
         processedResults.push(result)
       } catch (err) {
+        if (err instanceof AuthError) throw err
         errors.push(`Failed to process enrollment ${enrollmentId}`)
       }
     }
@@ -95,7 +105,6 @@ export async function POST(request: Request) {
       errors: errors.length > 0 ? errors : undefined,
     }, `Bulk save completed: ${processedResults.length} results processed`)
   } catch (error) {
-    console.error('POST /api/results/bulk error:', error)
-    return errorResponse('Failed to process bulk results')
+    return handleApiError(error, 'Failed to process bulk results')
   }
 }

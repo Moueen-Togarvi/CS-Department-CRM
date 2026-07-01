@@ -1,13 +1,19 @@
+import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { calculateGPA } from '@/lib/calculations/grade'
+import { requireAuth, assertCanViewStudent, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ studentId: string }> }
 ) {
   try {
+    const session = await requireAuth()
     const { studentId } = await params
+
+    // Students may only view their own transcript
+    await assertCanViewStudent(session, studentId)
 
     const student = await db.student.findUnique({
       where: { id: studentId },
@@ -105,7 +111,6 @@ export async function GET(
       cumulativeGPA,
     })
   } catch (error) {
-    console.error('GET /api/results/student/[studentId]/transcript error:', error)
-    return errorResponse('Failed to fetch transcript')
+    return handleApiError(error, 'Failed to fetch transcript')
   }
 }

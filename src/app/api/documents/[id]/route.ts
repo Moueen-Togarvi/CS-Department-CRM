@@ -1,12 +1,14 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { NextRequest } from 'next/server'
+import { requireAuth, requireRole, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAuth()
     const { id } = await params
     const document = await db.document.findUnique({
       where: { id },
@@ -26,8 +28,7 @@ export async function GET(
       uploadedByName: document.uploadedByUser.name,
     })
   } catch (error) {
-    console.error('Document detail error:', error)
-    return errorResponse('Error loading document', 500)
+    return handleApiError(error, 'Error loading document')
   }
 }
 
@@ -36,6 +37,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireRole('ADMIN')
     const { id } = await params
     const body = await request.json()
     const { title, description, category, courseId, semesterId, fileUrl, fileType, fileSize } = body
@@ -71,8 +73,7 @@ export async function PUT(
       courseCode: document.course?.code || null,
     })
   } catch (error) {
-    console.error('Update document error:', error)
-    return errorResponse('Error updating document', 500)
+    return handleApiError(error, 'Error updating document')
   }
 }
 
@@ -81,6 +82,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireRole('ADMIN')
     const { id } = await params
     const existing = await db.document.findUnique({ where: { id } })
     if (!existing) {
@@ -90,7 +92,6 @@ export async function DELETE(
     await db.document.delete({ where: { id } })
     return successResponse(null, 'Document deleted')
   } catch (error) {
-    console.error('Delete document error:', error)
-    return errorResponse('Error deleting document', 500)
+    return handleApiError(error, 'Error deleting document')
   }
 }

@@ -3,9 +3,11 @@ import { db } from '@/lib/db'
 import { parsePaginationParams, skipTake } from '@/lib/pagination'
 import { paginatedResponse, errorResponse } from '@/lib/api-response'
 import { Prisma } from '@prisma/client'
+import { requireAuth, getStudentForUser, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await requireAuth()
     const { searchParams } = new URL(request.url)
     const { page, limit } = parsePaginationParams(searchParams)
 
@@ -18,12 +20,22 @@ export async function GET(request: NextRequest) {
     const where: Prisma.AttendanceWhereInput = {}
 
     if (courseId) where.courseId = courseId
-    if (studentId) where.studentId = studentId
     if (semesterId) where.semesterId = semesterId
     if (dateFrom || dateTo) {
       where.date = {}
       if (dateFrom) where.date.gte = new Date(dateFrom)
       if (dateTo) where.date.lte = new Date(dateTo)
+    }
+
+    // Role-based scoping
+    if (session.user.role === 'STUDENT') {
+      const student = await getStudentForUser(session.user.id)
+      where.studentId = student?.id ?? '__none__'
+    } else if (session.user.role === 'FACULTY') {
+      const faculty = await db.faculty.findUnique({ where: { userId: session.user.id } })
+      where.facultyId = faculty?.id ?? '__none__'
+    } else if (studentId) {
+      where.studentId = studentId
     }
 
     const { skip, take } = skipTake(page, limit)
@@ -71,7 +83,6 @@ export async function GET(request: NextRequest) {
 
     return paginatedResponse(data, total, page, limit)
   } catch (error) {
-    console.error('GET /api/attendance error:', error)
-    return errorResponse('Failed to fetch attendance records', 500)
+    return handleApiError(error, 'Failed to fetch attendance records')
   }
 }

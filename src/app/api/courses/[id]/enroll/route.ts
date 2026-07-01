@@ -2,12 +2,14 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
 import { enrollStudentsSchema } from "@/lib/validators/course";
+import { requireAdmin, handleApiError } from "@/lib/auth-utils";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAdmin();
     const { id: courseId } = await params;
 
     const course = await db.course.findUnique({ where: { id: courseId } });
@@ -78,7 +80,6 @@ export async function POST(
       201
     );
   } catch (error) {
-    console.error("POST /api/courses/[id]/enroll error:", error);
-    return errorResponse("Failed to enroll students", 500);
+    return handleApiError(error, "Failed to enroll students");
   }
 }

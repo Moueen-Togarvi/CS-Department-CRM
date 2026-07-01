@@ -162,6 +162,16 @@ export function TimetableModule() {
   const user = useAuthStore((s) => s.user)
   const queryClient = useQueryClient()
   const isAdmin = user?.role === 'ADMIN'
+  const isFaculty = user?.role === 'FACULTY'
+
+  // Faculty default to viewing only their own timetable
+  useEffect(() => {
+    if (isFaculty && user?.facultyId) {
+      setViewMode('faculty')
+      setSelectedFaculty(user.facultyId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFaculty, user?.facultyId])
 
   const [selectedSemester, setSelectedSemester] = useState<string>('')
   const [selectedAcademicSemester, setSelectedAcademicSemester] = useState<string>('1')

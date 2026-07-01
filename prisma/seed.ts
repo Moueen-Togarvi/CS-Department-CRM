@@ -450,6 +450,30 @@ async function main() {
   }
   console.log(`  ✓ Total: ${timetableDefs.length} timetable slots\n`);
 
+  // ==================== 9b. COURSE OFFERINGS ====================
+  console.log("Creating course offerings for Spring 2025...");
+
+  const offeringSeen = new Set<string>();
+  for (const t of timetableDefs) {
+    const courseId = courseRecords[t.courseIdx].id;
+    const facultyId = facultyRecords[t.facultyIdx].faculty.id;
+    const section = "A";
+    const key = `${courseId}|${spring2025.id}|${section}|${t.type}`;
+    if (offeringSeen.has(key)) continue;
+    offeringSeen.add(key);
+    await prisma.courseOffering.create({
+      data: {
+        courseId,
+        facultyId,
+        semesterId: spring2025.id,
+        section,
+        slotType: t.type,
+        isActive: true,
+      },
+    });
+  }
+  console.log(`  ✓ Total: ${offeringSeen.size} course offerings\n`);
+
   // ==================== 10. ATTENDANCE ====================
   console.log("Creating attendance records for Spring 2025...");
 

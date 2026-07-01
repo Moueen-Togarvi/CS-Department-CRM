@@ -1,12 +1,14 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { parsePaginationParams, skipTake } from "@/lib/pagination";
-import { paginatedResponse, errorResponse } from "@/lib/api-response";
+import { paginatedResponse, errorResponse, successResponse } from "@/lib/api-response";
 import { createCourseSchema } from "@/lib/validators/course";
 import { Prisma } from "@prisma/client";
+import { requireAuth, requireAdmin, handleApiError } from "@/lib/auth-utils";
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth();
     const { searchParams } = new URL(request.url);
     const { page, limit, search, sort, order } = parsePaginationParams(searchParams);
 
@@ -99,13 +101,14 @@ export async function GET(request: NextRequest) {
 
     return paginatedResponse(data, total, page, limit);
   } catch (error) {
-    console.error("GET /api/courses error:", error);
-    return errorResponse("Failed to fetch courses", 500);
+    return handleApiError(error, "Failed to fetch courses");
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin();
+
     const body = await request.json();
     const parsed = createCourseSchema.safeParse(body);
 
@@ -168,7 +171,6 @@ export async function POST(request: NextRequest) {
 
     return successResponse(course, "Course created successfully", 201);
   } catch (error) {
-    console.error("POST /api/courses error:", error);
-    return errorResponse("Failed to create course", 500);
+    return handleApiError(error, "Failed to create course");
   }
 }

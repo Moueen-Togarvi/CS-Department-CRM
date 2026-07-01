@@ -1,17 +1,26 @@
+import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireFacultyOrAdmin, assertFacultyOwnsCourse, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
+    const session = await requireFacultyOrAdmin()
+
     const { courseId } = await params
     const { searchParams } = new URL(request.url)
     const semesterId = searchParams.get('semesterId') || undefined
 
     if (!semesterId) {
       return errorResponse('semesterId is required')
+    }
+
+    // Faculty may only view statistics for their own courses
+    if (session.user.role === 'FACULTY') {
+      await assertFacultyOwnsCourse(session.user.id, courseId, semesterId)
     }
 
     const course = await db.course.findUnique({ where: { id: courseId } })
@@ -78,7 +87,6 @@ export async function GET(
       classAverage,
     })
   } catch (error) {
-    console.error('GET /api/results/course/[courseId]/statistics error:', error)
-    return errorResponse('Failed to fetch course statistics')
+    return handleApiError(error, 'Failed to fetch course statistics')
   }
 }

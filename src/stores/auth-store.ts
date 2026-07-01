@@ -9,6 +9,8 @@ export interface AuthUser {
   name: string
   role: UserRole
   avatar?: string | null
+  studentId?: string | null
+  facultyId?: string | null
 }
 
 interface AuthState {

@@ -2,12 +2,14 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { updateStudentSchema } from '@/lib/validators/student'
+import { requireFacultyOrAdmin, requireAdmin, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireFacultyOrAdmin()
     const { id } = await params
 
     const student = await db.student.findUnique({
@@ -104,8 +106,7 @@ export async function GET(
       attendanceSummary,
     })
   } catch (error) {
-    console.error('GET /api/students/[id] error:', error)
-    return errorResponse('Failed to fetch student details', 500)
+    return handleApiError(error, 'Failed to fetch student details')
   }
 }
 
@@ -114,6 +115,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAdmin()
     const { id } = await params
 
     const existing = await db.student.findUnique({
@@ -236,8 +238,7 @@ export async function PUT(
       updatedAt: student.updatedAt,
     }, 'Student updated successfully')
   } catch (error) {
-    console.error('PUT /api/students/[id] error:', error)
-    return errorResponse('Failed to update student', 500)
+    return handleApiError(error, 'Failed to update student')
   }
 }
 
@@ -246,6 +247,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAdmin()
     const { id } = await params
 
     const existing = await db.student.findUnique({
@@ -271,7 +273,6 @@ export async function DELETE(
 
     return successResponse(null, 'Student deactivated successfully')
   } catch (error) {
-    console.error('DELETE /api/students/[id] error:', error)
-    return errorResponse('Failed to deactivate student', 500)
+    return handleApiError(error, 'Failed to deactivate student')
   }
 }

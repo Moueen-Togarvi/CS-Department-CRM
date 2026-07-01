@@ -2,12 +2,14 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
 import { updateCourseSchema } from "@/lib/validators/course";
+import { requireAuth, requireAdmin, handleApiError } from "@/lib/auth-utils";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAuth();
     const { id } = await params;
 
     const course = await db.course.findUnique({
@@ -96,8 +98,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("GET /api/courses/[id] error:", error);
-    return errorResponse("Failed to fetch course details", 500);
+    return handleApiError(error, "Failed to fetch course details");
   }
 }
 
@@ -106,6 +107,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAdmin();
     const { id } = await params;
 
     const course = await db.course.findUnique({ where: { id } });
@@ -165,8 +167,7 @@ export async function PUT(
 
     return successResponse(updated, "Course updated successfully");
   } catch (error) {
-    console.error("PUT /api/courses/[id] error:", error);
-    return errorResponse("Failed to update course", 500);
+    return handleApiError(error, "Failed to update course");
   }
 }
 
@@ -175,6 +176,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAdmin();
     const { id } = await params;
 
     const course = await db.course.findUnique({ where: { id } });
@@ -189,7 +191,6 @@ export async function DELETE(
 
     return successResponse(null, "Course deleted successfully");
   } catch (error) {
-    console.error("DELETE /api/courses/[id] error:", error);
-    return errorResponse("Failed to delete course", 500);
+    return handleApiError(error, "Failed to delete course");
   }
 }

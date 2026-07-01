@@ -64,6 +64,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
+import { Upload, Loader2 } from 'lucide-react'
+import { useAuthStore } from '@/stores/auth-store'
 
 // Types
 interface Document {
@@ -143,6 +145,10 @@ export function DocumentModule() {
     courseId: '',
     fileUrl: '',
   })
+  const [uploading, setUploading] = useState(false)
+
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = user?.role === 'ADMIN'
 
   // Courses query for selects
   const { data: coursesData } = useQuery({
@@ -240,6 +246,30 @@ export function DocumentModule() {
     setForm({ title: '', description: '', category: 'OTHER', courseId: '', fileUrl: '' })
   }
 
+  async function handleFileUpload(file: File) {
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      const json = await res.json()
+      if (json.url) {
+        setForm((prev) => ({
+          ...prev,
+          fileUrl: json.url,
+          title: prev.title || file.name.replace(/\.[^.]+$/, ''),
+        }))
+        toast.success('File uploaded')
+      } else {
+        toast.error(json.error || 'Upload failed')
+      }
+    } catch {
+      toast.error('Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   function openCreate() {
     resetForm()
     setEditingItem(null)
@@ -270,7 +300,7 @@ export function DocumentModule() {
     }
     const body = {
       ...form,
-      courseId: form.courseId || undefined,
+      courseId: form.courseId && form.courseId !== 'none' ? form.courseId : undefined,
       description: form.description || undefined,
     }
     if (editingItem) {
@@ -288,10 +318,12 @@ export function DocumentModule() {
         title="Documents"
         description="Upload, organize, and share department documents"
         actions={
-          <Button onClick={openCreate} size="sm">
-            <Plus className="size-4 mr-1.5" />
-            Upload Document
-          </Button>
+          isAdmin ? (
+            <Button onClick={openCreate} size="sm">
+              <Plus className="size-4 mr-1.5" />
+              Upload Document
+            </Button>
+          ) : undefined
         }
       />
 
@@ -447,15 +479,19 @@ export function DocumentModule() {
                             <DropdownMenuItem onClick={() => window.open(doc.fileUrl, '_blank')}>
                               <Download className="size-4 mr-2" /> Download
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEdit(doc)}>
-                              <Pencil className="size-4 mr-2" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-red-600 dark:text-red-400"
-                              onClick={() => handleDelete(doc.id)}
-                            >
-                              <Trash2 className="size-4 mr-2" /> Delete
-                            </DropdownMenuItem>
+                            {isAdmin && (
+                              <>
+                                <DropdownMenuItem onClick={() => openEdit(doc)}>
+                                  <Pencil className="size-4 mr-2" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-red-600 dark:text-red-400"
+                                  onClick={() => handleDelete(doc.id)}
+                                >
+                                  <Trash2 className="size-4 mr-2" /> Delete
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -628,16 +664,39 @@ export function DocumentModule() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="doc-url">File URL *</Label>
-              <Input
-                id="doc-url"
-                value={form.fileUrl}
-                onChange={(e) => setForm({ ...form, fileUrl: e.target.value })}
-                placeholder="https://example.com/document.pdf"
-              />
-              <p className="text-xs text-muted-foreground">
-                In production, this would be a file upload field
-              </p>
+              <Label>File *</Label>
+              {form.fileUrl ? (
+                <div className="flex items-center gap-2 rounded-lg border p-3 bg-muted/30">
+                  <File className="size-4 text-emerald-600 shrink-0" />
+                  <span className="text-sm text-slate-600 truncate flex-1">{form.fileUrl.split('/').pop()}</span>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setForm({ ...form, fileUrl: '' })}>
+                    <X className="size-3 mr-1" /> Remove
+                  </Button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 p-6 cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/30 transition-colors">
+                  {uploading ? (
+                    <>
+                      <Loader2 className="size-5 animate-spin text-emerald-600" />
+                      <span className="text-xs text-slate-500">Uploading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="size-5 text-slate-400" />
+                      <span className="text-xs text-slate-500">Click to select a file</span>
+                      <span className="text-[10px] text-slate-400">PDF, DOCX, PPTX, etc.</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleFileUpload(file)
+                    }}
+                  />
+                </label>
+              )}
             </div>
           </div>
           <DialogFooter>

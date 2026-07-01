@@ -1,14 +1,23 @@
+import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireFacultyOrAdmin, assertFacultyOwnsCourse, handleApiError } from '@/lib/auth-utils'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const session = await requireFacultyOrAdmin()
+
     const { searchParams } = new URL(request.url)
     const courseId = searchParams.get('courseId')
     const semesterId = searchParams.get('semesterId')
 
     if (!courseId || !semesterId) {
       return errorResponse('courseId and semesterId are required')
+    }
+
+    // Faculty may only access entry data for their own courses
+    if (session.user.role === 'FACULTY') {
+      await assertFacultyOwnsCourse(session.user.id, courseId, semesterId)
     }
 
     const enrollments = await db.enrollment.findMany({
@@ -57,7 +66,6 @@ export async function GET(request: Request) {
       isPublished: !!anyLocked,
     })
   } catch (error) {
-    console.error('GET /api/results/entry error:', error)
-    return errorResponse('Failed to fetch entry data')
+    return handleApiError(error, 'Failed to fetch entry data')
   }
 }
