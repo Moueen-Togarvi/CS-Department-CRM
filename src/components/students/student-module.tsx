@@ -35,6 +35,7 @@ import { PageHeader } from '@/components/shared/page-header'
 import { DataTable } from '@/components/shared/data-table'
 import { useAuthStore } from '@/stores/auth-store'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { cn } from '@/lib/utils'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -820,19 +821,18 @@ export function StudentModule() {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4.5">
               {isLoadingStats ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  <Card key={i} className="animate-pulse border shadow-sm h-[108px] py-0">
-                    <CardContent className="p-3.5 flex flex-col justify-between h-full">
+                Array.from({ length: 4 }).map((_, i) => (
+                  <Card key={i} className="animate-pulse border shadow-sm h-[112px] py-0">
+                    <CardContent className="p-4 flex flex-col justify-between h-full">
                       <div className="flex items-center justify-between w-full">
-                        <Skeleton className="h-3 w-20" />
+                        <Skeleton className="h-3.5 w-24" />
                         <Skeleton className="h-4 w-4 rounded-full" />
                       </div>
-                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-5 w-20" />
                       <div className="flex items-center justify-between w-full">
-                        <Skeleton className="h-3.5 w-12" />
-                        <Skeleton className="h-3.5 w-16" />
+                        <Skeleton className="h-4 w-16" />
                       </div>
                     </CardContent>
                   </Card>
@@ -868,7 +868,7 @@ export function StudentModule() {
                   return filtered.map((item) => (
                     <Card
                       key={`${item.semester}-${item.section}`}
-                      className="group relative cursor-pointer overflow-hidden border border-slate-200 dark:border-slate-800 bg-card hover:bg-slate-50/50 dark:hover:bg-slate-900/50 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md h-[108px] py-0 flex flex-col justify-between"
+                      className="group relative cursor-pointer overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:bg-slate-50/40 dark:hover:bg-slate-900/40 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_6px_16px_-4px_rgba(0,0,0,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500/40 h-[112px] py-0 flex flex-col justify-between"
                       onClick={() => {
                         setSelectedGroup({ semester: item.semester, section: item.section })
                         setSemesterFilter(String(item.semester))
@@ -876,22 +876,28 @@ export function StudentModule() {
                         setPage(1)
                       }}
                     >
-                      <CardContent className="p-3.5 flex flex-col justify-between h-full relative">
-                        {/* Top Row: Semester, Shift and 3-dots */}
+                      <CardContent className="p-4 flex flex-col justify-between h-full relative">
+                        {/* Top Row: Semester and Shift Badges */}
                         <div className="flex items-center justify-between w-full">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                            <span>Semester: {item.semester}</span>
-                            <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-                            <span className={item.shift === 'Evening' ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : 'text-emerald-600 dark:text-emerald-400 font-extrabold'}>
-                              {item.shift}
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md">
+                              Semester {item.semester}
                             </span>
-                          </span>
+                            <span className={cn(
+                              "px-2 py-0.5 text-[10px] font-extrabold rounded-md tracking-wider text-xs",
+                              item.shift === 'Evening' 
+                                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' 
+                                : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                            )}>
+                              {item.shift.toUpperCase()}
+                            </span>
+                          </div>
 
                           {isAdmin && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                <Button variant="ghost" className="h-5 w-5 p-0 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground">
-                                  <MoreHorizontal className="size-3.5" />
+                                <Button variant="ghost" className="h-6 w-6 p-0 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground">
+                                  <MoreHorizontal className="size-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
@@ -912,34 +918,34 @@ export function StudentModule() {
                         </div>
 
                         {/* Middle: Section Name */}
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-black text-card-foreground group-hover:text-primary transition-colors leading-tight truncate">
+                        <div className="min-w-0 my-1">
+                          <h3 className={cn(
+                            "text-[15px] font-extrabold tracking-tight transition-colors leading-snug truncate",
+                            item.section === 'Unassigned' 
+                              ? 'text-slate-400 dark:text-slate-600 italic font-semibold' 
+                              : 'text-slate-900 dark:text-slate-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'
+                          )}>
                             {item.section}
                           </h3>
                         </div>
 
-                        {/* Bottom Row: Room & Student Count */}
+                        {/* Bottom Row: Room badge only */}
                         <div className="flex items-center justify-between w-full gap-1.5 pt-0.5">
                           {item.room && item.room !== 'N/A' && item.room !== 'Room: TBD' ? (
-                            <div className="text-[10px] font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded flex items-center gap-1">
-                              <Building2 className="size-3 text-primary/80" />
-                              <span className="text-primary font-black">{item.room}</span>
-                              {item.floor !== null && <span className="text-muted-foreground font-semibold">(F{item.floor})</span>}
+                            <div className="text-[11px] font-medium text-slate-750 dark:text-slate-350 bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 px-2.5 py-0.5 rounded-md flex items-center gap-1.5">
+                              <Building2 className="size-3.5 text-slate-400" />
+                              <span className="font-bold text-slate-800 dark:text-slate-200">{item.room}</span>
+                              {item.floor !== null && <span className="text-slate-500 dark:text-slate-500 font-medium"> · Floor {item.floor}</span>}
                             </div>
                           ) : (
-                            <div className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded border border-amber-200/30 flex items-center gap-1">
-                              <Building2 className="size-3 text-amber-500/80" />
-                              <span>TBD</span>
+                            <div className="text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/40 dark:border-amber-900/30 px-2.5 py-0.5 rounded-md flex items-center gap-1.5">
+                              <Building2 className="size-3.5 text-amber-500/70" />
+                              <span className="font-bold">Room: TBD</span>
                             </div>
                           )}
-
-                          <span className="font-extrabold bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] flex items-center gap-1 whitespace-nowrap">
-                            <Users className="size-3 text-primary/80" />
-                            <span>{item.count} {item.count === 1 ? 'Student' : 'Students'}</span>
-                          </span>
                         </div>
                       </CardContent>
-                      <div className="absolute bottom-0 left-0 h-0.5 w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+                      <div className="absolute bottom-0 left-0 h-[2.5px] w-full bg-emerald-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
                     </Card>
                   ))
                 })()
