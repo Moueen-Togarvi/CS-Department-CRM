@@ -3,8 +3,8 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Plus, Search, Trash2, Pencil, Building2, Users, Monitor,
-  Wind, CheckCircle, XCircle, MoreVertical, DoorOpen, FlaskConical,
+  Plus, Search, Trash2, Pencil, Building2,
+  MoreVertical, DoorOpen, FlaskConical,
   Presentation, Briefcase,
 } from 'lucide-react'
 
@@ -14,7 +14,6 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -46,6 +45,29 @@ const TYPE_LABEL: Record<string, string> = {
   LAB: 'Lab',
   SEMINAR_HALL: 'Seminar Hall',
   OFFICE: 'Office',
+}
+
+const TYPE_STYLE: Record<string, { bg: string; text: string; label: string }> = {
+  CLASSROOM: {
+    bg: 'bg-emerald-50 dark:bg-emerald-950/40',
+    text: 'text-emerald-600 dark:text-emerald-400',
+    label: 'text-emerald-700 dark:text-emerald-400',
+  },
+  LAB: {
+    bg: 'bg-violet-50 dark:bg-violet-950/40',
+    text: 'text-violet-600 dark:text-violet-400',
+    label: 'text-violet-700 dark:text-violet-400',
+  },
+  SEMINAR_HALL: {
+    bg: 'bg-amber-50 dark:bg-amber-950/40',
+    text: 'text-amber-600 dark:text-amber-400',
+    label: 'text-amber-700 dark:text-amber-400',
+  },
+  OFFICE: {
+    bg: 'bg-blue-50 dark:bg-blue-950/40',
+    text: 'text-blue-600 dark:text-blue-400',
+    label: 'text-blue-700 dark:text-blue-400',
+  },
 }
 
 export function RoomsModule() {
@@ -132,8 +154,8 @@ export function RoomsModule() {
 
       {/* Cards */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-32 rounded-xl bg-slate-100 animate-pulse" />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          {Array.from({ length: 10 }).map((_, i) => <div key={i} className="h-[84px] rounded-xl bg-slate-100 animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 border border-dashed rounded-2xl">
@@ -141,33 +163,23 @@ export function RoomsModule() {
           <p className="text-sm text-slate-400">No rooms found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {filtered.map((room) => {
             const TypeIcon = TYPE_ICON[room.roomType] || DoorOpen
+            const style = TYPE_STYLE[room.roomType] || TYPE_STYLE.CLASSROOM
             return (
               <Card
                 key={room.id}
                 className="border-slate-200 shadow-sm hover:shadow-md transition-shadow rounded-xl cursor-pointer group"
                 onClick={() => openEdit(room)}
               >
-                <div className="p-4 space-y-3">
-                  {/* Top row: name + status */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="size-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                        <TypeIcon className="size-4 text-slate-500" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-800 truncate">{room.name}</p>
-                        <p className="text-[11px] text-slate-400">{TYPE_LABEL[room.roomType]}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className={`size-2 rounded-full ${room.isAvailable ? 'bg-emerald-500' : 'bg-red-400'}`} />
+                  <div className="p-3 flex flex-col justify-between h-[84px] relative">
+                    {/* Absolute 3-dot menu at top right */}
+                    <div className="absolute top-2 right-2 z-10">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button onClick={(e) => e.stopPropagation()} className="size-6 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-400 opacity-0 group-hover:opacity-100">
-                            <MoreVertical className="size-3.5" />
+                          <button onClick={(e) => e.stopPropagation()} className="size-6 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
+                            <MoreVertical className="size-4" />
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -176,32 +188,27 @@ export function RoomsModule() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                  </div>
 
-                  {/* Info rows */}
-                  <div className="space-y-1 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400 flex items-center gap-1.5"><Building2 className="size-3" /> Location</span>
-                      <span className="text-slate-600 font-medium">{room.building}{room.floor !== null && `, Fl ${room.floor}`}</span>
+                    {/* Top row: name and icon with spacing */}
+                    <div className="flex items-center gap-3 min-w-0 pr-6">
+                      <div className={`size-8.5 rounded-lg ${style.bg} flex items-center justify-center shrink-0`}>
+                        <TypeIcon className={`size-4.5 ${style.text}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-extrabold text-slate-950 dark:text-white truncate leading-none">{room.name}</p>
+                        <p className={`text-[10px] ${style.label} font-extrabold tracking-wider mt-1`}>{TYPE_LABEL[room.roomType].toUpperCase()}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400 flex items-center gap-1.5"><Users className="size-3" /> Capacity</span>
-                      <span className="text-slate-600 font-medium">{room.capacity}</span>
-                    </div>
-                  </div>
 
-                  {/* Amenities + status */}
-                  <div className="flex items-center justify-between pt-1">
-                    <div className="flex gap-1">
-                      {room.hasProjector && <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-600 font-medium flex items-center gap-1"><Monitor className="size-2.5" /> Proj</span>}
-                      {room.hasAC && <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-50 text-cyan-600 font-medium flex items-center gap-1"><Wind className="size-2.5" /> AC</span>}
-                      {!room.hasProjector && !room.hasAC && <span className="text-[10px] text-slate-300">—</span>}
+                    {/* Location Badge */}
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-800 dark:text-slate-200 font-extrabold bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 px-2 py-0.5 rounded-md w-full justify-between mt-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Building2 className="size-3.5 text-slate-500 shrink-0" />
+                        <span className="whitespace-nowrap overflow-hidden">{room.building}</span>
+                      </div>
+                      {room.floor !== null && <span className="text-slate-400 font-normal shrink-0">· Fl {room.floor}</span>}
                     </div>
-                    <span className={`text-[10px] font-medium ${room.isAvailable ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {room.isAvailable ? 'Available' : 'Unavailable'}
-                    </span>
                   </div>
-                </div>
               </Card>
             )
           })}
@@ -230,30 +237,12 @@ export function RoomsModule() {
                 <Input type="number" value={form.floor} onChange={(e) => setForm({ ...form, floor: e.target.value })} placeholder="1" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label className="text-xs font-semibold text-slate-600">Capacity</Label>
-                <Input type="number" min={1} value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} />
-              </div>
-              <div className="grid gap-1.5">
-                <Label className="text-xs font-semibold text-slate-600">Type</Label>
-                <Select value={form.roomType} onValueChange={(v) => setForm({ ...form, roomType: v as Room['roomType'] })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="CLASSROOM">Classroom</SelectItem><SelectItem value="LAB">Lab</SelectItem><SelectItem value="SEMINAR_HALL">Seminar Hall</SelectItem><SelectItem value="OFFICE">Office</SelectItem></SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex items-center justify-between rounded-lg border p-3 gap-3">
-              <Label htmlFor="proj" className="text-xs text-slate-600 flex items-center gap-1.5"><Monitor className="size-3.5" /> Projector</Label>
-              <Switch id="proj" checked={form.hasProjector} onCheckedChange={(c) => setForm({ ...form, hasProjector: c })} />
-            </div>
-            <div className="flex items-center justify-between rounded-lg border p-3 gap-3">
-              <Label htmlFor="ac2" className="text-xs text-slate-600 flex items-center gap-1.5"><Wind className="size-3.5" /> Air Conditioner</Label>
-              <Switch id="ac2" checked={form.hasAC} onCheckedChange={(c) => setForm({ ...form, hasAC: c })} />
-            </div>
-            <div className="flex items-center justify-between rounded-lg border p-3 gap-3">
-              <Label htmlFor="avail" className="text-xs text-slate-700 font-medium">Available for booking</Label>
-              <Switch id="avail" checked={form.isAvailable} onCheckedChange={(c) => setForm({ ...form, isAvailable: c })} />
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold text-slate-600">Type</Label>
+              <Select value={form.roomType} onValueChange={(v) => setForm({ ...form, roomType: v as Room['roomType'] })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="CLASSROOM">Classroom</SelectItem><SelectItem value="LAB">Lab</SelectItem><SelectItem value="SEMINAR_HALL">Seminar Hall</SelectItem><SelectItem value="OFFICE">Office</SelectItem></SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter className="gap-2">

@@ -236,12 +236,12 @@ export function TimetableModule() {
   })
 
   const { data: facultyList } = useQuery({
-    queryKey: ['faculty-list-tt'],
+    queryKey: ['faculty-list-tt-v2'],
     queryFn: () => fetch('/api/faculty?limit=100').then((r) => r.json()).then((d: any) =>
       (d.data || []).map((f: any) => ({
         id: f.id,
         facultyId: f.facultyId,
-        name: f.name,
+        name: f.user?.name || f.name,
         designation: f.designation,
       } as FacultyItem))
     ),
@@ -912,7 +912,7 @@ export function TimetableModule() {
                 <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Select faculty" /></SelectTrigger>
                 <SelectContent>
                   {facultyList?.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>{f.name} ({f.designation})</SelectItem>
+                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
