@@ -13,6 +13,8 @@ import {
   Building,
   AlertTriangle,
   X,
+  User,
+  Layers,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -247,6 +249,16 @@ export function TimetableModule() {
     ),
   })
 
+  // Auto-select first faculty/room if none is selected (or when switching viewModes)
+  useEffect(() => {
+    if (viewMode === 'faculty' && (!selectedFaculty || selectedFaculty === '__all__') && facultyList && facultyList.length > 0) {
+      setSelectedFaculty(facultyList[0].id)
+    }
+    if (viewMode === 'room' && (!selectedRoom || selectedRoom === '__all__') && rooms && rooms.length > 0) {
+      setSelectedRoom(rooms[0].id)
+    }
+  }, [viewMode, facultyList, rooms, selectedFaculty, selectedRoom])
+
   const { data: allCourses } = useQuery({
     queryKey: ['all-courses-tt'],
     queryFn: () => fetch('/api/courses?limit=100').then((r) => r.json()).then((d: any) =>
@@ -287,9 +299,10 @@ export function TimetableModule() {
   const effectiveAcademicSemester = viewMode === 'section' ? selectedAcademicSemester : undefined
 
   const { data: weeklyData, isLoading: isLoadingGrid } = useQuery({
-    queryKey: ['timetable-weekly', currentSemester, effectiveSection, viewMode, effectiveFaculty, effectiveRoom, effectiveAcademicSemester],
+    queryKey: ['timetable-weekly', currentSemester, effectiveSection, viewMode, effectiveFaculty, effectiveRoom, effectiveAcademicSemester, selectedShift],
     queryFn: async () => {
       const params = new URLSearchParams({ semesterId: currentSemester })
+      params.set('shift', selectedShift)
       if (effectiveSection && effectiveSection !== '__all__') {
         params.set('section', effectiveSection)
       }
@@ -387,14 +400,14 @@ export function TimetableModule() {
     setEditingSlot(null)
     setConflictWarning(null)
     setFormCourseId('')
-    
+
     // Auto select room if filter views have room selected
     if (viewMode === 'room' && effectiveRoom) {
       setFormRoomId(effectiveRoom)
     } else {
       setFormRoomId('')
     }
-    
+
     // Auto select faculty if filter views have faculty selected
     if (viewMode === 'faculty' && effectiveFaculty) {
       setFormFacultyId(effectiveFaculty)
@@ -414,12 +427,12 @@ export function TimetableModule() {
 
     setFormDay(day)
     setFormStartTime(startTime)
-    
+
     // Calculate end time (1 hour later)
     const tsIdx = TIME_SLOTS.indexOf(startTime)
     const nextTime = tsIdx !== -1 && tsIdx < TIME_SLOTS.length - 1 ? TIME_SLOTS[tsIdx + 1] : '17:00'
     setFormEndTime(nextTime)
-    
+
     setFormSlotType('THEORY')
     setShowCreateDialog(true)
   }
@@ -507,17 +520,14 @@ export function TimetableModule() {
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Session</Label>
-              <Select value={selectedSemester || currentSemester} onValueChange={(v) => setSelectedSemester(v === '__none__' ? '' : v)}>
-                <SelectTrigger className="w-[150px] h-9">
-                  <SelectValue placeholder="Select" />
+              <Label className="text-xs font-medium text-muted-foreground">Shift</Label>
+              <Select value={selectedShift} onValueChange={setSelectedShift}>
+                <SelectTrigger className="w-[110px] h-9">
+                  <SelectValue placeholder="Shift" />
                 </SelectTrigger>
                 <SelectContent>
-                  {semesters?.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name} {s.isCurrent && '✓'}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="Morning">Morning</SelectItem>
+                  <SelectItem value="Evening">Evening</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -543,38 +553,20 @@ export function TimetableModule() {
                   </Select>
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Shift</Label>
-                  <Select value={selectedShift} onValueChange={setSelectedShift}>
-                    <SelectTrigger className="w-[110px] h-9">
-                      <SelectValue placeholder="Shift" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Morning">Morning</SelectItem>
-                      <SelectItem value="Evening">Evening</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Section</Label>
-                  <Select value={selectedSection} onValueChange={setSelectedSection}>
-                    <SelectTrigger className="w-[120px] h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {selectedShift === 'Morning' && (
-                        <SelectItem value="Morning">Morning</SelectItem>
-                      )}
-                      {selectedShift === 'Evening' && (
-                        <>
-                          <SelectItem value="Evening A">Evening A</SelectItem>
-                          <SelectItem value="Evening B">Evening B</SelectItem>
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {selectedShift === 'Evening' && (
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">Section</Label>
+                    <Select value={selectedSection} onValueChange={setSelectedSection}>
+                      <SelectTrigger className="w-[120px] h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Evening A">Evening A</SelectItem>
+                        <SelectItem value="Evening B">Evening B</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </>
             )}
 
@@ -807,24 +799,69 @@ export function TimetableModule() {
                         <p className="text-[10px] leading-tight opacity-75 line-clamp-1 mt-0.5">
                           {slot.course.name}
                         </p>
-                        <div className="flex items-center gap-1 text-[9px] opacity-65 mt-0.5">
-                          <MapPin className="size-2.5 shrink-0" />
-                          <span className="truncate">{slot.room.name}</span>
-                        </div>
-                        {span > 1 && (
-                          <div className="flex items-center gap-1 text-[9px] opacity-65">
-                            <Clock className="size-2.5 shrink-0" />
-                            <span>{slot.startTime}-{slot.endTime}</span>
+                        {span > 1 ? (
+                          <div className="mt-1 space-y-0.5 text-[9px] opacity-75">
+                            {span > 1 && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="size-2.5 shrink-0" />
+                                <span>{slot.startTime}-{slot.endTime}</span>
+                              </div>
+                            )}
+                            {viewMode !== 'room' && (
+                              <div className="flex items-center gap-1">
+                                <MapPin className="size-2.5 shrink-0" />
+                                <span className="truncate">{slot.room.name}</span>
+                              </div>
+                            )}
+                            {viewMode !== 'faculty' && (
+                              <div className="flex items-center gap-1">
+                                <User className="size-2.5 shrink-0" />
+                                <span className="truncate">{slot.faculty.name}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1">
+                              <Layers className="size-2.5 shrink-0" />
+                              <span>Sec {slot.section}</span>
+                            </div>
                           </div>
-                        )}
-                        <div className="flex items-center gap-1 text-[9px] opacity-65">
-                          <Users className="size-2.5 shrink-0" />
-                          <span className="truncate">{slot.faculty.name}</span>
-                        </div>
-                        {slot.section && (
-                          <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 mt-0.5 w-fit">
-                            Sec {slot.section}
-                          </Badge>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-[9px] opacity-65 mt-0.5 truncate">
+                            {viewMode === 'section' && (
+                              <>
+                                <span className="font-semibold text-foreground/80 shrink-0">📍 {slot.room.name}</span>
+                                <span className="opacity-45 shrink-0">•</span>
+                                <span className="truncate">👤 {(() => {
+                                  const name = slot.faculty.name;
+                                  const parts = name.split(' ');
+                                  if (parts[0].toLowerCase().startsWith('dr') || parts[0].toLowerCase().startsWith('prof')) {
+                                    return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]}` : parts[0];
+                                  }
+                                  return parts[parts.length - 1];
+                                })()}</span>
+                              </>
+                            )}
+                            {viewMode === 'faculty' && (
+                              <>
+                                <span className="font-semibold text-foreground/80 shrink-0">📍 {slot.room.name}</span>
+                                <span className="opacity-45 shrink-0">•</span>
+                                <span className="font-medium bg-black/5 dark:bg-white/5 px-1 rounded text-[8px] shrink-0">Sec {slot.section}</span>
+                              </>
+                            )}
+                            {viewMode === 'room' && (
+                              <>
+                                <span className="font-semibold bg-black/5 dark:bg-white/5 px-1 rounded text-[8px] shrink-0">Sec {slot.section}</span>
+                                <span className="opacity-45 shrink-0">•</span>
+                                <span className="truncate">👤 {(() => {
+                                  const name = slot.faculty.name;
+                                  const parts = name.split(' ');
+                                  if (parts[0].toLowerCase().startsWith('dr') || parts[0].toLowerCase().startsWith('prof')) {
+                                    return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]}` : parts[0];
+                                  }
+                                  return parts[parts.length - 1];
+                                })()}</span>
+                              </>
+                            )}
+                          </div>
                         )}
                       </div>
                     )
@@ -862,6 +899,8 @@ export function TimetableModule() {
         semesterId={currentSemester}
         section={effectiveSection}
         academicSemester={effectiveAcademicSemester}
+        facultyId={effectiveFaculty}
+        roomId={effectiveRoom}
         onEdit={openEditDialog}
         onDelete={(s) => setDeletingSlot(s)}
         isAdmin={isAdmin}
@@ -872,8 +911,8 @@ export function TimetableModule() {
         <DialogContent className="sm:max-w-[420px] max-h-[90vh] overflow-y-auto p-5 gap-4">
           <DialogHeader className="space-y-1">
             <DialogTitle className="text-base font-semibold">
-              {editingSlot 
-                ? `Edit Slot: ${editingSlot.course?.code}` 
+              {editingSlot
+                ? `Edit Slot: ${editingSlot.course?.code}`
                 : `Add Slot — ${DAY_FULL[formDay]}, ${formStartTime}–${formEndTime}`}
             </DialogTitle>
           </DialogHeader>
@@ -1031,6 +1070,8 @@ function SlotList({
   semesterId,
   section,
   academicSemester,
+  facultyId,
+  roomId,
   onEdit,
   onDelete,
   isAdmin,
@@ -1038,16 +1079,20 @@ function SlotList({
   semesterId: string
   section: string | undefined
   academicSemester: string | undefined
+  facultyId: string | undefined
+  roomId: string | undefined
   onEdit: (slot: TimetableSlot) => void
   onDelete: (slot: TimetableSlot) => void
   isAdmin: boolean
 }) {
   const { data, isLoading } = useQuery({
-    queryKey: ['timetable-list', semesterId, section, academicSemester],
+    queryKey: ['timetable-list', semesterId, section, academicSemester, facultyId, roomId],
     queryFn: async () => {
       const params = new URLSearchParams({ semesterId, limit: '100', sort: 'day', order: 'asc' })
       if (section) params.set('section', section)
       if (academicSemester) params.set('academicSemester', academicSemester)
+      if (facultyId) params.set('facultyId', facultyId)
+      if (roomId) params.set('roomId', roomId)
       const res = await fetch('/api/timetable?' + params.toString())
       return res.json()
     },

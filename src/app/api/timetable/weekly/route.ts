@@ -36,6 +36,19 @@ export async function GET(request: NextRequest) {
     const roomId = searchParams.get('roomId') || undefined
     const academicSemester = searchParams.get('academicSemester') || undefined
 
+    let shift = searchParams.get('shift') || 'Morning'
+    if (section) {
+      if (section.toLowerCase().includes('evening')) {
+        shift = 'Evening'
+      } else if (section.toLowerCase().includes('morning')) {
+        shift = 'Morning'
+      }
+    }
+
+    const timeSlots = shift === 'Evening'
+      ? ['11:00', '12:00', '13:00', '14:00', '15:00']
+      : ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00']
+
     const where: any = { semesterId }
     if (section) where.section = section
     if (facultyId) where.facultyId = facultyId
@@ -77,7 +90,7 @@ export async function GET(request: NextRequest) {
 
     for (const day of DAYS_ORDER) {
       grid[day] = {}
-      for (const ts of TIME_SLOTS) {
+      for (const ts of timeSlots) {
         grid[day][ts] = []
       }
     }
@@ -120,7 +133,7 @@ export async function GET(request: NextRequest) {
 
     return successResponse({
       days: DAYS_ORDER,
-      timeSlots: TIME_SLOTS,
+      timeSlots,
       grid,
     })
   } catch (error) {
