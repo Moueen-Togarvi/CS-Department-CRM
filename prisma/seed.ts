@@ -240,23 +240,30 @@ async function main() {
 
   const studentDefs = [
     // Batch 2023 - Semester 7 (seniors)
-    { name: "Muhammad Ali", studentId: "CS-2023-001", gender: Gender.MALE, year: 2023, semester: 7, gpa: 3.5, dob: "2002-03-15", phone: "+92-301-2000001", guardian: "Ali Akbar", guardianPhone: "+92-300-9000001" },
-    { name: "Ayesha Siddiqui", studentId: "CS-2023-002", gender: Gender.FEMALE, year: 2023, semester: 7, gpa: 3.8, dob: "2002-07-22", phone: "+92-301-2000002", guardian: "Siddiqui Ahmed", guardianPhone: "+92-300-9000002" },
-    { name: "Hassan Mehmood", studentId: "CS-2023-003", gender: Gender.MALE, year: 2023, semester: 7, gpa: 3.2, dob: "2002-11-08", phone: "+92-301-2000003", guardian: "Mehmood Shah", guardianPhone: "+92-300-9000003" },
-    { name: "Zainab Khan", studentId: "CS-2023-004", gender: Gender.FEMALE, year: 2023, semester: 7, gpa: 3.6, dob: "2002-01-30", phone: "+92-301-2000004", guardian: "Khan Rahim", guardianPhone: "+92-300-9000004" },
-    { name: "Bilal Ahmed", studentId: "CS-2023-005", gender: Gender.MALE, year: 2023, semester: 7, gpa: 3.4, dob: "2002-05-12", phone: "+92-301-2000005", guardian: "Ahmed Naseer", guardianPhone: "+92-300-9000005" },
+    { name: "Muhammad Ali", studentId: "CS-2023-001", gender: Gender.MALE, year: 2023, semester: 7, gpa: 3.5, dob: "2002-03-15", phone: "+92-301-2000001", guardian: "Ali Akbar", guardianPhone: "+92-300-9000001", session: "Morning", section: "Morning A" },
+    { name: "Ayesha Siddiqui", studentId: "CS-2023-002", gender: Gender.FEMALE, year: 2023, semester: 7, gpa: 3.8, dob: "2002-07-22", phone: "+92-301-2000002", guardian: "Siddiqui Ahmed", guardianPhone: "+92-300-9000002", session: "Morning", section: "Morning A" },
+    { name: "Hassan Mehmood", studentId: "CS-2023-003", gender: Gender.MALE, year: 2023, semester: 7, gpa: 3.2, dob: "2002-11-08", phone: "+92-301-2000003", guardian: "Mehmood Shah", guardianPhone: "+92-300-9000003", session: "Evening", section: "Evening A" },
+    { name: "Zainab Khan", studentId: "CS-2023-004", gender: Gender.FEMALE, year: 2023, semester: 7, gpa: 3.6, dob: "2002-01-30", phone: "+92-301-2000004", guardian: "Khan Rahim", guardianPhone: "+92-300-9000004", session: "Evening", section: "Evening A" },
+    { name: "Bilal Ahmed", studentId: "CS-2023-005", gender: Gender.MALE, year: 2023, semester: 7, gpa: 3.4, dob: "2002-05-12", phone: "+92-301-2000005", guardian: "Ahmed Naseer", guardianPhone: "+92-300-9000005", session: "Evening", section: "Evening B" },
     // Batch 2024 - Semester 3
-    { name: "Sara Ali", studentId: "CS-2024-001", gender: Gender.FEMALE, year: 2024, semester: 3, gpa: null, dob: "2003-09-18", phone: "+92-301-2000006", guardian: "Ali Muhammad", guardianPhone: "+92-300-9000006" },
-    { name: "Omar Farooq", studentId: "CS-2024-002", gender: Gender.MALE, year: 2024, semester: 3, gpa: null, dob: "2003-04-05", phone: "+92-301-2000007", guardian: "Farooq Khan", guardianPhone: "+92-300-9000007" },
-    { name: "Hira Shah", studentId: "CS-2024-003", gender: Gender.FEMALE, year: 2024, semester: 3, gpa: null, dob: "2003-12-25", phone: "+92-301-2000008", guardian: "Shah Wali", guardianPhone: "+92-300-9000008" },
-    { name: "Farhan Raza", studentId: "CS-2024-004", gender: Gender.MALE, year: 2024, semester: 3, gpa: null, dob: "2003-06-14", phone: "+92-301-2000009", guardian: "Raza Muhammad", guardianPhone: "+92-300-9000009" },
-    { name: "Amina Yousuf", studentId: "CS-2024-005", gender: Gender.FEMALE, year: 2024, semester: 3, gpa: null, dob: "2003-02-28", phone: "+92-301-2000010", guardian: "Yousuf Ali", guardianPhone: "+92-300-9000010" },
+    { name: "Sara Ali", studentId: "CS-2024-001", gender: Gender.FEMALE, year: 2024, semester: 3, gpa: null, dob: "2003-09-18", phone: "+92-301-2000006", guardian: "Ali Muhammad", guardianPhone: "+92-300-9000006", session: "Morning", section: "Morning A" },
+    { name: "Omar Farooq", studentId: "CS-2024-002", gender: Gender.MALE, year: 2024, semester: 3, gpa: null, dob: "2003-04-05", phone: "+92-301-2000007", guardian: "Farooq Khan", guardianPhone: "+92-300-9000007", session: "Morning", section: "Morning A" },
+    { name: "Hira Shah", studentId: "CS-2024-003", gender: Gender.FEMALE, year: 2024, semester: 3, gpa: null, dob: "2003-12-25", phone: "+92-301-2000008", guardian: "Shah Wali", guardianPhone: "+92-300-9000008", session: "Evening", section: "Evening A" },
+    { name: "Farhan Raza", studentId: "CS-2024-004", gender: Gender.MALE, year: 2024, semester: 3, gpa: null, dob: "2003-06-14", phone: "+92-301-2000009", guardian: "Raza Muhammad", guardianPhone: "+92-300-9000009", session: "Evening", section: "Evening A" },
+    { name: "Amina Yousuf", studentId: "CS-2024-005", gender: Gender.FEMALE, year: 2024, semester: 3, gpa: null, dob: "2003-02-28", phone: "+92-301-2000010", guardian: "Yousuf Ali", guardianPhone: "+92-300-9000010", session: "Evening", section: "Evening B" },
     // Batch 2025 - Semester 1 (freshmen)
-    { name: "Talha Khan", studentId: "CS-2025-001", gender: Gender.MALE, year: 2025, semester: 1, gpa: null, dob: "2005-08-10", phone: "+92-301-2000011", guardian: "Khan Zahid", guardianPhone: "+92-300-9000011" },
-    { name: "Mariam Javed", studentId: "CS-2025-002", gender: Gender.FEMALE, year: 2025, semester: 1, gpa: null, dob: "2005-01-20", phone: "+92-301-2000012", guardian: "Javed Iqbal", guardianPhone: "+92-300-9000012" },
-    { name: "Arslan Iqbal", studentId: "CS-2025-003", gender: Gender.MALE, year: 2025, semester: 1, gpa: null, dob: "2005-05-03", phone: "+92-301-2000013", guardian: "Iqbal Hussain", guardianPhone: "+92-300-9000013" },
-    { name: "Nadia Hussain", studentId: "CS-2025-004", gender: Gender.FEMALE, year: 2025, semester: 1, gpa: null, dob: "2005-11-17", phone: "+92-301-2000014", guardian: "Hussain Ahmed", guardianPhone: "+92-300-9000014" },
-    { name: "Kamran Ali", studentId: "CS-2025-005", gender: Gender.MALE, year: 2025, semester: 1, gpa: null, dob: "2005-03-09", phone: "+92-301-2000015", guardian: "Ali Sher", guardianPhone: "+92-300-9000015" },
+    { name: "Talha Khan", studentId: "CS-2025-001", gender: Gender.MALE, year: 2025, semester: 1, gpa: null, dob: "2005-08-10", phone: "+92-301-2000011", guardian: "Khan Zahid", guardianPhone: "+92-300-9000011", session: "Morning", section: "Morning A" },
+    { name: "Mariam Javed", studentId: "CS-2025-002", gender: Gender.FEMALE, year: 2025, semester: 1, gpa: null, dob: "2005-01-20", phone: "+92-301-2000012", guardian: "Javed Iqbal", guardianPhone: "+92-300-9000012", session: "Morning", section: "Morning A" },
+    { name: "Arslan Iqbal", studentId: "CS-2025-003", gender: Gender.MALE, year: 2025, semester: 1, gpa: null, dob: "2005-05-03", phone: "+92-301-2000013", guardian: "Iqbal Hussain", guardianPhone: "+92-300-9000013", session: "Evening", section: "Evening A" },
+    { name: "Nadia Hussain", studentId: "CS-2025-004", gender: Gender.FEMALE, year: 2025, semester: 1, gpa: null, dob: "2005-11-17", phone: "+92-301-2000014", guardian: "Hussain Ahmed", guardianPhone: "+92-300-9000014", session: "Evening", section: "Evening A" },
+    { name: "Kamran Ali", studentId: "CS-2025-005", gender: Gender.MALE, year: 2025, semester: 1, gpa: null, dob: "2005-03-09", phone: "+92-301-2000015", guardian: "Ali Sher", guardianPhone: "+92-300-9000015", session: "Evening", section: "Evening B" },
+    // Additional Bulk Data
+    { name: "Zubair Shah", studentId: "CS-2023-006", gender: Gender.MALE, year: 2023, semester: 7, gpa: 3.1, dob: "2002-09-14", phone: "+92-301-2000016", guardian: "Shah Din", guardianPhone: "+92-300-9000016", session: "Morning", section: "Morning A" },
+    { name: "Sana Malik", studentId: "CS-2023-007", gender: Gender.FEMALE, year: 2023, semester: 7, gpa: 3.7, dob: "2002-04-18", phone: "+92-301-2000017", guardian: "Malik Irfan", guardianPhone: "+92-300-9000017", session: "Evening", section: "Evening B" },
+    { name: "Yasir Habib", studentId: "CS-2024-006", gender: Gender.MALE, year: 2024, semester: 3, gpa: null, dob: "2003-10-10", phone: "+92-301-2000018", guardian: "Habib Ullah", guardianPhone: "+92-300-9000018", session: "Morning", section: "Morning A" },
+    { name: "Kiran Abbasi", studentId: "CS-2024-007", gender: Gender.FEMALE, year: 2024, semester: 3, gpa: null, dob: "2003-05-15", phone: "+92-301-2000019", guardian: "Abbasi Latif", guardianPhone: "+92-300-9000019", session: "Evening", section: "Evening A" },
+    { name: "Usman Ghani", studentId: "CS-2025-006", gender: Gender.MALE, year: 2025, semester: 1, gpa: null, dob: "2005-12-01", phone: "+92-301-2000020", guardian: "Ghani Khan", guardianPhone: "+92-300-9000020", session: "Morning", section: "Morning A" },
+    { name: "Tayyaba Noor", studentId: "CS-2025-007", gender: Gender.FEMALE, year: 2025, semester: 1, gpa: null, dob: "2005-04-20", phone: "+92-301-2000021", guardian: "Noor Din", guardianPhone: "+92-300-9000021", session: "Evening", section: "Evening B" }
   ];
 
   const studentRecords: { user: any; student: any }[] = [];
@@ -289,6 +296,8 @@ async function main() {
         guardianName: s.guardian,
         guardianPhone: s.guardianPhone,
         emergencyContact: s.guardianPhone,
+        session: s.session || "Morning",
+        section: s.section || "A",
       },
     });
     studentRecords.push({ user, student });
@@ -356,6 +365,12 @@ async function main() {
     { studentIdx: 4, courseIdx: 5 },
     { studentIdx: 4, courseIdx: 6 },
     { studentIdx: 4, courseIdx: 7 },
+    { studentIdx: 15, courseIdx: 5 },
+    { studentIdx: 15, courseIdx: 6 },
+    { studentIdx: 15, courseIdx: 7 },
+    { studentIdx: 16, courseIdx: 5 },
+    { studentIdx: 16, courseIdx: 6 },
+    { studentIdx: 16, courseIdx: 7 },
     // Batch 2024 → CS201 (idx 1), CS202 (idx 2)
     { studentIdx: 5, courseIdx: 1 },
     { studentIdx: 5, courseIdx: 2 },
@@ -367,12 +382,18 @@ async function main() {
     { studentIdx: 8, courseIdx: 2 },
     { studentIdx: 9, courseIdx: 1 },
     { studentIdx: 9, courseIdx: 2 },
+    { studentIdx: 17, courseIdx: 1 },
+    { studentIdx: 17, courseIdx: 2 },
+    { studentIdx: 18, courseIdx: 1 },
+    { studentIdx: 18, courseIdx: 2 },
     // Batch 2025 → CS101 (idx 0)
     { studentIdx: 10, courseIdx: 0 },
     { studentIdx: 11, courseIdx: 0 },
     { studentIdx: 12, courseIdx: 0 },
     { studentIdx: 13, courseIdx: 0 },
     { studentIdx: 14, courseIdx: 0 },
+    { studentIdx: 19, courseIdx: 0 },
+    { studentIdx: 20, courseIdx: 0 },
   ];
 
   const enrollmentRecords: any[] = [];
@@ -383,7 +404,7 @@ async function main() {
         studentId: studentRecords[e.studentIdx].student.id,
         courseId: courseRecords[e.courseIdx].id,
         semesterId: spring2025.id,
-        section: "A",
+        section: studentRecords[e.studentIdx].student.section || "A",
         status: "ENROLLED",
         enrollmentDate: new Date("2025-02-03"),
       },
@@ -396,38 +417,60 @@ async function main() {
   console.log("Creating timetable slots for Spring 2025...");
 
   const timetableDefs = [
-    // CS101 (Intro to CS) - Fatima Noor (F-004) - Room-101
-    { courseIdx: 0, facultyIdx: 3, roomIdx: 0, day: DayOfWeek.MONDAY, start: "09:00", end: "10:30", type: "THEORY" },
-    { courseIdx: 0, facultyIdx: 3, roomIdx: 0, day: DayOfWeek.WEDNESDAY, start: "09:00", end: "10:30", type: "THEORY" },
+    // CS101 (Intro to CS) - Morning A
+    { courseIdx: 0, facultyIdx: 3, roomIdx: 0, day: DayOfWeek.MONDAY, start: "09:00", end: "10:30", type: "THEORY", section: "Morning A" },
+    { courseIdx: 0, facultyIdx: 3, roomIdx: 0, day: DayOfWeek.WEDNESDAY, start: "09:00", end: "10:30", type: "THEORY", section: "Morning A" },
+    // CS101 (Intro to CS) - Evening A
+    { courseIdx: 0, facultyIdx: 3, roomIdx: 0, day: DayOfWeek.MONDAY, start: "11:00", end: "12:30", type: "THEORY", section: "Evening A" },
+    { courseIdx: 0, facultyIdx: 3, roomIdx: 0, day: DayOfWeek.WEDNESDAY, start: "11:00", end: "12:30", type: "THEORY", section: "Evening A" },
+    // CS101 (Intro to CS) - Evening B
+    { courseIdx: 0, facultyIdx: 3, roomIdx: 0, day: DayOfWeek.TUESDAY, start: "12:00", end: "13:30", type: "THEORY", section: "Evening B" },
+    { courseIdx: 0, facultyIdx: 3, roomIdx: 0, day: DayOfWeek.THURSDAY, start: "12:00", end: "13:30", type: "THEORY", section: "Evening B" },
 
-    // CS201 (Data Structures) - Ahmed Hassan (F-002) - Room-102
-    { courseIdx: 1, facultyIdx: 1, roomIdx: 1, day: DayOfWeek.MONDAY, start: "11:00", end: "12:30", type: "THEORY" },
-    { courseIdx: 1, facultyIdx: 1, roomIdx: 1, day: DayOfWeek.WEDNESDAY, start: "11:00", end: "12:30", type: "THEORY" },
-    { courseIdx: 1, facultyIdx: 1, roomIdx: 3, day: DayOfWeek.FRIDAY, start: "09:00", end: "11:00", type: "LAB" },
+    // CS201 (Data Structures) - Morning A
+    { courseIdx: 1, facultyIdx: 1, roomIdx: 1, day: DayOfWeek.MONDAY, start: "11:00", end: "12:30", type: "THEORY", section: "Morning A" },
+    { courseIdx: 1, facultyIdx: 1, roomIdx: 1, day: DayOfWeek.WEDNESDAY, start: "11:00", end: "12:30", type: "THEORY", section: "Morning A" },
+    { courseIdx: 1, facultyIdx: 1, roomIdx: 3, day: DayOfWeek.FRIDAY, start: "09:00", end: "11:00", type: "LAB", section: "Morning A" },
+    // CS201 (Data Structures) - Evening A
+    { courseIdx: 1, facultyIdx: 1, roomIdx: 1, day: DayOfWeek.TUESDAY, start: "11:00", end: "12:30", type: "THEORY", section: "Evening A" },
+    { courseIdx: 1, facultyIdx: 1, roomIdx: 1, day: DayOfWeek.THURSDAY, start: "11:00", end: "12:30", type: "THEORY", section: "Evening A" },
+    { courseIdx: 1, facultyIdx: 1, roomIdx: 3, day: DayOfWeek.FRIDAY, start: "11:00", end: "13:00", type: "LAB", section: "Evening A" },
 
-    // CS202 (OOP) - Ali Raza (F-003) - Room-201
-    { courseIdx: 2, facultyIdx: 2, roomIdx: 2, day: DayOfWeek.TUESDAY, start: "09:00", end: "10:30", type: "THEORY" },
-    { courseIdx: 2, facultyIdx: 2, roomIdx: 2, day: DayOfWeek.THURSDAY, start: "09:00", end: "10:30", type: "THEORY" },
-    { courseIdx: 2, facultyIdx: 2, roomIdx: 4, day: DayOfWeek.SATURDAY, start: "09:00", end: "11:00", type: "LAB" },
+    // CS202 (OOP) - Morning A
+    { courseIdx: 2, facultyIdx: 2, roomIdx: 2, day: DayOfWeek.TUESDAY, start: "09:00", end: "10:30", type: "THEORY", section: "Morning A" },
+    { courseIdx: 2, facultyIdx: 2, roomIdx: 2, day: DayOfWeek.THURSDAY, start: "09:00", end: "10:30", type: "THEORY", section: "Morning A" },
+    { courseIdx: 2, facultyIdx: 2, roomIdx: 4, day: DayOfWeek.SATURDAY, start: "09:00", end: "11:00", type: "LAB", section: "Morning A" },
+    // CS202 (OOP) - Evening A
+    { courseIdx: 2, facultyIdx: 2, roomIdx: 2, day: DayOfWeek.MONDAY, start: "13:00", end: "14:30", type: "THEORY", section: "Evening A" },
+    { courseIdx: 2, facultyIdx: 2, roomIdx: 2, day: DayOfWeek.WEDNESDAY, start: "13:00", end: "14:30", type: "THEORY", section: "Evening A" },
+    { courseIdx: 2, facultyIdx: 2, roomIdx: 4, day: DayOfWeek.SATURDAY, start: "11:00", end: "13:00", type: "LAB", section: "Evening A" },
 
-    // CS301 (Database Systems) - Ahmed Hassan (F-002) - Room-201
-    { courseIdx: 3, facultyIdx: 1, roomIdx: 2, day: DayOfWeek.TUESDAY, start: "11:00", end: "12:30", type: "THEORY" },
-    { courseIdx: 3, facultyIdx: 1, roomIdx: 2, day: DayOfWeek.THURSDAY, start: "11:00", end: "12:30", type: "THEORY" },
+    // CS301 (Database Systems) - Morning A
+    { courseIdx: 3, facultyIdx: 1, roomIdx: 2, day: DayOfWeek.TUESDAY, start: "11:00", end: "12:30", type: "THEORY", section: "Morning A" },
+    { courseIdx: 3, facultyIdx: 1, roomIdx: 2, day: DayOfWeek.THURSDAY, start: "11:00", end: "12:30", type: "THEORY", section: "Morning A" },
 
-    // CS303 (Web Dev) - Ali Raza (F-003) - Lab-301
-    { courseIdx: 4, facultyIdx: 2, roomIdx: 3, day: DayOfWeek.MONDAY, start: "14:00", end: "15:30", type: "THEORY" },
-    { courseIdx: 4, facultyIdx: 2, roomIdx: 3, day: DayOfWeek.WEDNESDAY, start: "14:00", end: "16:00", type: "LAB" },
+    // CS303 (Web Dev) - Morning A
+    { courseIdx: 4, facultyIdx: 2, roomIdx: 3, day: DayOfWeek.MONDAY, start: "14:00", end: "15:30", type: "THEORY", section: "Morning A" },
+    { courseIdx: 4, facultyIdx: 2, roomIdx: 3, day: DayOfWeek.WEDNESDAY, start: "14:00", end: "16:00", type: "LAB", section: "Morning A" },
 
-    // CS401 (AI) - Sarah Khan (F-001) - Room-201
-    { courseIdx: 5, facultyIdx: 0, roomIdx: 2, day: DayOfWeek.MONDAY, start: "09:00", end: "10:30", type: "THEORY" },
-    { courseIdx: 5, facultyIdx: 0, roomIdx: 2, day: DayOfWeek.WEDNESDAY, start: "11:00", end: "12:30", type: "THEORY" },
+    // CS401 (AI) - Morning A
+    { courseIdx: 5, facultyIdx: 0, roomIdx: 2, day: DayOfWeek.MONDAY, start: "09:00", end: "10:30", type: "THEORY", section: "Morning A" },
+    { courseIdx: 5, facultyIdx: 0, roomIdx: 2, day: DayOfWeek.WEDNESDAY, start: "11:00", end: "12:30", type: "THEORY", section: "Morning A" },
+    // CS401 (AI) - Evening A
+    { courseIdx: 5, facultyIdx: 0, roomIdx: 2, day: DayOfWeek.MONDAY, start: "11:00", end: "12:30", type: "THEORY", section: "Evening A" },
+    { courseIdx: 5, facultyIdx: 0, roomIdx: 2, day: DayOfWeek.WEDNESDAY, start: "13:00", end: "14:30", type: "THEORY", section: "Evening A" },
 
-    // CS402 (Machine Learning) - Sarah Khan (F-001) - Seminar-Hall
-    { courseIdx: 6, facultyIdx: 0, roomIdx: 5, day: DayOfWeek.TUESDAY, start: "14:00", end: "15:30", type: "THEORY" },
-    { courseIdx: 6, facultyIdx: 0, roomIdx: 5, day: DayOfWeek.THURSDAY, start: "14:00", end: "15:30", type: "THEORY" },
+    // CS402 (Machine Learning) - Morning A
+    { courseIdx: 6, facultyIdx: 0, roomIdx: 5, day: DayOfWeek.TUESDAY, start: "12:00", end: "13:30", type: "THEORY", section: "Morning A" },
+    { courseIdx: 6, facultyIdx: 0, roomIdx: 5, day: DayOfWeek.THURSDAY, start: "12:00", end: "13:30", type: "THEORY", section: "Morning A" },
+    // CS402 (Machine Learning) - Evening A
+    { courseIdx: 6, facultyIdx: 0, roomIdx: 5, day: DayOfWeek.TUESDAY, start: "14:00", end: "15:30", type: "THEORY", section: "Evening A" },
+    { courseIdx: 6, facultyIdx: 0, roomIdx: 5, day: DayOfWeek.THURSDAY, start: "14:00", end: "15:30", type: "THEORY", section: "Evening A" },
 
-    // CS491 (FYP-I) - Sarah Khan (F-001) - Seminar-Hall
-    { courseIdx: 7, facultyIdx: 0, roomIdx: 5, day: DayOfWeek.SATURDAY, start: "11:00", end: "13:00", type: "PROJECT" },
+    // CS491 (FYP-I) - Morning A
+    { courseIdx: 7, facultyIdx: 0, roomIdx: 5, day: DayOfWeek.SATURDAY, start: "11:00", end: "13:00", type: "PROJECT", section: "Morning A" },
+    // CS491 (FYP-I) - Evening A
+    { courseIdx: 7, facultyIdx: 0, roomIdx: 5, day: DayOfWeek.SATURDAY, start: "13:00", end: "15:00", type: "PROJECT", section: "Evening A" },
   ];
 
   for (const t of timetableDefs) {
@@ -437,7 +480,7 @@ async function main() {
         facultyId: facultyRecords[t.facultyIdx].faculty.id,
         semesterId: spring2025.id,
         roomId: roomData[t.roomIdx].id,
-        section: "A",
+        section: t.section || "Morning A",
         day: t.day,
         startTime: t.start,
         endTime: t.end,
@@ -457,7 +500,7 @@ async function main() {
   for (const t of timetableDefs) {
     const courseId = courseRecords[t.courseIdx].id;
     const facultyId = facultyRecords[t.facultyIdx].faculty.id;
-    const section = "A";
+    const section = t.section || "Morning A";
     const key = `${courseId}|${spring2025.id}|${section}|${t.type}`;
     if (offeringSeen.has(key)) continue;
     offeringSeen.add(key);

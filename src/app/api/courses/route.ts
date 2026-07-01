@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
         courseType: data.courseType,
         semesterOffered: data.semesterOffered ?? null,
         description: data.description || null,
-        prerequisiteIds: data.prerequisites || "[]",
+        prerequisiteIds: data.prerequisites || [],
         objectives: data.objectives || null,
         instructorId: data.instructorId ?? null,
       },

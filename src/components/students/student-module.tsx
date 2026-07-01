@@ -889,7 +889,7 @@ export function StudentModule() {
                                 ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' 
                                 : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
                             )}>
-                              {item.shift.toUpperCase()}
+                              {(item.shift || 'Morning').toUpperCase()}
                             </span>
                           </div>
 

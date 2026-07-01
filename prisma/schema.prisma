@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ==================== ENUMS ====================
@@ -274,7 +275,7 @@ model Course {
   labCreditHours   Int        @default(0)
   courseType       CourseType @default(THEORY)
   semesterOffered  Int?
-  prerequisiteIds  String     @default("[]")
+  prerequisiteIds  String[]
   description      String?
   outline          String?
   syllabus         String?
