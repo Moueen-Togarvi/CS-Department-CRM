@@ -18,64 +18,60 @@ export function Sidebar() {
   const userRole = user?.role
 
   const filteredItems = NAV_ITEMS.filter(
-    (item) => item.roles.includes('ALL') || item.roles.includes(userRole ?? 'STUDENT')
+    (item) => (item.roles.includes('ALL') || item.roles.includes(userRole ?? 'STUDENT')) && item.id !== 'profile'
   )
 
-  const mainItems = filteredItems.slice(0, 5)
-  const secondaryItems = filteredItems.slice(5)
+  // Define section order
+  const sections = ['CORE', 'PEOPLE', 'ACADEMICS', 'RECORDS', 'ACCOUNT'] as const
+
+  // Group items by section
+  const groupedItems = sections.reduce((acc, section) => {
+    const items = filteredItems.filter((item) => item.section === section)
+    if (items.length > 0) {
+      acc.push({ name: section, items })
+    }
+    return acc
+  }, [] as Array<{ name: string; items: typeof filteredItems }>)
 
   return (
     <TooltipProvider delayDuration={200}>
       <aside
         className={cn(
           'hidden lg:flex flex-col h-full border-r bg-white shrink-0 transition-[width] duration-200 ease-in-out',
-          collapsed ? 'w-[60px]' : 'w-[220px]'
+          collapsed ? 'w-[56px]' : 'w-[195px]'
         )}
       >
-        {/* Logo + Collapse toggle */}
-        <div className="flex items-center h-14 shrink-0 px-2">
-          <button
-            onClick={toggleSidebar}
-            className="flex items-center gap-2 w-full px-1.5 h-10 rounded-lg hover:bg-slate-100 transition-colors"
-          >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-600 to-emerald-700 shadow-sm">
-              <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor">
+        {/* Logo */}
+        <div className={cn(
+          "flex items-center h-11 shrink-0 px-4",
+          collapsed && "justify-center px-0"
+        )}>
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-600 to-emerald-700 shadow-sm">
+              <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342" />
               </svg>
             </div>
             {!collapsed && (
               <span className="text-sm font-bold text-slate-800 truncate">CS Dept</span>
             )}
-            <span className="ml-auto text-slate-300 hover:text-slate-500 transition-colors">
-              {collapsed
-                ? <PanelLeftOpen className="size-4" />
-                : <PanelLeftClose className="size-4" />}
-            </span>
-          </button>
+          </div>
         </div>
 
-        <Separator className="opacity-60" />
-
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 pt-3 pb-2">
-          <ul className="space-y-0.5">
-            {mainItems.map((item) => (
-              <SidebarItem
-                key={item.id}
-                icon={item.icon}
-                label={item.label}
-                collapsed={collapsed}
-                isActive={activeModule === item.id}
-                onClick={() => setActiveModule(item.id)}
-              />
-            ))}
-          </ul>
-
-          {secondaryItems.length > 0 && (
-            <>
-              <Separator className="my-2.5 opacity-40" />
-              <ul className="space-y-0.5">
-                {secondaryItems.map((item) => (
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar py-1.5">
+          {groupedItems.map((group, groupIdx) => (
+            <div key={group.name} className={cn("mb-2.5", groupIdx === 0 && "mt-0.5")}>
+              {!collapsed && (
+                <div className="px-4 py-0.5 text-[9px] font-bold text-slate-400 tracking-wider select-none opacity-80">
+                  {group.name}
+                </div>
+              )}
+              {collapsed && groupIdx > 0 && (
+                <Separator className="my-1 opacity-25 mx-3 w-auto" />
+              )}
+              <ul className="space-y-0">
+                {group.items.map((item) => (
                   <SidebarItem
                     key={item.id}
                     icon={item.icon}
@@ -86,13 +82,13 @@ export function Sidebar() {
                   />
                 ))}
               </ul>
-            </>
-          )}
+            </div>
+          ))}
         </nav>
 
-        <Separator className="opacity-60" />
-        <div className="flex items-center justify-center px-2 py-3">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-400">
+        <Separator className="opacity-40" />
+        <div className="flex items-center justify-center px-2 py-1.5">
+          <div className="flex h-6.5 w-6.5 items-center justify-center rounded-full bg-slate-100 text-[9px] font-bold text-slate-400">
             CS
           </div>
         </div>
@@ -118,24 +114,27 @@ function SidebarItem({
     <button
       onClick={onClick}
       className={cn(
-        'group relative flex h-9 w-full items-center rounded-lg text-sm transition-all duration-150',
-        collapsed ? 'justify-center px-0' : 'gap-2.5 px-2.5',
+        'group relative flex h-[28px] w-full items-center text-[12px] transition-all duration-150',
+        collapsed ? 'justify-center px-0 mx-1.5 w-[calc(100%-12px)] rounded-lg' : 'gap-2 pl-4.5 pr-2.5 rounded-r-full mr-2.5',
         isActive
-          ? 'bg-emerald-50 text-emerald-700 font-medium'
-          : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 font-normal'
+          ? 'bg-emerald-50 text-emerald-800 font-semibold'
+          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-medium'
       )}
       aria-label={label}
     >
       {isActive && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-r-full bg-emerald-600" />
+        <span className={cn(
+          "absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full bg-emerald-600",
+          collapsed ? "h-3.5 w-[2.5px]" : "h-4.5 w-[2.5px]"
+        )} />
       )}
       <Icon
         className={cn(
-          'size-[18px] shrink-0',
-          isActive ? 'text-emerald-600' : 'group-hover:scale-110 transition-transform duration-150'
+          'size-[14px] shrink-0 transition-all duration-150',
+          isActive ? 'text-emerald-600' : 'text-slate-500 group-hover:text-slate-800'
         )}
       />
-      {!collapsed && <span className="truncate text-[13px]">{label}</span>}
+      {!collapsed && <span className="truncate">{label}</span>}
     </button>
   )
 

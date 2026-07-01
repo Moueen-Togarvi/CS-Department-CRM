@@ -1,6 +1,6 @@
 'use client'
 
-import { Search, Bell, User, LogOut, Settings, CheckCheck } from 'lucide-react'
+import { Search, Bell, User, LogOut, Settings, CheckCheck, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -26,6 +26,8 @@ export function Header() {
   const activeModule = useAppStore((s) => s.activeModule)
   const setActiveModule = useAppStore((s) => s.setActiveModule)
   const setSearchOpen = useAppStore((s) => s.setSearchOpen)
+  const collapsed = useAppStore((s) => s.sidebarCollapsed)
+  const toggleSidebar = useAppStore((s) => s.toggleSidebar)
   const { unreadCount, notifications, markRead, markAllRead } = useNotifications()
 
   const initials = user?.name
@@ -51,8 +53,18 @@ export function Header() {
     <>
     <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">
       <div className="flex h-14 items-center gap-3 px-4 sm:px-5">
-        {/* Left: Page title with icon */}
+        {/* Left: Sidebar Toggle + Page title with icon */}
         <div className="flex items-center gap-2.5 min-w-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="h-8 w-8 shrink-0 rounded-lg border border-slate-200/80 bg-slate-50/50 text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors hidden lg:flex"
+            aria-label="Toggle sidebar"
+          >
+            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+          </Button>
+
           {ActiveIcon && (
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100">
               <ActiveIcon className="size-4 text-slate-600" />

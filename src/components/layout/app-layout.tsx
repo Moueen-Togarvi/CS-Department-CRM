@@ -32,17 +32,17 @@ export function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
-      <Header />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
+    <div className="h-screen flex bg-slate-50 overflow-hidden">
+      <Sidebar />
+      <div className="flex flex-col flex-1 overflow-hidden relative">
+        <Header />
         <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
           <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-8 lg:px-10">
             {children}
           </div>
         </main>
+        <MobileBottomNav />
       </div>
-      <MobileBottomNav />
     </div>
   )
 }

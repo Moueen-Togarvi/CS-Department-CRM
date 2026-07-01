@@ -38,6 +38,7 @@ export interface NavItem {
   label: string
   icon: LucideIcon
   roles: RoleAccess[]
+  section: 'CORE' | 'PEOPLE' | 'ACADEMICS' | 'RECORDS' | 'ACCOUNT'
 }
 
 // All navigation items for the sidebar
@@ -47,84 +48,98 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Dashboard',
     icon: LayoutDashboard,
     roles: ['ALL'],
-  },
-  {
-    id: 'students',
-    label: 'Students',
-    icon: GraduationCap,
-    roles: ['ADMIN', 'FACULTY'],
-  },
-  {
-    id: 'faculty',
-    label: 'Faculty',
-    icon: Users,
-    roles: ['ADMIN'],
-  },
-  {
-    id: 'courses',
-    label: 'Courses',
-    icon: BookOpen,
-    roles: ['ALL'],
-  },
-  {
-    id: 'course-offerings',
-    label: 'Course Assign',
-    icon: CalendarClock,
-    roles: ['ADMIN'],
-  },
-  {
-    id: 'timetable',
-    label: 'Timetable',
-    icon: CalendarDays,
-    roles: ['ALL'],
-  },
-  {
-    id: 'attendance',
-    label: 'Attendance',
-    icon: ClipboardCheck,
-    roles: ['ADMIN', 'FACULTY'],
-  },
-  {
-    id: 'my-attendance',
-    label: 'My Attendance',
-    icon: ClipboardCheck,
-    roles: ['STUDENT'],
-  },
-  {
-    id: 'results',
-    label: 'Results',
-    icon: BarChart3,
-    roles: ['ALL'],
+    section: 'CORE',
   },
   {
     id: 'announcements',
     label: 'Announcements',
     icon: Megaphone,
     roles: ['ALL'],
+    section: 'CORE',
   },
   {
-    id: 'fyp',
-    label: 'FYP Projects',
-    icon: FolderKanban,
-    roles: ['ALL'],
+    id: 'students',
+    label: 'Students',
+    icon: GraduationCap,
+    roles: ['ADMIN', 'FACULTY'],
+    section: 'PEOPLE',
   },
   {
-    id: 'documents',
-    label: 'Documents',
-    icon: FileText,
+    id: 'faculty',
+    label: 'Faculty',
+    icon: Users,
+    roles: ['ADMIN'],
+    section: 'PEOPLE',
+  },
+  {
+    id: 'courses',
+    label: 'Courses',
+    icon: BookOpen,
     roles: ['ALL'],
+    section: 'ACADEMICS',
+  },
+  {
+    id: 'course-offerings',
+    label: 'Course Assign',
+    icon: CalendarClock,
+    roles: ['ADMIN'],
+    section: 'ACADEMICS',
+  },
+  {
+    id: 'timetable',
+    label: 'Timetable',
+    icon: CalendarDays,
+    roles: ['ALL'],
+    section: 'ACADEMICS',
   },
   {
     id: 'rooms',
     label: 'Rooms',
     icon: School,
     roles: ['ADMIN'],
+    section: 'ACADEMICS',
+  },
+  {
+    id: 'attendance',
+    label: 'Attendance',
+    icon: ClipboardCheck,
+    roles: ['ADMIN', 'FACULTY'],
+    section: 'RECORDS',
+  },
+  {
+    id: 'my-attendance',
+    label: 'My Attendance',
+    icon: ClipboardCheck,
+    roles: ['STUDENT'],
+    section: 'RECORDS',
+  },
+  {
+    id: 'results',
+    label: 'Results',
+    icon: BarChart3,
+    roles: ['ALL'],
+    section: 'RECORDS',
+  },
+  {
+    id: 'fyp',
+    label: 'FYP Projects',
+    icon: FolderKanban,
+    roles: ['ALL'],
+    section: 'RECORDS',
+  },
+  {
+    id: 'documents',
+    label: 'Documents',
+    icon: FileText,
+    roles: ['ALL'],
+    section: 'RECORDS',
   },
   {
     id: 'profile',
     label: 'My Profile',
     icon: UserCircle,
     roles: ['ALL'],
+    section: 'ACCOUNT',
   },
 ]
 
