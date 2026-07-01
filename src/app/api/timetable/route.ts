@@ -19,15 +19,33 @@ function timeOverlaps(startA: string, endA: string, startB: string, endB: string
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth()
+    const session = await requireAuth()
     const { searchParams } = new URL(request.url)
     const { page, limit, sort, order } = parsePaginationParams(searchParams)
 
     const semesterId = searchParams.get('semesterId') || undefined
-    const facultyId = searchParams.get('facultyId') || undefined
+    let facultyId = searchParams.get('facultyId') || undefined
     const roomId = searchParams.get('roomId') || undefined
-    const section = searchParams.get('section') || undefined
-    const academicSemester = searchParams.get('academicSemester') || undefined
+    let section = searchParams.get('section') || undefined
+    let academicSemester = searchParams.get('academicSemester') || undefined
+
+    // Enforce role-based restrictions
+    if (session.user.role === 'STUDENT') {
+      const student = await db.student.findUnique({
+        where: { userId: session.user.id },
+      })
+      if (student) {
+        section = student.section || undefined
+        academicSemester = String(student.currentSemester)
+      }
+    } else if (session.user.role === 'FACULTY') {
+      const faculty = await db.faculty.findUnique({
+        where: { userId: session.user.id },
+      })
+      if (faculty) {
+        facultyId = faculty.id
+      }
+    }
 
     const where: Prisma.TimetableWhereInput = {}
 

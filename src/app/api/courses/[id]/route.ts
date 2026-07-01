@@ -2,14 +2,14 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
 import { updateCourseSchema } from "@/lib/validators/course";
-import { requireAuth, requireAdmin, handleApiError } from "@/lib/auth-utils";
+import { requireAuth, requireAdmin, requireRole, handleApiError } from "@/lib/auth-utils";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth();
+    const session = await requireAuth();
     const { id } = await params;
 
     const course = await db.course.findUnique({
@@ -61,6 +61,15 @@ export async function GET(
       return errorResponse("Course not found", 404);
     }
 
+    if (session.user.role === 'FACULTY') {
+      const faculty = await db.faculty.findUnique({
+        where: { userId: session.user.id }
+      });
+      if (!faculty || course.instructorId !== faculty.id) {
+        return errorResponse("Forbidden: You do not have access to this course", 403);
+      }
+    }
+
     // Compute result stats for this course
     const results = await db.result.findMany({
       where: { courseId: id },
@@ -107,7 +116,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireRole(["ADMIN", "FACULTY"]);
     const { id } = await params;
 
     const course = await db.course.findUnique({ where: { id } });
@@ -116,6 +125,15 @@ export async function PUT(
     }
 
     const body = await request.json();
+
+    if (session.user.role === "FACULTY") {
+      const faculty = await db.faculty.findUnique({ where: { userId: session.user.id } });
+      if (!faculty || course.instructorId !== faculty.id) {
+        return errorResponse("Forbidden: You can only edit your own courses", 403);
+      }
+      body.instructorId = faculty.id;
+    }
+
     const parsed = updateCourseSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -176,12 +194,19 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireRole(["ADMIN", "FACULTY"]);
     const { id } = await params;
 
     const course = await db.course.findUnique({ where: { id } });
     if (!course) {
       return errorResponse("Course not found", 404);
+    }
+
+    if (session.user.role === "FACULTY") {
+      const faculty = await db.faculty.findUnique({ where: { userId: session.user.id } });
+      if (!faculty || course.instructorId !== faculty.id) {
+        return errorResponse("Forbidden: You can only delete your own courses", 403);
+      }
     }
 
     await db.course.update({

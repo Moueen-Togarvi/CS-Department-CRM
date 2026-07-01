@@ -175,6 +175,51 @@ export function TimetableModule() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFaculty, user?.facultyId])
 
+  const [selectedDate, setSelectedDate] = useState('')
+
+  useEffect(() => {
+    const d = new Date()
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    setSelectedDate(`${year}-${month}-${day}`)
+  }, [])
+
+  const displayDateStr = useMemo(() => {
+    if (!selectedDate) return ''
+    const d = new Date(selectedDate)
+    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  }, [selectedDate])
+
+  const selectedDayName = useMemo(() => {
+    if (!selectedDate) return ''
+    const d = new Date(selectedDate)
+    if (isNaN(d.getTime())) return ''
+    const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+    return days[d.getDay()]
+  }, [selectedDate])
+
+  const weekDates = useMemo(() => {
+    if (!selectedDate) return {}
+    const date = new Date(selectedDate)
+    if (isNaN(date.getTime())) return {}
+    
+    const currentDay = date.getDay()
+    const distance = currentDay === 0 ? -6 : 1 - currentDay
+    
+    const monday = new Date(date)
+    monday.setDate(date.getDate() + distance)
+    
+    const dates: Record<string, string> = {}
+    const daysOfWeek = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+    daysOfWeek.forEach((day, index) => {
+      const d = new Date(monday)
+      d.setDate(monday.getDate() + index)
+      dates[day] = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    })
+    return dates
+  }, [selectedDate])
+
   const [selectedSemester, setSelectedSemester] = useState<string>('')
   const [selectedAcademicSemester, setSelectedAcademicSemester] = useState<string>('1')
   const [selectedShift, setSelectedShift] = useState<string>('Morning')
@@ -510,127 +555,140 @@ export function TimetableModule() {
   // ---- Render ----
   return (
     <div className="space-y-4 animate-fade-in">
-      <PageHeader
-        title="Timetable"
-        description="View and manage class schedules"
-      />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <PageHeader
+          title="Timetable"
+          description={`View and manage class schedules${displayDateStr ? ` • ${displayDateStr}` : ''}`}
+        />
+        <div className="flex items-center gap-2 self-start sm:self-center bg-card border rounded-lg px-3 py-1.5 shadow-sm">
+          <span className="text-xs font-semibold text-muted-foreground">Go to Date:</span>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="px-2 py-1 text-xs border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 max-w-[130px] font-medium bg-background text-foreground"
+          />
+        </div>
+      </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Shift</Label>
-              <Select value={selectedShift} onValueChange={setSelectedShift}>
-                <SelectTrigger className="w-[110px] h-9">
-                  <SelectValue placeholder="Shift" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Morning">Morning</SelectItem>
-                  <SelectItem value="Evening">Evening</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      {isAdmin && (
+        <Card>
+          <CardContent className="px-3 py-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col gap-0.5">
+                <Label className="text-[10px] font-medium text-muted-foreground">Shift</Label>
+                <Select value={selectedShift} onValueChange={setSelectedShift}>
+                  <SelectTrigger className="w-[100px] h-7 text-xs">
+                    <SelectValue placeholder="Shift" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Morning">Morning</SelectItem>
+                    <SelectItem value="Evening">Evening</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {viewMode === 'section' && (
-              <>
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Semester</Label>
-                  <Select value={selectedAcademicSemester} onValueChange={setSelectedAcademicSemester}>
-                    <SelectTrigger className="w-[130px] h-9">
-                      <SelectValue placeholder="Semester" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1st Semester</SelectItem>
-                      <SelectItem value="2">2nd Semester</SelectItem>
-                      <SelectItem value="3">3rd Semester</SelectItem>
-                      <SelectItem value="4">4th Semester</SelectItem>
-                      <SelectItem value="5">5th Semester</SelectItem>
-                      <SelectItem value="6">6th Semester</SelectItem>
-                      <SelectItem value="7">7th Semester</SelectItem>
-                      <SelectItem value="8">8th Semester</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {selectedShift === 'Evening' && (
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">Section</Label>
-                    <Select value={selectedSection} onValueChange={setSelectedSection}>
-                      <SelectTrigger className="w-[120px] h-9">
-                        <SelectValue />
+              {viewMode === 'section' && (
+                <>
+                  <div className="flex flex-col gap-0.5">
+                    <Label className="text-[10px] font-medium text-muted-foreground">Semester</Label>
+                    <Select value={selectedAcademicSemester} onValueChange={setSelectedAcademicSemester}>
+                      <SelectTrigger className="w-[120px] h-7 text-xs">
+                        <SelectValue placeholder="Semester" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Evening A">Evening A</SelectItem>
-                        <SelectItem value="Evening B">Evening B</SelectItem>
+                        <SelectItem value="1">1st Semester</SelectItem>
+                        <SelectItem value="2">2nd Semester</SelectItem>
+                        <SelectItem value="3">3rd Semester</SelectItem>
+                        <SelectItem value="4">4th Semester</SelectItem>
+                        <SelectItem value="5">5th Semester</SelectItem>
+                        <SelectItem value="6">6th Semester</SelectItem>
+                        <SelectItem value="7">7th Semester</SelectItem>
+                        <SelectItem value="8">8th Semester</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                )}
-              </>
-            )}
 
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">View</Label>
-              <div className="flex rounded-md border overflow-hidden h-9">
-                {([
-                  { key: 'section' as ViewMode, label: 'Section', icon: Users },
-                  { key: 'faculty' as ViewMode, label: 'Faculty', icon: Users },
-                  { key: 'room' as ViewMode, label: 'Room', icon: Building },
-                ]).map((mode, i) => (
-                  <button
-                    key={mode.key}
-                    onClick={() => setViewMode(mode.key)}
-                    className={cn(
-                      'px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5',
-                      viewMode === mode.key
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-background hover:bg-accent text-foreground',
-                      i < 2 && 'border-r'
-                    )}
-                  >
-                    {mode.label}
-                  </button>
-                ))}
+                  {selectedShift === 'Evening' && (
+                    <div className="flex flex-col gap-0.5">
+                      <Label className="text-[10px] font-medium text-muted-foreground">Section</Label>
+                      <Select value={selectedSection} onValueChange={setSelectedSection}>
+                        <SelectTrigger className="w-[110px] h-7 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Evening A">Evening A</SelectItem>
+                          <SelectItem value="Evening B">Evening B</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="flex flex-col gap-0.5">
+                <Label className="text-[10px] font-medium text-muted-foreground">View</Label>
+                <div className="flex rounded-md border overflow-hidden h-7">
+                  {([
+                    { key: 'section' as ViewMode, label: 'Section', icon: Users },
+                    { key: 'faculty' as ViewMode, label: 'Faculty', icon: Users },
+                    { key: 'room' as ViewMode, label: 'Room', icon: Building },
+                  ]).map((mode, i) => (
+                    <button
+                      key={mode.key}
+                      onClick={() => setViewMode(mode.key)}
+                      className={cn(
+                        'px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5',
+                        viewMode === mode.key
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-background hover:bg-accent text-foreground',
+                        i < 2 && 'border-r'
+                      )}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {viewMode === 'faculty' && facultyList && (
+                <div className="flex flex-col gap-0.5">
+                  <Label className="text-[10px] font-medium text-muted-foreground">Faculty</Label>
+                  <Select value={selectedFaculty || '__all__'} onValueChange={setSelectedFaculty}>
+                    <SelectTrigger className="w-[190px] h-7 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Faculty</SelectItem>
+                      {facultyList.map((f) => (
+                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {viewMode === 'room' && rooms && (
+                <div className="flex flex-col gap-0.5">
+                  <Label className="text-[10px] font-medium text-muted-foreground">Room</Label>
+                  <Select value={selectedRoom || '__all__'} onValueChange={setSelectedRoom}>
+                    <SelectTrigger className="w-[170px] h-7 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All Rooms</SelectItem>
+                      {rooms.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>{r.name} ({r.building})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
-
-            {viewMode === 'faculty' && facultyList && (
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs font-medium text-muted-foreground">Faculty</Label>
-                <Select value={selectedFaculty || '__all__'} onValueChange={setSelectedFaculty}>
-                  <SelectTrigger className="w-[200px] h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">All Faculty</SelectItem>
-                    {facultyList.map((f) => (
-                      <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {viewMode === 'room' && rooms && (
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs font-medium text-muted-foreground">Room</Label>
-                <Select value={selectedRoom || '__all__'} onValueChange={setSelectedRoom}>
-                  <SelectTrigger className="w-[180px] h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">All Rooms</SelectItem>
-                    {rooms.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>{r.name} ({r.building})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Weekly Grid */}
       <Card className="overflow-hidden">
@@ -652,15 +710,21 @@ export function TimetableModule() {
                     <Clock className="size-3 mr-1" />
                     Time
                   </div>
-                  {weeklyData.days.map((day, idx) => (
-                    <div key={day} className={cn(
-                      'p-2 text-center border-r last:border-r-0',
-                      idx === 0 && 'border-l-0'
-                    )}>
-                      <div className="text-xs font-bold">{DAY_LABELS[day]}</div>
-                      <div className="text-[10px] text-muted-foreground hidden sm:block">{DAY_FULL[day]}</div>
-                    </div>
-                  ))}
+                  {weeklyData.days.map((day, idx) => {
+                    const isSelectedDay = day === selectedDayName
+                    return (
+                      <div key={day} className={cn(
+                        'p-2 text-center border-r last:border-r-0 transition-colors',
+                        idx === 0 && 'border-l-0',
+                        isSelectedDay && 'bg-emerald-500/10 dark:bg-emerald-500/20'
+                      )}>
+                        <div className={cn("text-xs font-bold", isSelectedDay && "text-emerald-600 dark:text-emerald-400 font-extrabold")}>
+                          {DAY_LABELS[day]} {weekDates[day] && `(${weekDates[day]})`}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground hidden sm:block">{DAY_FULL[day]}</div>
+                      </div>
+                    )
+                  })}
                 </div>
 
                 {/* Body - flat grid approach */}
@@ -688,12 +752,14 @@ export function TimetableModule() {
 
                   {/* Empty cells (background grid) */}
                   {weeklyData.days.map((day, dayIdx) => {
+                    const isSelectedDay = day === selectedDayName
                     return weeklyData.timeSlots.map((ts, tsIdx) => (
                       <div
                         key={`${day}-${ts}`}
                         className={cn(
                           "border-b border-r last:border-r-0 hover:bg-muted/10 transition-colors flex items-center justify-center group",
-                          isAdmin && "cursor-pointer"
+                          isAdmin && "cursor-pointer",
+                          isSelectedDay && "bg-emerald-50/15 dark:bg-emerald-950/5"
                         )}
                         style={{
                           gridColumn: `${dayIdx + 2}`,
@@ -718,8 +784,9 @@ export function TimetableModule() {
                       <div
                         key={slot.id}
                         className={cn(
-                          'relative z-[2] rounded-md border m-0.5 p-1.5 overflow-hidden transition-shadow hover:shadow-md cursor-pointer',
-                          typeBg
+                          'relative z-[2] rounded-md border m-0.5 p-1.5 overflow-hidden transition-all hover:shadow-md cursor-pointer',
+                          typeBg,
+                          weeklyData.days[slot._dayIdx!] === selectedDayName && 'ring-2 ring-emerald-500/80 ring-offset-1 dark:ring-offset-slate-900 shadow-sm'
                         )}
                         style={{
                           gridColumn: `${slot._dayIdx! + 2}`,

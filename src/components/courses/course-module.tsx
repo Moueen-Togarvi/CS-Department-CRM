@@ -581,7 +581,7 @@ export function CourseModule() {
                   <Eye className="mr-2 h-4 w-4" />
                   View Details
                 </DropdownMenuItem>
-                {user?.role === 'ADMIN' && (
+                {(user?.role === 'ADMIN' || (user?.role === 'FACULTY' && c.instructor?.id === user?.facultyId)) && (
                   <>
                     <DropdownMenuItem
                       onClick={() => {
@@ -623,6 +623,8 @@ export function CourseModule() {
   })
 
   const isAdmin = user?.role === 'ADMIN'
+  const isFaculty = user?.role === 'FACULTY'
+  const canAddCourses = isAdmin || isFaculty
 
   return (
     <div className="space-y-6">
@@ -631,7 +633,7 @@ export function CourseModule() {
         title="Courses"
         description="Manage course catalog, syllabi, and enrollment"
         actions={
-          isAdmin ? (
+          canAddCourses ? (
             <div className="flex items-center gap-2">
               <Button
                 onClick={() => {
@@ -643,14 +645,16 @@ export function CourseModule() {
                 <Plus className="h-4 w-4" />
                 Add Course
               </Button>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => setImportOpen(true)}
-              >
-                <Upload className="h-4 w-4" />
-                <span className="hidden sm:inline">Import CSV</span>
-              </Button>
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => setImportOpen(true)}
+                >
+                  <Upload className="h-4 w-4" />
+                  <span className="hidden sm:inline">Import CSV</span>
+                </Button>
+              )}
             </div>
           ) : undefined
         }
@@ -1137,6 +1141,7 @@ export function CourseModule() {
           }
         }}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
+        userRole={user?.role}
       />
 
       {/* ==================== DETAIL SHEET ==================== */}
@@ -1174,7 +1179,7 @@ export function CourseModule() {
                 setDetailCourseId(null)
               }
             }}
-            isAdmin={isAdmin}
+            isAdmin={isAdmin || (isFaculty && detailData?.data?.instructor?.id === user?.facultyId)}
             onEnroll={() => {
               setEnrollCourseId(detailCourseId)
               setEnrollCourseSemesterOffered(detailData?.data?.semesterOffered || null)
@@ -1255,6 +1260,7 @@ interface CourseFormDialogProps {
   facultyList: FacultyOption[]
   onSubmit: (values: CreateCourseInput | UpdateCourseInput) => void
   isSubmitting: boolean
+  userRole?: string
 }
 
 function CourseFormDialog({
@@ -1265,6 +1271,7 @@ function CourseFormDialog({
   facultyList,
   onSubmit,
   isSubmitting,
+  userRole,
 }: CourseFormDialogProps) {
   const isEdit = !!editingCourse
 
@@ -1459,34 +1466,36 @@ function CourseFormDialog({
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="instructorId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Instructor</FormLabel>
-                      <Select
-                        value={field.value || '_none'}
-                        onValueChange={(v) => field.onChange(v === '_none' ? null : v)}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Not assigned" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="_none">Not Assigned</SelectItem>
-                          {facultyList.map((f) => (
-                            <SelectItem key={f.id} value={f.id}>
-                              {f.name} ({f.facultyId})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {userRole !== 'FACULTY' && (
+                  <FormField
+                    control={form.control}
+                    name="instructorId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Instructor</FormLabel>
+                        <Select
+                          value={field.value || '_none'}
+                          onValueChange={(v) => field.onChange(v === '_none' ? null : v)}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Not assigned" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="_none">Not Assigned</SelectItem>
+                            {facultyList.map((f) => (
+                              <SelectItem key={f.id} value={f.id}>
+                                {f.name} ({f.facultyId})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </div>
             </div>
 

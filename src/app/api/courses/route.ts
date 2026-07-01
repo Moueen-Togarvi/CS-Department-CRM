@@ -4,11 +4,11 @@ import { parsePaginationParams, skipTake } from "@/lib/pagination";
 import { paginatedResponse, errorResponse, successResponse } from "@/lib/api-response";
 import { createCourseSchema } from "@/lib/validators/course";
 import { Prisma } from "@prisma/client";
-import { requireAuth, requireAdmin, handleApiError } from "@/lib/auth-utils";
+import { requireAuth, requireAdmin, requireRole, handleApiError } from "@/lib/auth-utils";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth();
+    const session = await requireAuth();
     const { searchParams } = new URL(request.url);
     const { page, limit, search, sort, order } = parsePaginationParams(searchParams);
 
@@ -21,6 +21,15 @@ export async function GET(request: NextRequest) {
       : undefined;
 
     const where: Prisma.CourseWhereInput = { isActive: true };
+
+    if (session.user.role === 'FACULTY') {
+      const faculty = await db.faculty.findUnique({
+        where: { userId: session.user.id }
+      });
+      if (faculty) {
+        where.instructorId = faculty.id;
+      }
+    }
 
     if (search) {
       where.OR = [
@@ -107,9 +116,20 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin();
+    const session = await requireRole(["ADMIN", "FACULTY"]);
 
     const body = await request.json();
+    
+    if (session.user.role === "FACULTY") {
+      const faculty = await db.faculty.findUnique({
+        where: { userId: session.user.id }
+      });
+      if (!faculty) {
+        return errorResponse("Faculty profile not found", 403);
+      }
+      body.instructorId = faculty.id;
+    }
+
     const parsed = createCourseSchema.safeParse(body);
 
     if (!parsed.success) {

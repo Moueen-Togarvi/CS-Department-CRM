@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { DayOfWeek } from '@prisma/client'
+import { requireAuth } from '@/lib/auth-utils'
 
 const DAYS_ORDER: DayOfWeek[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00']
@@ -24,6 +25,7 @@ function timeOverlaps(startA: string, endA: string, startB: string, endB: string
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await requireAuth()
     const { searchParams } = new URL(request.url)
     const semesterId = searchParams.get('semesterId')
 
@@ -31,10 +33,28 @@ export async function GET(request: NextRequest) {
       return errorResponse('semesterId is required', 400)
     }
 
-    const section = searchParams.get('section') || undefined
-    const facultyId = searchParams.get('facultyId') || undefined
+    let section = searchParams.get('section') || undefined
+    let facultyId = searchParams.get('facultyId') || undefined
     const roomId = searchParams.get('roomId') || undefined
-    const academicSemester = searchParams.get('academicSemester') || undefined
+    let academicSemester = searchParams.get('academicSemester') || undefined
+
+    // Enforce role-based restrictions
+    if (session.user.role === 'STUDENT') {
+      const student = await db.student.findUnique({
+        where: { userId: session.user.id },
+      })
+      if (student) {
+        section = student.section || undefined
+        academicSemester = String(student.currentSemester)
+      }
+    } else if (session.user.role === 'FACULTY') {
+      const faculty = await db.faculty.findUnique({
+        where: { userId: session.user.id },
+      })
+      if (faculty) {
+        facultyId = faculty.id
+      }
+    }
 
     let shift = searchParams.get('shift') || 'Morning'
     if (section) {
@@ -45,9 +65,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const timeSlots = shift === 'Evening'
+    let timeSlots = shift === 'Evening'
       ? ['11:00', '12:00', '13:00', '14:00', '15:00']
       : ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00']
+
+    if (session.user.role === 'FACULTY') {
+      timeSlots = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00']
+    }
 
     const where: any = { semesterId }
     if (section) where.section = section

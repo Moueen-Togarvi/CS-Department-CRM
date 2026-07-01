@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   GraduationCap,
@@ -271,13 +272,31 @@ function AdminDashboard() {
 // ==================== Faculty Dashboard ====================
 
 function FacultyDashboard() {
+  const [selectedDate, setSelectedDate] = useState('')
+
+  useEffect(() => {
+    const d = new Date()
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    setSelectedDate(`${year}-${month}-${day}`)
+  }, [])
+
+  const weekdayName = useMemo(() => {
+    if (!selectedDate) return ''
+    const d = new Date(selectedDate)
+    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { weekday: 'long' })
+  }, [selectedDate])
+
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard-overview'],
+    queryKey: ['dashboard-overview', selectedDate],
     queryFn: async () => {
-      const res = await fetch('/api/dashboard/overview')
+      if (!selectedDate) return null
+      const res = await fetch(`/api/dashboard/overview?date=${selectedDate}`)
       const json = await res.json()
       return json.data
     },
+    enabled: !!selectedDate,
   })
 
   return (
@@ -298,7 +317,20 @@ function FacultyDashboard() {
       <div className="grid gap-4 md:grid-cols-2">
         {/* Today's Schedule */}
         <Card className="shadow-sm">
-          <CardHeader className="pb-3"><div className="flex items-center gap-2"><Clock className="size-4 text-emerald-600" /><CardTitle className="text-base">Today's Schedule</CardTitle></div></CardHeader>
+          <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+            <div className="flex items-center gap-2">
+              <Clock className="size-4 text-emerald-600" />
+              <CardTitle className="text-base">
+                Schedule {weekdayName && `— ${weekdayName}`}
+              </CardTitle>
+            </div>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-2 py-1 text-xs border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 max-w-[130px] font-medium bg-background text-foreground"
+            />
+          </CardHeader>
           <CardContent className="space-y-2">
             {isLoading ? (
               <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}</div>
@@ -371,13 +403,31 @@ function FacultyDashboard() {
 // ==================== Student Dashboard ====================
 
 function StudentDashboard() {
+  const [selectedDate, setSelectedDate] = useState('')
+
+  useEffect(() => {
+    const d = new Date()
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    setSelectedDate(`${year}-${month}-${day}`)
+  }, [])
+
+  const weekdayName = useMemo(() => {
+    if (!selectedDate) return ''
+    const d = new Date(selectedDate)
+    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { weekday: 'long' })
+  }, [selectedDate])
+
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard-overview'],
+    queryKey: ['dashboard-overview', selectedDate],
     queryFn: async () => {
-      const res = await fetch('/api/dashboard/overview')
+      if (!selectedDate) return null
+      const res = await fetch(`/api/dashboard/overview?date=${selectedDate}`)
       const json = await res.json()
       return json.data
     },
+    enabled: !!selectedDate,
   })
 
   const attendanceColor = (rate: number) => rate >= 75 ? 'bg-emerald-600' : rate >= 50 ? 'bg-amber-600' : 'bg-rose-600'
@@ -400,7 +450,20 @@ function StudentDashboard() {
       <div className="grid gap-4 md:grid-cols-2">
         {/* Today's Schedule */}
         <Card className="shadow-sm">
-          <CardHeader className="pb-3"><div className="flex items-center gap-2"><Clock className="size-4 text-emerald-600" /><CardTitle className="text-base">Today's Schedule</CardTitle></div></CardHeader>
+          <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+            <div className="flex items-center gap-2">
+              <Clock className="size-4 text-emerald-600" />
+              <CardTitle className="text-base">
+                Schedule {weekdayName && `— ${weekdayName}`}
+              </CardTitle>
+            </div>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-2 py-1 text-xs border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 max-w-[130px] font-medium bg-background text-foreground"
+            />
+          </CardHeader>
           <CardContent className="space-y-2">
             {isLoading ? (
               <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}</div>

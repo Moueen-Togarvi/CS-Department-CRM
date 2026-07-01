@@ -7,6 +7,19 @@ export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth()
     const now = new Date()
+    const { searchParams } = new URL(request.url)
+    const paramDate = searchParams.get('date')
+    const paramDay = searchParams.get('day')
+    
+    let today = now.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
+    if (paramDay) {
+      today = paramDay.toUpperCase()
+    } else if (paramDate) {
+      const d = new Date(paramDate)
+      if (!isNaN(d.getTime())) {
+        today = d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
+      }
+    }
     const role = session.user.role
 
     // ── ADMIN ──────────────────────────────────────────────
@@ -66,7 +79,6 @@ export async function GET(request: NextRequest) {
         return successResponse({ role: 'FACULTY', courses: [], todayClasses: [], pendingResults: 0, recentAnnouncements: [] })
       }
 
-      const today = now.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
 
       const [offerings, todayClasses, pendingResults, recentAnnouncements] = await Promise.all([
         db.courseOffering.findMany({
@@ -141,7 +153,6 @@ export async function GET(request: NextRequest) {
       return successResponse({ role: 'STUDENT', attendanceRate: 0, courses: [], todayClasses: [], recentAnnouncements: [], upcomingEvents: [] })
     }
 
-    const today = now.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
 
     const [attendanceRecords, enrolledCourses, todayClasses, recentAnnouncements, upcomingEvents] = await Promise.all([
       db.attendance.findMany({
