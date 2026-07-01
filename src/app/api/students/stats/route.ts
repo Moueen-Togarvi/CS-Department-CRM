@@ -9,27 +9,66 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    await requireFacultyOrAdmin()
+    const session = await requireFacultyOrAdmin()
+
+    let allowedSemesters: number[] | null = null
+    if (session.user.role === 'FACULTY') {
+      const faculty = await db.faculty.findUnique({
+        where: { userId: session.user.id }
+      })
+      if (faculty) {
+        const offerings = await db.courseOffering.findMany({
+          where: { facultyId: faculty.id, isActive: true },
+          include: {
+            course: {
+              select: { semesterOffered: true }
+            }
+          }
+        })
+        allowedSemesters = offerings
+          .map(o => o.course.semesterOffered)
+          .filter((sem): sem is number => sem !== null)
+      } else {
+        allowedSemesters = []
+      }
+    }
+
     const [total, active, byBatchRaw, bySemesterRaw, bySemesterSectionRaw] = await Promise.all([
       db.student.count({
-        where: { status: { not: 'INACTIVE' } },
+        where: { 
+          status: { not: 'INACTIVE' },
+          ...(allowedSemesters !== null ? { currentSemester: { in: allowedSemesters } } : {})
+        },
       }),
       db.student.count({
-        where: { status: 'ACTIVE' },
+        where: { 
+          status: 'ACTIVE',
+          ...(allowedSemesters !== null ? { currentSemester: { in: allowedSemesters } } : {})
+        },
       }),
       db.student.groupBy({
         by: ['batch'],
-        where: { status: { not: 'INACTIVE' }, batch: { not: null } },
+        where: { 
+          status: { not: 'INACTIVE' }, 
+          batch: { not: null },
+          ...(allowedSemesters !== null ? { currentSemester: { in: allowedSemesters } } : {})
+        },
         _count: true,
       }),
       db.student.groupBy({
         by: ['currentSemester'],
-        where: { status: { not: 'INACTIVE' } },
+        where: { 
+          status: { not: 'INACTIVE' },
+          ...(allowedSemesters !== null ? { currentSemester: { in: allowedSemesters } } : {})
+        },
         _count: true,
       }),
       db.student.groupBy({
         by: ['currentSemester', 'section'],
-        where: { status: { not: 'INACTIVE' } },
+        where: { 
+          status: { not: 'INACTIVE' },
+          ...(allowedSemesters !== null ? { currentSemester: { in: allowedSemesters } } : {})
+        },
         _count: true,
       }),
     ])

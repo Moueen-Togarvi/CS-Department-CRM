@@ -53,6 +53,15 @@ export function useNotifications() {
     },
   })
 
+  const deleteNotificationMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/notifications/${id}`, { method: 'DELETE' }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications-list'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+    },
+  })
+
   // Refetch on window focus
   useEffect(() => {
     const onFocus = () => refetch()
@@ -65,5 +74,6 @@ export function useNotifications() {
     notifications,
     markRead: markReadMutation.mutate,
     markAllRead: markAllReadMutation.mutate,
+    deleteNotification: deleteNotificationMutation.mutate,
   }
 }

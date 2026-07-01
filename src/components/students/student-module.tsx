@@ -392,6 +392,12 @@ export function StudentModule() {
   })
   const stats = statsRaw?.data
 
+  const availableSemesters = useMemo(() => {
+    if (!stats?.bySemesterSection) return [1, 2, 3, 4, 5, 6, 7, 8]
+    const sems = new Set(stats.bySemesterSection.map(item => item.semester))
+    return Array.from(sems).sort((a, b) => a - b)
+  }, [stats?.bySemesterSection])
+
   const { data: studentDetail, isLoading: detailLoading } = useQuery<{
     success: boolean
     data: StudentDetail
@@ -791,7 +797,7 @@ export function StudentModule() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Semesters</SelectItem>
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                    {availableSemesters.map((sem) => (
                       <SelectItem key={sem} value={String(sem)}>Semester {sem}</SelectItem>
                     ))}
                   </SelectContent>

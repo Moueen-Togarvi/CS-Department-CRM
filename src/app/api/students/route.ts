@@ -9,7 +9,7 @@ import { requireFacultyOrAdmin, requireAdmin, handleApiError } from '@/lib/auth-
 
 export async function GET(request: NextRequest) {
   try {
-    await requireFacultyOrAdmin()
+    const session = await requireFacultyOrAdmin()
     const { searchParams } = new URL(request.url)
     const { page, limit, search, sort, order } = parsePaginationParams(searchParams)
 
@@ -17,7 +17,30 @@ export async function GET(request: NextRequest) {
     const semester = searchParams.get('semester') || undefined
     const status = searchParams.get('status') || undefined
     const section = searchParams.get('section') || undefined
-    const session = searchParams.get('session') || undefined
+    const sessionParam = searchParams.get('session') || undefined
+
+    // Find allowed semesters for faculty
+    let allowedSemesters: number[] | null = null
+    if (session.user.role === 'FACULTY') {
+      const faculty = await db.faculty.findUnique({
+        where: { userId: session.user.id }
+      })
+      if (faculty) {
+        const offerings = await db.courseOffering.findMany({
+          where: { facultyId: faculty.id, isActive: true },
+          include: {
+            course: {
+              select: { semesterOffered: true }
+            }
+          }
+        })
+        allowedSemesters = offerings
+          .map(o => o.course.semesterOffered)
+          .filter((sem): sem is number => sem !== null)
+      } else {
+        allowedSemesters = []
+      }
+    }
 
     const where: Prisma.StudentWhereInput = {
       status: { not: 'INACTIVE' },
@@ -25,9 +48,9 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       where.OR = [
-        { studentId: { contains: search } },
-        { user: { name: { contains: search } } },
-        { user: { email: { contains: search } } },
+        { studentId: { contains: search, mode: 'insensitive' } },
+        { user: { name: { contains: search, mode: 'insensitive' } } },
+        { user: { email: { contains: search, mode: 'insensitive' } } },
       ]
     }
 
@@ -35,8 +58,22 @@ export async function GET(request: NextRequest) {
       where.batch = batch
     }
 
-    if (semester && semester !== 'all') {
-      where.currentSemester = parseInt(semester)
+    if (allowedSemesters !== null) {
+      if (semester && semester !== 'all') {
+        const reqSem = parseInt(semester)
+        if (!allowedSemesters.includes(reqSem)) {
+          // If trying to access a semester not allowed, force empty or restrict
+          where.currentSemester = -1
+        } else {
+          where.currentSemester = reqSem
+        }
+      } else {
+        where.currentSemester = { in: allowedSemesters }
+      }
+    } else {
+      if (semester && semester !== 'all') {
+        where.currentSemester = parseInt(semester)
+      }
     }
 
     if (status && status !== 'all') {
@@ -51,8 +88,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (session && session !== 'all') {
-      where.session = session
+    if (sessionParam && sessionParam !== 'all') {
+      where.session = sessionParam
     }
 
     const orderBy: Prisma.StudentOrderByWithRelationInput = {}
