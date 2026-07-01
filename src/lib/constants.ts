@@ -20,7 +20,6 @@ export type ModuleId =
   | 'students'
   | 'faculty'
   | 'courses'
-  | 'course-offerings'
   | 'timetable'
   | 'attendance'
   | 'results'
@@ -76,13 +75,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Courses',
     icon: BookOpen,
     roles: ['ALL'],
-    section: 'ACADEMICS',
-  },
-  {
-    id: 'course-offerings',
-    label: 'Course Assign',
-    icon: CalendarClock,
-    roles: ['ADMIN'],
     section: 'ACADEMICS',
   },
   {

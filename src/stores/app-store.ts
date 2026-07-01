@@ -5,7 +5,6 @@ export type ModuleId =
   | 'students'
   | 'faculty'
   | 'courses'
-  | 'course-offerings'
   | 'timetable'
   | 'attendance'
   | 'results'
