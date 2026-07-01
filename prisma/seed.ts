@@ -62,6 +62,7 @@ async function main() {
   await prisma.project.deleteMany();
   await prisma.document.deleteMany();
   await prisma.announcement.deleteMany();
+  await prisma.courseOffering.deleteMany();
   await prisma.course.deleteMany();
   await prisma.student.deleteMany();
   await prisma.faculty.deleteMany();
