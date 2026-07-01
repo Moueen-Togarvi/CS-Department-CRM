@@ -29,6 +29,7 @@ export const createFacultySchema = z
     officeHours: z.string().optional().default(""),
     phone: z.string().optional().default(""),
     bio: z.string().optional().default(""),
+    avatar: z.string().optional(),
   })
   .strict();
 
@@ -45,6 +46,7 @@ export const updateFacultySchema = z
     officeRoom: z.string().optional(),
     officeHours: z.string().optional(),
     isAvailable: z.boolean().optional(),
+    avatar: z.string().optional(),
   })
   .strict();
 

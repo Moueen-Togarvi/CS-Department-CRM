@@ -130,10 +130,11 @@ export async function PUT(
     }
 
     // Update user fields
-    const userUpdateData: Record<string, string> = {};
+    const userUpdateData: Record<string, string | null> = {};
     if (data.name) userUpdateData.name = data.name;
     if (data.email) userUpdateData.email = data.email;
     if (data.phone !== undefined) userUpdateData.phone = data.phone || null;
+    if (data.avatar !== undefined) userUpdateData.avatar = data.avatar || null;
 
     // Update faculty fields
     const facultyUpdateData: Record<string, unknown> = {};

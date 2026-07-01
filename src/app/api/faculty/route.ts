@@ -143,6 +143,7 @@ export async function POST(request: NextRequest) {
         email: data.email,
         password: hashedPassword,
         phone: data.phone || null,
+        avatar: data.avatar || null,
         role: "FACULTY",
       },
     });

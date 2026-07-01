@@ -47,7 +47,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Table,
   TableHeader,
@@ -401,6 +401,9 @@ export function FacultyModule() {
           return (
             <div className="flex items-center gap-2.5">
               <Avatar className="h-8 w-8">
+                {f.user.avatar ? (
+                  <AvatarImage src={f.user.avatar} alt={f.user.name} className="object-cover" />
+                ) : null}
                 <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
                   {initials}
                 </AvatarFallback>
@@ -881,6 +884,7 @@ function FacultyFormDialog({
   onAiOpen,
 }: FacultyFormDialogProps) {
   const isEdit = !!editingFaculty
+  const [uploading, setUploading] = useState(false)
 
   const form = useForm<CreateFacultyInput | UpdateFacultyInput>({
     resolver: zodResolver(isEdit ? updateFacultySchema : createFacultySchema),
@@ -896,6 +900,7 @@ function FacultyFormDialog({
           departmentId: editingFaculty.department.id,
           officeRoom: editingFaculty.officeRoom ?? '',
           officeHours: editingFaculty.officeHours ?? '',
+          avatar: editingFaculty.user.avatar ?? '',
         }
       : {
           name: '',
@@ -910,6 +915,7 @@ function FacultyFormDialog({
           officeHours: '',
           phone: '',
           bio: '',
+          avatar: '',
         },
   })
 
@@ -930,6 +936,7 @@ function FacultyFormDialog({
         departmentId: editingFaculty.department.id,
         officeRoom: editingFaculty.officeRoom ?? '',
         officeHours: editingFaculty.officeHours ?? '',
+        avatar: editingFaculty.user.avatar ?? '',
       })
     } else {
       form.reset({
@@ -945,6 +952,7 @@ function FacultyFormDialog({
         officeHours: '',
         phone: '',
         bio: '',
+        avatar: '',
       })
     }
   }
@@ -1069,6 +1077,74 @@ function FacultyFormDialog({
                 Personal Information
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField control={form.control} name="avatar" render={({ field }) => {
+                  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    
+                    setUploading(true)
+                    const formData = new FormData()
+                    formData.append('file', file)
+                    
+                    try {
+                      const res = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData,
+                      })
+                      if (!res.ok) throw new Error('Upload failed')
+                      const data = await res.json()
+                      field.onChange(data.url)
+                      toast.success('Profile picture uploaded successfully')
+                    } catch (err) {
+                      console.error(err)
+                      toast.error('Failed to upload image')
+                    } finally {
+                      setUploading(false)
+                    }
+                  }
+
+                  return (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>Profile Picture</FormLabel>
+                      <FormControl>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3 border rounded-lg bg-muted/20">
+                          <Avatar className="size-16 border">
+                            {field.value ? (
+                              <AvatarImage src={field.value} alt="Preview" className="object-cover" />
+                            ) : null}
+                            <AvatarFallback className="bg-primary/10 text-primary text-xl font-semibold">
+                              {form.getValues('name') ? form.getValues('name').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 space-y-1.5">
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              className="max-w-xs cursor-pointer text-xs"
+                              onChange={handleFileChange}
+                              disabled={uploading}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              {uploading ? 'Uploading picture...' : 'PNG, JPG or WEBP. Max 5MB.'}
+                            </p>
+                          </div>
+                          {field.value && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive border-destructive/20 hover:bg-destructive/10"
+                              onClick={() => field.onChange('')}
+                            >
+                              Remove
+                            </Button>
+                          )}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )
+                }} />
                 <FormField
                   control={form.control}
                   name="name"
@@ -1215,6 +1291,9 @@ function FacultyDetailSheet({ detail, isLoading, onEdit, isAdmin }: FacultyDetai
       <SheetHeader className="p-4 pb-2 border-b">
         <div className="flex items-center gap-4">
           <Avatar className="h-14 w-14">
+            {detail.user.avatar ? (
+              <AvatarImage src={detail.user.avatar} alt={detail.user.name} className="object-cover" />
+            ) : null}
             <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
               {initials}
             </AvatarFallback>
