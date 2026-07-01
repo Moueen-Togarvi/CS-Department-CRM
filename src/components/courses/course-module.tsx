@@ -1270,7 +1270,7 @@ function CourseFormDialog({
 
   const form = useForm<CreateCourseInput | UpdateCourseInput>({
     resolver: zodResolver(isEdit ? updateCourseSchema : createCourseSchema) as any,
-    defaultValues: isEdit
+    defaultValues: (isEdit
       ? {
           name: editingCourse.name,
           departmentId: editingCourse.department.id,
@@ -1295,7 +1295,7 @@ function CourseFormDialog({
           prerequisites: '[]',
           objectives: '',
           instructorId: '',
-        },
+        }) as any,
   })
 
   // Reset form values when editingCourse changes or dialog is opened
@@ -1313,7 +1313,7 @@ function CourseFormDialog({
           prerequisites: editingCourse.prerequisites ?? '[]',
           objectives: editingCourse.objectives ?? '',
           instructorId: editingCourse.instructor?.id ?? '',
-        })
+        } as any)
       } else {
         form.reset({
           code: '',
@@ -1327,10 +1327,10 @@ function CourseFormDialog({
           prerequisites: '[]',
           objectives: '',
           instructorId: '',
-        })
+        } as any)
       }
     }
-  }, [open, editingCourse, isEdit, departments, form])
+  }, [open, editingCourse, isEdit, departments])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

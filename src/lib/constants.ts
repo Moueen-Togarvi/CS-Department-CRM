@@ -27,6 +27,7 @@ export type ModuleId =
   | 'fyp'
   | 'documents'
   | 'rooms'
+  | 'classrooms'
   | 'profile'
   | 'my-attendance'
 
@@ -85,10 +86,10 @@ export const NAV_ITEMS: NavItem[] = [
     section: 'ACADEMICS',
   },
   {
-    id: 'rooms',
-    label: 'Rooms',
+    id: 'classrooms',
+    label: 'Classrooms',
     icon: School,
-    roles: ['ADMIN'],
+    roles: ['ADMIN', 'FACULTY'],
     section: 'ACADEMICS',
   },
   {

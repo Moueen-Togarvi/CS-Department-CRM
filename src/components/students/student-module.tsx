@@ -112,7 +112,7 @@ import { AiInput } from '@/components/shared/ai-input'
 
 // ==================== Types ====================
 
-interface StudentRow {
+export interface StudentRow {
   id: string
   studentId: string
   name: string
@@ -130,7 +130,7 @@ interface StudentRow {
   updatedAt: string
 }
 
-interface StudentStats {
+export interface StudentStats {
   total: number
   active: number
   byBatch: Record<string, number>
@@ -146,7 +146,7 @@ interface StudentStats {
   }>
 }
 
-interface StudentDetail {
+export interface StudentDetail {
   id: string
   studentId: string
   departmentId: string
@@ -268,10 +268,6 @@ export function StudentModule() {
   const [semesterFilter, setSemesterFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sectionFilter, setSectionFilter] = useState('all')
-  const [selectedGroup, setSelectedGroup] = useState<{ semester: number; section: string } | null>(null)
-  const [cardSemesterFilter, setCardSemesterFilter] = useState('all')
-  const [cardShiftFilter, setCardShiftFilter] = useState('all')
-  const [cardSectionFilter, setCardSectionFilter] = useState('all')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [sorting, setSorting] = useState<SortingState>([])
@@ -285,85 +281,7 @@ export function StudentModule() {
   const [importOpen, setImportOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
 
-  // Assign Room/Floor states
-  const [assignRoomClass, setAssignRoomClass] = useState<{ semester: number; section: string; room?: string; floor?: number | null } | null>(null)
-  const [rooms, setRooms] = useState<any[]>([])
-  const [selectedRoomId, setSelectedRoomId] = useState<string>('custom')
-  const [customRoomName, setCustomRoomName] = useState<string>('')
-  const [customFloor, setCustomFloor] = useState<string>('')
-  const [isSavingRoom, setIsSavingRoom] = useState(false)
-
   const queryClient = useQueryClient()
-
-  // Load rooms and prefill state
-  useEffect(() => {
-    if (assignRoomClass) {
-      fetch('/api/rooms')
-        .then((res) => res.json())
-        .then((res) => {
-          if (res.success && Array.isArray(res.data)) {
-            setRooms(res.data)
-            // If the current class room matches one of the rooms in DB, select it
-            const matchedRoom = res.data.find((r: any) => r.name === assignRoomClass.room)
-            if (matchedRoom) {
-              setSelectedRoomId(matchedRoom.id)
-              setCustomRoomName(matchedRoom.name)
-              setCustomFloor(String(matchedRoom.floor || ''))
-            } else {
-              setSelectedRoomId('custom')
-              setCustomRoomName(assignRoomClass.room && assignRoomClass.room !== 'N/A' ? assignRoomClass.room : '')
-              setCustomFloor(assignRoomClass.floor !== null && assignRoomClass.floor !== undefined ? String(assignRoomClass.floor) : '')
-            }
-          }
-        })
-        .catch(console.error)
-    }
-  }, [assignRoomClass])
-
-  const handleSaveRoom = async () => {
-    if (!assignRoomClass) return
-    setIsSavingRoom(true)
-    try {
-      let finalRoomName = customRoomName.trim()
-      let finalFloor = customFloor.trim() !== '' ? Number(customFloor) : null
-      let roomId = null
-
-      if (selectedRoomId !== 'custom') {
-        const dbRoom = rooms.find((r) => r.id === selectedRoomId)
-        if (dbRoom) {
-          finalRoomName = dbRoom.name
-          finalFloor = dbRoom.floor
-          roomId = dbRoom.id
-        }
-      }
-
-      const res = await fetch('/api/students/class-rooms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          semester: assignRoomClass.semester,
-          section: assignRoomClass.section,
-          roomId,
-          roomName: finalRoomName || 'N/A',
-          floor: finalFloor,
-        }),
-      })
-
-      const data = await res.json()
-      if (data.success) {
-        toast.success('Classroom assignment updated successfully')
-        queryClient.invalidateQueries({ queryKey: ['student-stats'] })
-        setAssignRoomClass(null)
-      } else {
-        toast.error(data.error || 'Failed to update classroom assignment')
-      }
-    } catch (e) {
-      console.error(e)
-      toast.error('An error occurred while saving')
-    } finally {
-      setIsSavingRoom(false)
-    }
-  }
 
   // Build query string
   const queryString = useMemo(() => {
@@ -784,302 +702,101 @@ export function StudentModule() {
         }
       />
 
-      {selectedGroup === null ? (
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-3.5">
-              <div className="flex flex-col gap-0.5">
-                <h2 className="text-base font-bold tracking-tight text-foreground">Academic Classes</h2>
-                <p className="text-[11px] text-muted-foreground">Select a class section to view and manage its student directory</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Select value={cardSemesterFilter} onValueChange={setCardSemesterFilter}>
-                  <SelectTrigger size="sm" className="w-[125px]">
-                    <SelectValue placeholder="Semester" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Semesters</SelectItem>
-                    {availableSemesters.map((sem) => (
-                      <SelectItem key={sem} value={String(sem)}>Semester {sem}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={cardShiftFilter} onValueChange={setCardShiftFilter}>
-                  <SelectTrigger size="sm" className="w-[110px]">
-                    <SelectValue placeholder="Shift" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Shifts</SelectItem>
-                    <SelectItem value="Morning">Morning</SelectItem>
-                    <SelectItem value="Evening">Evening</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={cardSectionFilter} onValueChange={setCardSectionFilter}>
-                  <SelectTrigger size="sm" className="w-[110px]">
-                    <SelectValue placeholder="Section" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sections</SelectItem>
-                    <SelectItem value="A">A</SelectItem>
-                    <SelectItem value="B">B</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4.5">
-              {isLoadingStats ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <Card key={i} className="animate-pulse border shadow-sm h-[112px] py-0">
-                    <CardContent className="p-4 flex flex-col justify-between h-full">
-                      <div className="flex items-center justify-between w-full">
-                        <Skeleton className="h-3.5 w-24" />
-                        <Skeleton className="h-4 w-4 rounded-full" />
-                      </div>
-                      <Skeleton className="h-5 w-20" />
-                      <div className="flex items-center justify-between w-full">
-                        <Skeleton className="h-4 w-16" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : stats?.bySemesterSection && stats.bySemesterSection.length > 0 ? (
-                (() => {
-                  const filtered = [...stats.bySemesterSection]
-                    .filter((item) => {
-                      if (cardSemesterFilter !== 'all' && String(item.semester) !== cardSemesterFilter) {
-                        return false
-                      }
-                      if (cardShiftFilter !== 'all' && item.shift !== cardShiftFilter) {
-                        return false
-                      }
-                      if (cardSectionFilter !== 'all') {
-                        const sec = item.section || ''
-                        const isMatch = sec.endsWith(` ${cardSectionFilter}`) || sec === cardSectionFilter
-                        if (!isMatch) return false
-                      }
-                      return true
-                    })
-                    .sort((a, b) => a.semester - b.semester || a.section.localeCompare(b.section))
-
-                  if (filtered.length === 0) {
-                    return (
-                      <div className="col-span-full py-12 flex flex-col items-center justify-center text-center border border-dashed rounded-xl bg-muted/20">
-                        <p className="text-sm font-bold text-muted-foreground">No classes found</p>
-                      </div>
-                    )
-                  }
-                  const getProgramName = (sec: string) => {
-                    const s = sec.toUpperCase()
-                    if (s.includes('BSCS') || s.startsWith('CS')) return 'BS CS'
-                    if (s.includes('BSSE') || s.startsWith('SE')) return 'BS SE'
-                    if (s.includes('BSIT') || s.startsWith('IT')) return 'BS IT'
-                    return 'BS CS'
-                  }
-
-                  const getCleanSection = (sec: string) => {
-                    if (!sec) return 'TBD'
-                    const parts = sec.trim().split(/\s+/)
-                    const lastPart = parts[parts.length - 1]
-                    const match = lastPart.match(/[A-Z]$/i)
-                    if (match) return match[0].toUpperCase()
-                    return lastPart
-                  }
-
-                  return filtered.map((item) => {
-                    const isAssigned = item.room && item.room !== 'N/A' && item.room !== 'Room: TBD'
-                    return (
-                      <Card
-                        key={`${item.semester}-${item.section}`}
-                        className="group relative cursor-pointer overflow-hidden border border-slate-200/85 dark:border-slate-800 border-t-[3px] border-t-emerald-600 shadow-[0_2px_8px_rgba(0,0,0,0.02)] bg-white dark:bg-slate-950 rounded-xl hover:shadow-[0_6px_16px_-4px_rgba(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between"
-                        onClick={() => {
-                          setSelectedGroup({ semester: item.semester, section: item.section })
-                          setSemesterFilter(String(item.semester))
-                          setSectionFilter(item.section)
-                          setPage(1)
-                        }}
-                      >
-                        <CardContent className="p-3 flex-1 flex flex-col justify-between space-y-2.5">
-                          {/* Top Row: Program Badge & Options */}
-                          <div className="flex items-center justify-between w-full">
-                            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-emerald-200/50 dark:border-emerald-900/20 bg-emerald-50/40 dark:bg-emerald-950/15 text-emerald-700 dark:text-emerald-400 text-[9px] font-bold tracking-wide">
-                              <span className="size-1 rounded-full bg-emerald-500 shrink-0" />
-                              <span>{getProgramName(item.section)}</span>
-                            </div>
-
-                            {isAdmin && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                  <Button variant="ghost" className="h-5 w-5 p-0 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 flex items-center justify-center">
-                                    <MoreVertical className="size-3.5" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                  <DropdownMenuItem onClick={(e) => { 
-                                    e.stopPropagation(); 
-                                    setAssignRoomClass({
-                                      semester: item.semester,
-                                      section: item.section,
-                                      room: item.room,
-                                      floor: item.floor
-                                    });
-                                  }}>
-                                    Assign Room/Floor
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
-                          </div>
-
-                          {/* Middle: Semester Name */}
-                          <div>
-                            <h3 className="text-sm sm:text-base font-bold tracking-tight text-slate-900 dark:text-slate-100 leading-none">
-                              Semester {item.semester}
-                            </h3>
-                          </div>
-
-                          {/* Middle Box: Shift & Section */}
-                          <div className="grid grid-cols-2 rounded-lg border border-slate-200/70 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/5 overflow-hidden divide-x divide-slate-200/70 dark:divide-slate-800">
-                            <div className="px-2.5 py-1.5 flex flex-col justify-center">
-                              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">Shift</p>
-                              <p className={cn(
-                                "font-bold text-xs mt-1 leading-none",
-                                item.shift?.toLowerCase() === 'evening' 
-                                  ? 'text-amber-600 dark:text-amber-400' 
-                                  : 'text-emerald-600 dark:text-emerald-400'
-                              )}>
-                                {item.shift ? (item.shift.charAt(0).toUpperCase() + item.shift.slice(1).toLowerCase()) : 'Morning'}
-                              </p>
-                            </div>
-                            <div className="px-2.5 py-1.5 flex flex-col justify-center">
-                              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">Section</p>
-                              <p className="font-bold text-slate-900 dark:text-slate-100 text-xs mt-1 leading-none">
-                                {getCleanSection(item.section)}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Bottom Room Section */}
-                          <div className="group/room bg-slate-50/40 hover:bg-slate-50 dark:bg-slate-900/20 dark:hover:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800 rounded-lg p-2 flex items-center justify-between transition-all duration-200">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="h-8 w-8 bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 rounded-lg flex items-center justify-center text-slate-500 shrink-0">
-                                <MapPin className="h-4 w-4 text-slate-500 dark:text-slate-400 shrink-0" />
-                              </div>
-                              <div className="flex flex-col min-w-0">
-                                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">Room</span>
-                                <span className="font-bold text-xs text-slate-900 dark:text-slate-100 mt-1 truncate">
-                                  {isAssigned ? `Room ${item.room}` : 'Not Assigned'}
-                                </span>
-                                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                                  {isAssigned 
-                                    ? (item.floor !== null ? `Floor ${item.floor}` : 'Ground Floor') 
-                                    : 'Room allocation pending'
-                                  }
-                                </span>
-                              </div>
-                            </div>
-                            <div className="h-7 w-7 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-400 group-hover/room:border-emerald-500/30 group-hover/room:text-emerald-600 transition-all duration-200 flex items-center justify-center shrink-0">
-                              <ArrowRight className="h-3.5 w-3.5 group-hover/room:translate-x-0.5 transition-transform" />
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })
-                })()
-              ) : (
-                <div className="col-span-full py-12 flex flex-col items-center justify-center border-2 border-dashed rounded-xl bg-muted/20">
-                  <Users className="size-10 text-muted-foreground/30 mb-2" />
-                  <p className="text-sm font-medium text-muted-foreground">No class groups found</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSelectedGroup(null)
-                setSemesterFilter('all')
-                setSectionFilter('all')
+      <div className="space-y-4">
+        {/* Filters */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center justify-between">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, ID, email..."
+              className="pl-9 h-9"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value)
                 setPage(1)
               }}
-              className="h-8 gap-1.5"
-            >
-              <ArrowLeft className="size-4" />
-              <span>Back to Classes</span>
-            </Button>
-            <Separator orientation="vertical" className="h-6" />
-            <div>
-              <h2 className="text-base font-semibold tracking-tight">
-                Semester {selectedGroup.semester} - Section {selectedGroup.section}
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Showing student records for Semester {selectedGroup.semester}, Section {selectedGroup.section}
-              </p>
-            </div>
+            />
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={semesterFilter} onValueChange={(v) => { setSemesterFilter(v); setPage(1) }}>
+              <SelectTrigger size="sm" className="w-[125px]">
+                <SelectValue placeholder="Semester" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Semesters</SelectItem>
+                {availableSemesters.map((sem) => (
+                  <SelectItem key={sem} value={String(sem)}>Semester {sem}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          {/* Filters */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, ID, email..."
-                className="pl-9 h-9"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value)
-                  setPage(1)
-                }}
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
-                <SelectTrigger size="sm" className="w-[140px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="SUSPENDED">Suspended</SelectItem>
-                  <SelectItem value="GRADUATED">Graduated</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={sectionFilter} onValueChange={(v) => { setSectionFilter(v); setPage(1) }}>
+              <SelectTrigger size="sm" className="w-[110px]">
+                <SelectValue placeholder="Section" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sections</SelectItem>
+                <SelectItem value="A">A</SelectItem>
+                <SelectItem value="B">B</SelectItem>
+                <SelectItem value="C">C</SelectItem>
+                <SelectItem value="D">D</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
+              <SelectTrigger size="sm" className="w-[140px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="ACTIVE">Active</SelectItem>
+                <SelectItem value="SUSPENDED">Suspended</SelectItem>
+                <SelectItem value="GRADUATED">Graduated</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={batchFilter} onValueChange={(v) => { setBatchFilter(v); setPage(1) }}>
+              <SelectTrigger size="sm" className="w-[130px]">
+                <SelectValue placeholder="Batch" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Batches</SelectItem>
+                {stats?.bySemesterSection ? (
+                  Array.from(new Set(students.map(s => s.batch || '2023'))).sort().map((b) => (
+                    <SelectItem key={b} value={b}>{b}</SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="2023">2023</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
           </div>
-
-          {/* Data Table */}
-          <Card>
-            <CardContent className="p-0">
-              <DataTable
-                columns={columns}
-                data={students}
-                isLoading={isLoading}
-                pageCount={pagination?.totalPages}
-                pageIndex={page - 1}
-                pageSize={pageSize}
-                onPaginationChange={(p, s) => {
-                  setPage(p + 1)
-                  setPageSize(s)
-                }}
-                onSortingChange={setSorting}
-                sorting={sorting}
-                manualPagination
-                onRowClick={openDetail}
-                emptyMessage="No students found matching your criteria."
-                emptyIcon={<GraduationCap className="size-10 text-muted-foreground/40" />}
-              />
-            </CardContent>
-          </Card>
         </div>
-      )}
+
+        {/* Data Table */}
+        <Card>
+          <CardContent className="p-0">
+            <DataTable
+              columns={columns}
+              data={students}
+              isLoading={isLoading}
+              pageCount={pagination?.totalPages}
+              pageIndex={page - 1}
+              pageSize={pageSize}
+              onPaginationChange={(p, s) => {
+                setPage(p + 1)
+                setPageSize(s)
+              }}
+              onSortingChange={setSorting}
+              sorting={sorting}
+              manualPagination
+              onRowClick={openDetail}
+              emptyMessage="No students found matching your criteria."
+              emptyIcon={<GraduationCap className="size-10 text-muted-foreground/40" />}
+            />
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Student Form Dialog / Sheet */}
       {isMobile ? (
@@ -1174,119 +891,7 @@ export function StudentModule() {
         }}
       />
 
-      {/* Assign Room & Floor Dialog */}
-      <Dialog open={!!assignRoomClass} onOpenChange={(open) => !open && setAssignRoomClass(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Building2 className="size-5 text-primary animate-bounce-slow" />
-              Assign Room & Floor
-            </DialogTitle>
-            <DialogDescription className="text-xs font-semibold">
-              Assign a physical classroom and floor to the students of{' '}
-              <span className="font-black text-foreground">
-                Sem {assignRoomClass?.semester} - Section {assignRoomClass?.section}
-              </span>
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-xs font-black uppercase text-muted-foreground">Select Room from Database</label>
-              <Select
-                value={selectedRoomId}
-                onValueChange={(val) => {
-                  setSelectedRoomId(val)
-                  if (val !== 'custom') {
-                    const r = rooms.find((x) => x.id === val)
-                    if (r) {
-                      setCustomRoomName(r.name)
-                      setCustomFloor(String(r.floor !== null && r.floor !== undefined ? r.floor : ''))
-                    }
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full font-bold">
-                  <SelectValue placeholder="Choose a room" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="custom" className="font-extrabold text-primary">
-                    Custom Room / Enter Manually
-                  </SelectItem>
-                  {rooms.map((r) => (
-                    <SelectItem key={r.id} value={r.id} className="font-bold">
-                      {r.name} {r.building ? `(${r.building})` : ''} - Flr {r.floor}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-muted-foreground">Room Name</label>
-                <Input
-                  value={customRoomName}
-                  onChange={(e) => setCustomRoomName(e.target.value)}
-                  placeholder="e.g. Lab-301"
-                  disabled={selectedRoomId !== 'custom'}
-                  className="font-bold"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase text-muted-foreground">Floor Number</label>
-                <Input
-                  type="number"
-                  value={customFloor}
-                  onChange={(e) => setCustomFloor(e.target.value)}
-                  placeholder="e.g. 3"
-                  disabled={selectedRoomId !== 'custom'}
-                  className="font-bold"
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              className="font-bold"
-              onClick={() => setAssignRoomClass(null)}
-              disabled={isSavingRoom}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="font-bold"
-              onClick={handleSaveRoom}
-              disabled={isSavingRoom}
-            >
-              {isSavingRoom && <Loader2 className="size-4 animate-spin mr-2" />}
-              Save Assignment
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
-  )
-}
-
-function StatCard({ label, value, icon, accent }: { label: string; value: number; icon: React.ReactNode; accent?: boolean }) {
-  return (
-    <Card className={`relative overflow-hidden transition-all duration-300 hover:shadow-md border border-slate-200/80 dark:border-slate-800/80 py-0 ${accent ? 'border-primary/30 bg-gradient-to-br from-primary/5 to-transparent' : 'bg-card'}`}>
-      <CardContent className="p-3.5 flex items-center gap-3.5">
-        <div className={`flex size-10 items-center justify-center rounded-xl transition-colors ${accent ? 'bg-primary/10 text-primary' : 'bg-secondary text-secondary-foreground'}`}>
-          {icon}
-        </div>
-        <div className="space-y-0.5">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
-          <p className={`text-xl font-black tracking-tight ${accent ? 'text-primary' : 'text-foreground'}`}>{value}</p>
-        </div>
-      </CardContent>
-    </Card>
   )
 }
 
@@ -1982,7 +1587,7 @@ function StudentFormSheet({
   )
 }
 
-function StudentDetailPanel({ student }: { student: StudentDetail }) {
+export function StudentDetailPanel({ student }: { student: StudentDetail }) {
   const initials = student.user.name
     .split(' ')
     .map((n) => n[0])

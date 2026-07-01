@@ -12,6 +12,7 @@ export type ModuleId =
   | 'fyp'
   | 'documents'
   | 'rooms'
+  | 'classrooms'
   | 'profile'
   | 'my-attendance'
 

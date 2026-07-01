@@ -15,6 +15,7 @@ import { AnnouncementModule } from '@/components/announcements/announcement-modu
 import { FYPModule } from '@/components/fyp/fyp-module'
 import { DocumentModule } from '@/components/documents/document-module'
 import { RoomsModule } from '@/components/rooms/rooms-module'
+import { ClassroomsModule } from '@/components/classrooms/classrooms-module'
 import { ProfileModule } from '@/components/profile/profile-module'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 
@@ -37,6 +38,7 @@ export default function Home() {
         {activeModule === 'fyp' && <FYPModule />}
         {activeModule === 'documents' && <DocumentModule />}
         {activeModule === 'rooms' && <RoomsModule />}
+        {activeModule === 'classrooms' && <ClassroomsModule />}
         {activeModule === 'profile' && <ProfileModule />}
       </ModuleErrorBoundary>
     </AppLayout>

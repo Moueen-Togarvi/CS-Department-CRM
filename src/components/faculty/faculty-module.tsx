@@ -1113,7 +1113,7 @@ function FacultyFormDialog({
                               <AvatarImage src={field.value} alt="Preview" className="object-cover" />
                             ) : null}
                             <AvatarFallback className="bg-primary/10 text-primary text-xl font-semibold">
-                              {form.getValues('name') ? form.getValues('name').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
+                              {form.getValues('name') ? (form.getValues('name') || '').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 space-y-1.5">
