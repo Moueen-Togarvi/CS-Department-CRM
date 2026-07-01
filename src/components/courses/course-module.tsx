@@ -38,6 +38,9 @@ import {
   List,
   AlertTriangle,
   UserCheck,
+  GraduationCap,
+  ArrowRight,
+  User,
 } from 'lucide-react'
 
 import { toast } from 'sonner'
@@ -92,6 +95,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu'
 import {
   AlertDialog,
@@ -139,7 +146,7 @@ interface CourseListItem {
   semesterOffered: number | null
   description: string | null
   objectives: string | null
-  prerequisites: string
+  prerequisites: string | string[]
   isActive: boolean
   instructor: CourseInstructor | null
   department: { id: string; name: string; code: string }
@@ -805,166 +812,170 @@ export function CourseModule() {
               {courseList.map((course) => {
                 const isUpdatingThis = updateMutation.isPending && updateMutation.variables?.id === course.id
                 const hasInstructor = !!course.instructor
-                
+                const typeTextColor = 
+                  course.courseType === 'THEORY' ? 'text-emerald-600 dark:text-emerald-400' :
+                  course.courseType === 'LAB' ? 'text-amber-600 dark:text-amber-400' :
+                  course.courseType === 'PROJECT' ? 'text-rose-600 dark:text-rose-455' :
+                  'text-slate-900 dark:text-slate-100';
+
                 return (
                   <Card 
                     key={course.id} 
                     className={cn(
-                      "flex flex-col justify-between overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg border border-muted/60 hover:border-primary/30",
-                      !hasInstructor && "border-amber-200/50 dark:border-amber-900/30 bg-amber-50/10 dark:bg-amber-950/5"
+                      "group relative flex flex-col justify-between overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md border border-slate-200/85 dark:border-slate-800 border-t-[3.5px] border-t-emerald-600 bg-white dark:bg-slate-950 rounded-xl min-h-[238px]"
                     )}
                   >
-                    <CardContent className="p-3.5 flex-1 flex flex-col justify-between space-y-3">
+                    <CardContent className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
                       {/* Top Row */}
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="font-mono font-bold text-primary tracking-wider text-xs bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10">
+                          <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 tracking-wider text-xs bg-emerald-500/10 dark:bg-emerald-500/20 px-2.5 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1.5 shrink-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
                             {course.code}
                           </span>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className={cn(courseTypeColor(course.courseType), "font-semibold")}>
-                              {course.courseType}
-                            </Badge>
-                            {/* Options dropdown menu */}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-muted/80">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">Actions</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setDetailCourseId(course.id)}>
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  View Details
-                                </DropdownMenuItem>
-                                {isAdmin && (
-                                  <>
-                                    <DropdownMenuItem
-                                      onClick={() => {
-                                        setEditingCourse(course)
-                                        setFormOpen(true)
-                                      }}
-                                    >
-                                      <Pencil className="mr-2 h-4 w-4" />
-                                      Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      className="text-destructive focus:text-destructive"
-                                      onClick={() => setDeleteTarget(course)}
-                                    >
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Delete
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
+                          
+                          {/* Options dropdown menu */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-muted/80 shrink-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Actions</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                              <DropdownMenuItem onClick={() => setDetailCourseId(course.id)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              {isAdmin && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuSub>
+                                    <DropdownMenuSubTrigger className="flex items-center">
+                                      <UserPlus className="mr-2 h-4 w-4" />
+                                      <span>Assign Instructor</span>
+                                    </DropdownMenuSubTrigger>
+                                    <DropdownMenuPortal>
+                                      <DropdownMenuSubContent className="max-h-56 overflow-y-auto w-56">
+                                        <DropdownMenuItem 
+                                          className="text-amber-600 dark:text-amber-400 font-medium"
+                                          onClick={() => {
+                                            updateMutation.mutate({
+                                              id: course.id,
+                                              values: { instructorId: null }
+                                            })
+                                          }}
+                                        >
+                                          ❌ Unassign / None
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        {facultyList?.map((faculty) => (
+                                          <DropdownMenuItem
+                                            key={faculty.id}
+                                            onClick={() => {
+                                              updateMutation.mutate({
+                                                id: course.id,
+                                                values: { instructorId: faculty.id }
+                                              })
+                                            }}
+                                            className="flex items-center justify-between"
+                                          >
+                                            <span className="truncate">👤 {faculty.name}</span>
+                                            <span className="text-[10px] text-muted-foreground font-mono shrink-0 ml-1">({faculty.facultyId})</span>
+                                          </DropdownMenuItem>
+                                        ))}
+                                      </DropdownMenuSubContent>
+                                    </DropdownMenuPortal>
+                                  </DropdownMenuSub>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setEditingCourse(course)
+                                      setFormOpen(true)
+                                    }}
+                                  >
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    Edit Course
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => setDeleteTarget(course)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete Course
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
 
                         {/* Title and Department */}
-                        <div>
-                          <h4 className="font-bold text-sm sm:text-base leading-snug tracking-tight text-foreground line-clamp-2 hover:text-primary transition-colors cursor-pointer" onClick={() => setDetailCourseId(course.id)}>
+                        <div className="space-y-1.5">
+                          <h4 
+                            className="font-bold text-sm sm:text-base leading-snug tracking-tight text-foreground line-clamp-2 hover:text-emerald-600 transition-colors cursor-pointer" 
+                            onClick={() => setDetailCourseId(course.id)}
+                          >
                             {course.name}
                           </h4>
-                          <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary/40 shrink-0"></span>
+                          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-1">
+                            <GraduationCap className="h-4 w-4 text-slate-500 dark:text-slate-400 shrink-0" />
                             <span className="truncate">{course.department.name}</span>
                           </p>
                         </div>
                       </div>
 
-                      <Separator className="my-0.5 opacity-70" />
-
-                      {/* Middle Info (Credits, Enrollments, Semester) */}
-                      <div className="grid grid-cols-2 gap-1.5 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-lg border border-muted/40">
-                          <Clock className="h-3.5 w-3.5 text-primary/70 shrink-0" />
-                          <div>
-                            <p className="text-[9px] uppercase tracking-wider text-muted-foreground/80 leading-none">Credits</p>
-                            <p className="font-semibold text-foreground mt-0.5">
-                              {course.creditHours}
-                              {course.labCreditHours > 0 && <span className="text-[10px] text-muted-foreground"> +{course.labCreditHours}L</span>}
-                            </p>
-                          </div>
+                      {/* Middle Info (Type, Credits) */}
+                      <div className="grid grid-cols-2 rounded-xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20 overflow-hidden divide-x divide-slate-200/70 dark:divide-slate-800">
+                        <div className="px-4 py-2 flex flex-col justify-center">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">Type</p>
+                          <p className={cn("font-bold text-sm mt-1.5", typeTextColor)}>
+                            {course.courseType.charAt(0) + course.courseType.slice(1).toLowerCase()}
+                          </p>
                         </div>
-                        <div className="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-lg border border-muted/40 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setDetailCourseId(course.id)}>
-                          <Users className="h-3.5 w-3.5 text-primary/70 shrink-0" />
-                          <div>
-                            <p className="text-[9px] uppercase tracking-wider text-muted-foreground/80 leading-none">Students</p>
-                            <p className="font-semibold text-foreground mt-0.5">{course.enrollmentCount} enrolled</p>
-                          </div>
+                        <div className="px-4 py-2 flex flex-col justify-center">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">Credits</p>
+                          <p className="font-bold text-emerald-700 dark:text-emerald-400 text-sm mt-1.5">
+                            {course.creditHours}
+                            {course.labCreditHours > 0 && <span className="text-xs text-muted-foreground font-semibold"> +{course.labCreditHours}L</span>}
+                          </p>
                         </div>
                       </div>
 
-                      {/* Instructor Assignment Section */}
-                      <div className="pt-2 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Instructor</span>
-                          {isUpdatingThis && (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                      {/* Bottom Instructor Section */}
+                      <div 
+                        onClick={() => setDetailCourseId(course.id)}
+                        className="group/instructor bg-slate-50/60 hover:bg-slate-100/80 dark:bg-slate-900/40 dark:hover:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 rounded-xl p-3 flex items-center justify-between cursor-pointer transition-all duration-200"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-9 w-9 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-center text-slate-500 group-hover/instructor:text-primary group-hover/instructor:bg-slate-200 dark:group-hover/instructor:bg-slate-800 transition-colors shrink-0">
+                            <User className="h-4.5 w-4.5 text-slate-600 dark:text-slate-350 shrink-0" />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">Instructor</span>
+                            <span className="font-bold text-sm text-slate-900 dark:text-slate-100 mt-1 truncate">
+                              {course.instructor?.name || 'Not Assigned'}
+                            </span>
+                            {course.instructor ? (
+                              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 truncate flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                                ID: {course.instructor.facultyId}
+                              </span>
+                            ) : (
+                              <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 animate-pulse"></span>
+                                Needs Assignment
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="h-6.5 w-6.5 rounded-full bg-slate-200/60 dark:bg-slate-800/80 group-hover/instructor:bg-emerald-600/10 flex items-center justify-center text-slate-600 dark:text-slate-400 group-hover/instructor:text-emerald-600 transition-all duration-200 shrink-0">
+                          {isUpdatingThis ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+                          ) : (
+                            <ArrowRight className="h-4 w-4 group-hover/instructor:translate-x-0.5 transition-transform" />
                           )}
                         </div>
-                        
-                        {isAdmin ? (
-                          /* Admin View: Interactive Assignment Select */
-                          <div className="space-y-1">
-                            {!hasInstructor ? (
-                              <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg text-amber-600 dark:text-amber-400">
-                                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500 animate-pulse" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider">Not Assigned</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-lg text-emerald-600 dark:text-emerald-400">
-                                <UserCheck className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                                <span className="text-[10px] font-bold truncate">Assigned: {course.instructor?.name}</span>
-                              </div>
-                            )}
-                            
-                            <Select
-                              disabled={isUpdatingThis}
-                              value={course.instructor?.id || "_unassigned"}
-                              onValueChange={(value) => {
-                                const newInstructorId = value === "_unassigned" ? null : value
-                                updateMutation.mutate({
-                                  id: course.id,
-                                  values: { instructorId: newInstructorId }
-                                })
-                              }}
-                            >
-                              <SelectTrigger className="w-full h-9 bg-background border-muted hover:bg-accent/40 text-xs">
-                                <SelectValue placeholder="Assign Instructor..." />
-                              </SelectTrigger>
-                              <SelectContent className="max-h-56">
-                                <SelectItem value="_unassigned" className="text-muted-foreground italic text-xs">
-                                  ❌ Not Assigned / None
-                                </SelectItem>
-                                {facultyList?.map((faculty) => (
-                                  <SelectItem key={faculty.id} value={faculty.id} className="text-xs">
-                                    👤 {faculty.name} ({faculty.facultyId})
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        ) : (
-                          /* Non-Admin View: Display Only */
-                          <div>
-                            {hasInstructor ? (
-                              <div className="flex items-center gap-1.5 bg-muted/40 border border-muted px-2 py-1 rounded-lg text-xs text-foreground">
-                                <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                                <span className="font-medium truncate">{course.instructor?.name}</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/25 px-2 py-1 rounded-lg text-xs text-amber-600 dark:text-amber-400">
-                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                                <span className="font-medium">Not Assigned</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -1287,46 +1298,39 @@ function CourseFormDialog({
         },
   })
 
-  const resetKey = editingCourse?.id ?? 'new'
-  const [lastResetKey, setLastResetKey] = useState(resetKey)
-  if (resetKey !== lastResetKey) {
-    setLastResetKey(resetKey)
-    if (isEdit) {
-      form.reset({
-        name: editingCourse.name,
-        departmentId: editingCourse.department.id,
-        creditHours: editingCourse.creditHours,
-        labCreditHours: editingCourse.labCreditHours,
-        courseType: editingCourse.courseType as 'THEORY' | 'LAB' | 'PROJECT' | 'SEMINAR',
-        semesterOffered: editingCourse.semesterOffered,
-        description: editingCourse.description ?? '',
-        prerequisites: editingCourse.prerequisites ?? '[]',
-        objectives: editingCourse.objectives ?? '',
-        instructorId: editingCourse.instructor?.id ?? '',
-      })
-    } else {
-      form.reset({
-        code: '',
-        name: '',
-        departmentId: departments[0]?.id || '',
-        creditHours: 3,
-        labCreditHours: 0,
-        courseType: 'THEORY',
-        semesterOffered: null,
-        description: '',
-        prerequisites: '[]',
-        objectives: '',
-        instructorId: '',
-      })
-    }
-  }
-
-  // Set default department when dialog is opened in create mode
+  // Reset form values when editingCourse changes or dialog is opened
   useEffect(() => {
-    if (open && !isEdit && departments.length > 0) {
-      form.setValue('departmentId', departments[0].id)
+    if (open) {
+      if (isEdit && editingCourse) {
+        form.reset({
+          name: editingCourse.name,
+          departmentId: editingCourse.department.id,
+          creditHours: editingCourse.creditHours,
+          labCreditHours: editingCourse.labCreditHours,
+          courseType: editingCourse.courseType as 'THEORY' | 'LAB' | 'PROJECT' | 'SEMINAR',
+          semesterOffered: editingCourse.semesterOffered,
+          description: editingCourse.description ?? '',
+          prerequisites: editingCourse.prerequisites ?? '[]',
+          objectives: editingCourse.objectives ?? '',
+          instructorId: editingCourse.instructor?.id ?? '',
+        })
+      } else {
+        form.reset({
+          code: '',
+          name: '',
+          departmentId: departments[0]?.id || '',
+          creditHours: 3,
+          labCreditHours: 0,
+          courseType: 'THEORY',
+          semesterOffered: null,
+          description: '',
+          prerequisites: '[]',
+          objectives: '',
+          instructorId: '',
+        })
+      }
     }
-  }, [open, isEdit, departments, form])
+  }, [open, editingCourse, isEdit, departments, form])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1632,15 +1636,37 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin, onEnroll }: Cou
               <InfoItem
                 icon={<FileText className="h-4 w-4" />}
                 label="Prerequisites"
-                value={detail.prerequisites && detail.prerequisites !== '[]' ? (
-                  <div className="flex flex-wrap gap-1">
-                    {detail.prerequisites.split(',').map((p, i) => (
-                      <Badge key={i} variant="outline" className="font-mono text-xs">
-                        {p.trim()}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : '—'}
+                value={(() => {
+                  if (!detail.prerequisites) return '—'
+                  let list: string[] = []
+                  if (Array.isArray(detail.prerequisites)) {
+                    list = detail.prerequisites
+                  } else if (typeof detail.prerequisites === 'string') {
+                    if (detail.prerequisites === '[]' || detail.prerequisites.trim() === '') {
+                      return '—'
+                    }
+                    try {
+                      const parsed = JSON.parse(detail.prerequisites)
+                      if (Array.isArray(parsed)) {
+                        list = parsed
+                      } else {
+                        list = detail.prerequisites.split(',').map((s) => s.trim()).filter(Boolean)
+                      }
+                    } catch {
+                      list = detail.prerequisites.split(',').map((s) => s.trim()).filter(Boolean)
+                    }
+                  }
+                  if (list.length === 0) return '—'
+                  return (
+                    <div className="flex flex-wrap gap-1">
+                      {list.map((p, i) => (
+                        <Badge key={i} variant="outline" className="font-mono text-xs">
+                          {p}
+                        </Badge>
+                      ))}
+                    </div>
+                  )
+                })()}
               />
               <InfoItem
                 icon={<BarChart3 className="h-4 w-4" />}

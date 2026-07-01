@@ -10,6 +10,7 @@ import {
   Plus,
   Upload,
   MoreHorizontal,
+  MoreVertical,
   Eye,
   Pencil,
   UserX,
@@ -28,6 +29,7 @@ import {
   Inbox,
   Sparkles,
   ArrowLeft,
+  ArrowRight,
   Building2,
 } from 'lucide-react'
 
@@ -866,94 +868,126 @@ export function StudentModule() {
                     return (
                       <div className="col-span-full py-12 flex flex-col items-center justify-center text-center border border-dashed rounded-xl bg-muted/20">
                         <p className="text-sm font-bold text-muted-foreground">No classes found</p>
-                        <p className="text-xs text-muted-foreground mt-1">Try adjusting your filters</p>
                       </div>
                     )
                   }
+                  const getProgramName = (sec: string) => {
+                    const s = sec.toUpperCase()
+                    if (s.includes('BSCS') || s.startsWith('CS')) return 'BS CS'
+                    if (s.includes('BSSE') || s.startsWith('SE')) return 'BS SE'
+                    if (s.includes('BSIT') || s.startsWith('IT')) return 'BS IT'
+                    return 'BS CS'
+                  }
 
-                  return filtered.map((item) => (
-                    <Card
-                      key={`${item.semester}-${item.section}`}
-                      className="group relative cursor-pointer overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:bg-slate-50/40 dark:hover:bg-slate-900/40 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_6px_16px_-4px_rgba(0,0,0,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500/40 h-[112px] py-0 flex flex-col justify-between"
-                      onClick={() => {
-                        setSelectedGroup({ semester: item.semester, section: item.section })
-                        setSemesterFilter(String(item.semester))
-                        setSectionFilter(item.section)
-                        setPage(1)
-                      }}
-                    >
-                      <CardContent className="p-4 flex flex-col justify-between h-full relative">
-                        {/* Top Row: Semester and Shift Badges */}
-                        <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md">
-                              Semester {item.semester}
-                            </span>
-                            <span className={cn(
-                              "px-2 py-0.5 text-[10px] font-extrabold rounded-md tracking-wider text-xs",
-                              item.shift === 'Evening' 
-                                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' 
-                                : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
-                            )}>
-                              {(item.shift || 'Morning').toUpperCase()}
-                            </span>
+                  const getCleanSection = (sec: string) => {
+                    if (!sec) return 'TBD'
+                    const parts = sec.trim().split(/\s+/)
+                    const lastPart = parts[parts.length - 1]
+                    const match = lastPart.match(/[A-Z]$/i)
+                    if (match) return match[0].toUpperCase()
+                    return lastPart
+                  }
+
+                  return filtered.map((item) => {
+                    const isAssigned = item.room && item.room !== 'N/A' && item.room !== 'Room: TBD'
+                    return (
+                      <Card
+                        key={`${item.semester}-${item.section}`}
+                        className="group relative cursor-pointer overflow-hidden border border-slate-200/85 dark:border-slate-800 border-t-[3px] border-t-emerald-600 shadow-[0_2px_8px_rgba(0,0,0,0.02)] bg-white dark:bg-slate-950 rounded-xl hover:shadow-[0_6px_16px_-4px_rgba(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between"
+                        onClick={() => {
+                          setSelectedGroup({ semester: item.semester, section: item.section })
+                          setSemesterFilter(String(item.semester))
+                          setSectionFilter(item.section)
+                          setPage(1)
+                        }}
+                      >
+                        <CardContent className="p-3 flex-1 flex flex-col justify-between space-y-2.5">
+                          {/* Top Row: Program Badge & Options */}
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-emerald-200/50 dark:border-emerald-900/20 bg-emerald-50/40 dark:bg-emerald-950/15 text-emerald-700 dark:text-emerald-400 text-[9px] font-bold tracking-wide">
+                              <span className="size-1 rounded-full bg-emerald-500 shrink-0" />
+                              <span>{getProgramName(item.section)}</span>
+                            </div>
+
+                            {isAdmin && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                  <Button variant="ghost" className="h-5 w-5 p-0 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 flex items-center justify-center">
+                                    <MoreVertical className="size-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                  <DropdownMenuItem onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setAssignRoomClass({
+                                      semester: item.semester,
+                                      section: item.section,
+                                      room: item.room,
+                                      floor: item.floor
+                                    });
+                                  }}>
+                                    Assign Room/Floor
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
                           </div>
 
-                          {isAdmin && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                <Button variant="ghost" className="h-6 w-6 p-0 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground">
-                                  <MoreHorizontal className="size-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                <DropdownMenuItem onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  setAssignRoomClass({
-                                    semester: item.semester,
-                                    section: item.section,
-                                    room: item.room,
-                                    floor: item.floor
-                                  });
-                                }}>
-                                  Assign Room/Floor
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </div>
+                          {/* Middle: Semester Name */}
+                          <div>
+                            <h3 className="text-sm sm:text-base font-bold tracking-tight text-slate-900 dark:text-slate-100 leading-none">
+                              Semester {item.semester}
+                            </h3>
+                          </div>
 
-                        {/* Middle: Section Name */}
-                        <div className="min-w-0 my-1">
-                          <h3 className={cn(
-                            "text-[15px] font-extrabold tracking-tight transition-colors leading-snug truncate",
-                            item.section === 'Unassigned' 
-                              ? 'text-slate-400 dark:text-slate-600 italic font-semibold' 
-                              : 'text-slate-900 dark:text-slate-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'
-                          )}>
-                            {item.section}
-                          </h3>
-                        </div>
+                          {/* Middle Box: Shift & Section */}
+                          <div className="grid grid-cols-2 rounded-lg border border-slate-200/70 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/5 overflow-hidden divide-x divide-slate-200/70 dark:divide-slate-800">
+                            <div className="px-2.5 py-1.5 flex flex-col justify-center">
+                              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">Shift</p>
+                              <p className={cn(
+                                "font-bold text-xs mt-1 leading-none",
+                                item.shift?.toLowerCase() === 'evening' 
+                                  ? 'text-amber-600 dark:text-amber-400' 
+                                  : 'text-emerald-600 dark:text-emerald-400'
+                              )}>
+                                {item.shift ? (item.shift.charAt(0).toUpperCase() + item.shift.slice(1).toLowerCase()) : 'Morning'}
+                              </p>
+                            </div>
+                            <div className="px-2.5 py-1.5 flex flex-col justify-center">
+                              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">Section</p>
+                              <p className="font-bold text-slate-900 dark:text-slate-100 text-xs mt-1 leading-none">
+                                {getCleanSection(item.section)}
+                              </p>
+                            </div>
+                          </div>
 
-                        {/* Bottom Row: Room badge only */}
-                        <div className="flex items-center justify-between w-full gap-1.5 pt-0.5">
-                          {item.room && item.room !== 'N/A' && item.room !== 'Room: TBD' ? (
-                            <div className="text-[11px] font-medium text-slate-750 dark:text-slate-350 bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 px-2.5 py-0.5 rounded-md flex items-center gap-1.5">
-                              <Building2 className="size-3.5 text-slate-400" />
-                              <span className="font-bold text-slate-800 dark:text-slate-200">{item.room}</span>
-                              {item.floor !== null && <span className="text-slate-500 dark:text-slate-500 font-medium"> · Floor {item.floor}</span>}
+                          {/* Bottom Room Section */}
+                          <div className="group/room bg-slate-50/40 hover:bg-slate-50 dark:bg-slate-900/20 dark:hover:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800 rounded-lg p-2 flex items-center justify-between transition-all duration-200">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="h-8 w-8 bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 rounded-lg flex items-center justify-center text-slate-500 shrink-0">
+                                <MapPin className="h-4 w-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">Room</span>
+                                <span className="font-bold text-xs text-slate-900 dark:text-slate-100 mt-1 truncate">
+                                  {isAssigned ? `Room ${item.room}` : 'Not Assigned'}
+                                </span>
+                                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                                  {isAssigned 
+                                    ? (item.floor !== null ? `Floor ${item.floor}` : 'Ground Floor') 
+                                    : 'Room allocation pending'
+                                  }
+                                </span>
+                              </div>
                             </div>
-                          ) : (
-                            <div className="text-[11px] font-medium text-amber-700 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/40 dark:border-amber-900/30 px-2.5 py-0.5 rounded-md flex items-center gap-1.5">
-                              <Building2 className="size-3.5 text-amber-500/70" />
-                              <span className="font-bold">Room: TBD</span>
+                            <div className="h-7 w-7 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-400 group-hover/room:border-emerald-500/30 group-hover/room:text-emerald-600 transition-all duration-200 flex items-center justify-center shrink-0">
+                              <ArrowRight className="h-3.5 w-3.5 group-hover/room:translate-x-0.5 transition-transform" />
                             </div>
-                          )}
-                        </div>
-                      </CardContent>
-                      <div className="absolute bottom-0 left-0 h-[2.5px] w-full bg-emerald-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-                    </Card>
-                  ))
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })
                 })()
               ) : (
                 <div className="col-span-full py-12 flex flex-col items-center justify-center border-2 border-dashed rounded-xl bg-muted/20">
