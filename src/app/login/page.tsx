@@ -102,7 +102,7 @@ export default function LoginPage() {
       form.setValue('email', 'sarah.khan@csdept.edu')
       form.setValue('password', 'faculty123')
     } else if (role === 'student') {
-      form.setValue('email', 'CS-2023-001@student.csdept.edu')
+      form.setValue('email', 'cs-2023-001@student.csdept.edu')
       form.setValue('password', 'student123')
     }
   }
