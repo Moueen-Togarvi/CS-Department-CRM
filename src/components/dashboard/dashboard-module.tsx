@@ -59,21 +59,20 @@ function StatCard({ title, value, subtitle, icon: Icon, iconBg, isLoading }: {
 }) {
   return (
     <Card className="relative overflow-hidden border shadow-sm transition-shadow hover:shadow-md">
-      <CardContent className="p-3.5">
-        <div className="flex items-start justify-between">
-          <div className="space-y-0.5">
+      <CardContent className="p-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="space-y-0">
             {isLoading ? (
-              <><Skeleton className="h-3 w-16" /><Skeleton className="h-6 w-8" /><Skeleton className="h-2 w-20" /></>
+              <><Skeleton className="h-2.5 w-14" /><Skeleton className="h-5 w-8" /></>
             ) : (
               <>
-                <p className="text-xs font-semibold text-muted-foreground">{title}</p>
-                <p className="text-2xl font-bold tracking-tight">{value}</p>
-                {subtitle && <p className="text-[10px] text-muted-foreground font-medium">{subtitle}</p>}
+                <p className="text-[11px] font-semibold text-muted-foreground">{title}</p>
+                <p className="text-xl font-bold tracking-tight leading-tight">{value}</p>
               </>
             )}
           </div>
-          <div className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${iconBg}`}>
-            {isLoading ? <Loader2 className="size-4 animate-spin text-white/70" /> : <Icon className="size-4 text-white" />}
+          <div className={`flex size-7 shrink-0 items-center justify-center rounded-md ${iconBg}`}>
+            {isLoading ? <Loader2 className="size-3.5 animate-spin text-white/70" /> : <Icon className="size-3.5 text-white" />}
           </div>
         </div>
       </CardContent>
@@ -87,12 +86,12 @@ function StatCardsSkeleton() {
     <>
       {Array.from({ length: 4 }).map((_, i) => (
         <Card key={i} className="border shadow-sm">
-          <CardContent className="p-3.5">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1.5">
-                <Skeleton className="h-3 w-16" /><Skeleton className="h-6 w-8" /><Skeleton className="h-2 w-20" />
+          <CardContent className="p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="space-y-1">
+                <Skeleton className="h-2.5 w-14" /><Skeleton className="h-5 w-8" />
               </div>
-              <Skeleton className="size-9 rounded-lg" />
+              <Skeleton className="size-7 rounded-md" />
             </div>
           </CardContent>
         </Card>
@@ -164,7 +163,7 @@ function AdminDashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHeader title="Dashboard" description="Overview of the department's key metrics and activities" />
+      <PageHeader title="Dashboard" />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {isLoading ? <StatCardsSkeleton /> : (
@@ -178,30 +177,6 @@ function AdminDashboard() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {gradeLoading ? <ChartSkeleton /> : (
-          <Card className="shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2"><BarChartIcon className="size-4 text-emerald-600" /><CardTitle className="text-base">Grade Distribution</CardTitle></div>
-              <p className="text-xs text-muted-foreground">Latest completed semester results</p>
-            </CardHeader>
-            <CardContent>
-              {gradeData && gradeData.length > 0 ? (
-                <ChartContainer config={gradeChartConfig} className="h-[250px] w-full">
-                  <BarChart data={gradeData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="grade" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
-                    <YAxis tickLine={false} axisLine={false} tickMargin={8} fontSize={12} allowDecimals={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]} maxBarSize={48} />
-                  </BarChart>
-                </ChartContainer>
-              ) : (
-                <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">No grade data available</div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
         {attendanceLoading ? <ChartSkeleton /> : (
           <Card className="shadow-sm">
             <CardHeader className="pb-2">
@@ -225,10 +200,7 @@ function AdminDashboard() {
             </CardContent>
           </Card>
         )}
-      </div>
 
-      {/* Announcements + Events */}
-      <div className="grid gap-4 md:grid-cols-2">
         <Card className="shadow-sm">
           <CardHeader className="pb-3"><div className="flex items-center gap-2"><Megaphone className="size-4 text-emerald-600" /><CardTitle className="text-base">Recent Announcements</CardTitle></div></CardHeader>
           <CardContent className="max-h-80 overflow-y-auto custom-scrollbar">
@@ -245,26 +217,28 @@ function AdminDashboard() {
             ) : <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">No announcements yet</div>}
           </CardContent>
         </Card>
-
-        <Card className="shadow-sm">
-          <CardHeader className="pb-3"><div className="flex items-center gap-2"><CalendarDays className="size-4 text-emerald-600" /><CardTitle className="text-base">Upcoming Events</CardTitle></div></CardHeader>
-          <CardContent className="max-h-80 overflow-y-auto custom-scrollbar">
-            {overview?.upcomingEvents && overview.upcomingEvents.length > 0 ? (
-              <div className="space-y-3">
-                {overview.upcomingEvents.map((event: any) => (
-                  <div key={event.id} className="rounded-lg border p-3 transition-colors hover:bg-muted/50">
-                    <h4 className="text-sm font-medium">{event.title}</h4>
-                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                      {event.eventDate && <span className="flex items-center gap-1"><CalendarDays className="size-3" />{new Date(event.eventDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>}
-                      {event.eventLocation && <span className="flex items-center gap-1"><MapPin className="size-3" />{event.eventLocation}</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground"><CalendarDays className="size-8 text-muted-foreground/30" /><span>No upcoming events</span></div>}
-          </CardContent>
-        </Card>
       </div>
+
+
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3"><div className="flex items-center gap-2"><CalendarDays className="size-4 text-emerald-600" /><CardTitle className="text-base">Upcoming Events</CardTitle></div></CardHeader>
+        <CardContent className="max-h-80 overflow-y-auto custom-scrollbar">
+          {overview?.upcomingEvents && overview.upcomingEvents.length > 0 ? (
+            <div className="space-y-3">
+              {overview.upcomingEvents.map((event: any) => (
+                <div key={event.id} className="rounded-lg border p-3 transition-colors hover:bg-muted/50">
+                  <h4 className="text-sm font-medium">{event.title}</h4>
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    {event.eventDate && <span className="flex items-center gap-1"><CalendarDays className="size-3" />{new Date(event.eventDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>}
+                    {event.eventLocation && <span className="flex items-center gap-1"><MapPin className="size-3" />{event.eventLocation}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground"><CalendarDays className="size-8 text-muted-foreground/30" /><span>No upcoming events</span></div>}
+        </CardContent>
+      </Card>
+
     </div>
   )
 }
