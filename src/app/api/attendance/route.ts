@@ -33,7 +33,25 @@ export async function GET(request: NextRequest) {
       where.studentId = student?.id ?? '__none__'
     } else if (session.user.role === 'FACULTY') {
       const faculty = await db.faculty.findUnique({ where: { userId: session.user.id } })
-      where.facultyId = faculty?.id ?? '__none__'
+      if (faculty) {
+        // Show attendance for courses this faculty teaches (via CourseOffering or instructorId)
+        const offerings = await db.courseOffering.findMany({
+          where: { facultyId: faculty.id, isActive: true },
+          select: { courseId: true },
+        })
+        const offeringCourseIds = offerings.map((o) => o.courseId)
+        const directCourseIds = await db.course.findMany({
+          where: { instructorId: faculty.id, isActive: true },
+          select: { id: true },
+        })
+        const allCourseIds = [...new Set([...offeringCourseIds, ...directCourseIds.map((c) => c.id)])]
+        // Only filter by faculty courseIds if no specific courseId was requested
+        if (!courseId) {
+          where.courseId = allCourseIds.length > 0 ? { in: allCourseIds } : '__none__'
+        }
+      } else {
+        where.courseId = '__none__'
+      }
     } else if (studentId) {
       where.studentId = studentId
     }

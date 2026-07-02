@@ -45,7 +45,6 @@ export async function GET(
 
     // Get attendance for all these students
     const studentIds = enrollments.map((e) => e.studentId)
-    const effectiveSemester = semesterId || enrollments[0]?.student?.id ? undefined : undefined
 
     const attendanceWhere: any = {
       courseId,
@@ -70,7 +69,7 @@ export async function GET(
     }
 
     for (const r of attendanceRecords) {
-      if (!studentAttendance[r.studentId]) continue
+      if (!r.studentId || !studentAttendance[r.studentId]) continue
       studentAttendance[r.studentId].total++
       if (r.status === 'PRESENT' || r.status === 'LATE') {
         studentAttendance[r.studentId].present++

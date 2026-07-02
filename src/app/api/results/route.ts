@@ -133,10 +133,30 @@ export async function POST(request: NextRequest) {
 
     // Calculate marks
     const { calculateTotalMarks, calculateGrade } = await import('@/lib/calculations/grade')
+
+    // Component max marks (standard breakdown summing to 100)
+    const MAX_MARKS: Record<string, number> = {
+      assignment: 10,
+      quiz: 10,
+      midterm: 30,
+      final: 40,
+      lab: 10,
+      project: 0, // optional, not counted unless provided
+    }
+
+    // Calculate max possible based on which components are actually submitted
+    let maxPossible = 0
+    if (assignmentMarks != null) maxPossible += MAX_MARKS.assignment
+    if (quizMarks != null) maxPossible += MAX_MARKS.quiz
+    if (midtermMarks != null) maxPossible += MAX_MARKS.midterm
+    if (finalMarks != null) maxPossible += MAX_MARKS.final
+    if (labMarks != null) maxPossible += MAX_MARKS.lab
+    if (projectMarks != null) maxPossible += projectMarks > 0 ? 10 : 0
+
     const totalMarks = calculateTotalMarks(
       assignmentMarks, quizMarks, midtermMarks, finalMarks, labMarks, projectMarks
     )
-    const percentage = totalMarks / 100 * 100 // totalPossible = 100
+    const percentage = maxPossible > 0 ? (totalMarks / maxPossible) * 100 : 0
     const gradeInfo = calculateGrade(percentage)
 
     // Upsert result

@@ -25,9 +25,19 @@ export async function GET(request: NextRequest) {
     if (session.user.role === 'FACULTY') {
       const faculty = await db.faculty.findUnique({
         where: { userId: session.user.id }
-      });
+      })
       if (faculty) {
-        where.instructorId = faculty.id;
+        // Get course IDs from CourseOffering (actual teaching assignments)
+        const offerings = await db.courseOffering.findMany({
+          where: { facultyId: faculty.id, isActive: true },
+          select: { courseId: true },
+        })
+        const offeringCourseIds = offerings.map((o) => o.courseId)
+        // Also include courses where faculty is the direct instructorId
+        where.OR = [
+          { id: { in: offeringCourseIds } },
+          { instructorId: faculty.id },
+        ]
       }
     } else if (session.user.role === 'STUDENT') {
       const student = await db.student.findUnique({

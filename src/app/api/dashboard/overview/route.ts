@@ -95,8 +95,18 @@ export async function GET(request: NextRequest) {
           take: 5,
           select: { id: true, startTime: true, endTime: true, courseId: true, room: { select: { name: true } }, course: { select: { code: true, name: true } } },
         }),
-        db.courseOffering.count({
-          where: { facultyId: faculty.id },
+        // Count enrollments in faculty's courses that have no Result record yet
+        db.enrollment.count({
+          where: {
+            status: 'ENROLLED',
+            course: {
+              OR: [
+                { instructorId: faculty.id },
+                { offerings: { some: { facultyId: faculty.id } } },
+              ],
+            },
+            result: null,
+          },
         }),
         db.announcement.findMany({
           where: {

@@ -3,9 +3,12 @@ import { successResponse, errorResponse, paginatedResponse } from '@/lib/api-res
 import { parsePaginationParams, skipTake } from '@/lib/pagination'
 import { NextRequest } from 'next/server'
 import { ProjectStatus } from '@prisma/client'
+import { requireAuth, requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth()
+
     const { searchParams } = new URL(request.url)
     const pagination = parsePaginationParams(searchParams)
     const { skip, take } = skipTake(pagination.page!, pagination.limit!)
@@ -23,8 +26,8 @@ export async function GET(request: NextRequest) {
     if (domain) where.domain = domain
     if (search) {
       where.OR = [
-        { title: { contains: search } },
-        { description: { contains: search } },
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
       ]
     }
 
@@ -68,13 +71,14 @@ export async function GET(request: NextRequest) {
 
     return paginatedResponse(data, total, pagination.page!, pagination.limit!)
   } catch (error) {
-    console.error('Projects list error:', error)
-    return errorResponse('Error loading projects', 500)
+    return handleApiError(error, 'Error loading projects')
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    await requireFacultyOrAdmin()
+
     const body = await request.json()
     const {
       title,
@@ -122,7 +126,6 @@ export async function POST(request: NextRequest) {
       201
     )
   } catch (error) {
-    console.error('Create project error:', error)
-    return errorResponse('Error creating project', 500)
+    return handleApiError(error, 'Error creating project')
   }
 }

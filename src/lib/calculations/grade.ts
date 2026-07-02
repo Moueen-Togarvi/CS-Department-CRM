@@ -21,7 +21,8 @@ export const GRADE_SCALE: { min: number; max: number; grade: GradeScale; gradePo
 ]
 
 export function calculateGrade(percentage: number): GradeInfo {
-  const entry = GRADE_SCALE.find(g => percentage >= g.min && percentage <= g.max)
+  // Use >= min && < next-tier-min so decimal percentages don't fall through gaps
+  const entry = GRADE_SCALE.find(g => percentage >= g.min && percentage < g.max + 1)
   if (!entry) return { grade: 'F', gradePoint: 0.0, label: 'Fail' }
   return { grade: entry.grade, gradePoint: entry.gradePoint, label: entry.label }
 }

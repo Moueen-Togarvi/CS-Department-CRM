@@ -35,7 +35,10 @@ export async function GET(request: NextRequest) {
         where: { userId: session.user.id },
       })
       if (student) {
-        section = student.section || undefined
+        // Only apply section filter if student has a section assigned
+        if (student.section) {
+          section = student.section
+        }
         academicSemester = String(student.currentSemester)
       }
     } else if (session.user.role === 'FACULTY') {
