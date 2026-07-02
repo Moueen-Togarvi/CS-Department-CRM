@@ -71,16 +71,7 @@ export default function LoginPage() {
       if (sessionRes.ok) {
         const sessionData = await sessionRes.json()
         const u = sessionData.user
-        setUser({
-          id: u.id,
-          email: u.email,
-          name: u.name,
-          role: u.role,
-          avatar: u.avatar,
-          studentId: u.student?.id ?? null,
-          facultyId: u.faculty?.id ?? null,
-          semester: u.semester ?? null,
-        })
+        setUser(u)
         toast.success(`Welcome back, ${u.name}!`)
         router.replace('/')
       } else {
