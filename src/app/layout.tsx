@@ -55,7 +55,7 @@ export default function RootLayout({
         <QueryProvider>
           <AuthProvider>
             {children}
-            <Toaster position="top-right" richColors closeButton />
+            <Toaster position="top-right" closeButton />
             <ServiceWorkerRegistration />
           </AuthProvider>
         </QueryProvider>
