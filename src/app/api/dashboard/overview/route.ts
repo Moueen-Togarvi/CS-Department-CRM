@@ -219,12 +219,21 @@ export async function GET(request: NextRequest) {
       ? Math.round((present / attendanceRecords.length) * 100)
       : 0
 
+    const sectionVal = student.section || ''
+    let derivedShift = ''
+    if (sectionVal.startsWith('Evening')) {
+      derivedShift = 'Evening'
+    } else if (sectionVal.startsWith('Morning') || sectionVal === 'Morning') {
+      derivedShift = 'Morning'
+    }
+
     return successResponse({
       role: 'STUDENT',
       studentName: student.user.name,
       studentId: student.studentId,
       semester: student.currentSemester,
       section: student.section,
+      shift: derivedShift || null,
       gpa: student.gpa,
       totalCredits: student.totalCredits,
       program: student.program,

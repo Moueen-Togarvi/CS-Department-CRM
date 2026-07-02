@@ -13,6 +13,7 @@ import {
   Save,
   Hash,
   Award,
+  Clock,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -201,9 +202,15 @@ export function ProfileModule() {
                     <InfoRow icon={Award} label="Program" value={profile.student.program} />
                     <InfoRow icon={Calendar} label="Current Semester" value={`Semester ${profile.student.currentSemester}`} />
                     <InfoRow icon={Calendar} label="Enrollment Year" value={String(profile.student.enrollmentYear)} />
+                    {profile.student.session && <InfoRow icon={Calendar} label="Session" value={profile.student.session} />}
                     {profile.student.batch && <InfoRow icon={Hash} label="Batch" value={profile.student.batch} />}
                     {profile.student.gpa != null && <InfoRow icon={Award} label="CGPA" value={String(profile.student.gpa)} />}
-                    {profile.student.section && <InfoRow icon={Hash} label="Section" value={profile.student.section} />}
+                    {profile.student.section && (
+                      <>
+                        <InfoRow icon={Hash} label="Section" value={profile.student.section} />
+                        <InfoRow icon={Clock} label="Shift" value={profile.student.section.startsWith('Evening') ? 'Evening' : 'Morning'} />
+                      </>
+                    )}
                     {profile.student.department && (
                       <InfoRow icon={Building2} label="Department" value={`${profile.student.department.name} (${profile.student.department.code})`} />
                     )}

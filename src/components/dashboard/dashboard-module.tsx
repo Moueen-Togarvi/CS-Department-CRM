@@ -376,7 +376,13 @@ function StudentDashboard() {
             <StatCard title="Attendance" value={`${data?.attendanceRate ?? 0}%`} subtitle={`${data?.totalAttendanceRecords ?? 0} classes`} icon={CheckCircle} iconColor={data?.attendanceRate >= 75 ? 'text-emerald-500' : data?.attendanceRate >= 50 ? 'text-amber-500' : 'text-rose-500'} />
             <StatCard title="CGPA" value={data?.gpa != null ? data.gpa.toFixed(2) : '—'} subtitle="Cumulative" icon={Award} iconColor="text-violet-500" />
             <StatCard title="Credits" value={data?.totalCredits ?? 0} subtitle="Completed" icon={TrendingUp} iconColor="text-sky-500" />
-            <StatCard title="Semester" value={data?.semester ?? 1} subtitle={data?.section ? `Sec ${data.section}` : ''} icon={GraduationCap} iconColor="text-emerald-500" />
+            <StatCard
+              title="Class & Semester"
+              value={`Semester ${data?.semester ?? 1}`}
+              subtitle={`${data?.shift || 'Morning'} Shift · Sec ${data?.section || '—'}`}
+              icon={GraduationCap}
+              iconColor="text-emerald-500"
+            />
           </>
         )}
       </div>
