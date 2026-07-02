@@ -29,6 +29,17 @@ export async function GET(request: NextRequest) {
       if (faculty) {
         where.instructorId = faculty.id;
       }
+    } else if (session.user.role === 'STUDENT') {
+      const student = await db.student.findUnique({
+        where: { userId: session.user.id }
+      });
+      if (student) {
+        where.enrollments = {
+          some: {
+            studentId: student.id
+          }
+        };
+      }
     }
 
     if (search) {

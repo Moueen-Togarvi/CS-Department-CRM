@@ -20,14 +20,14 @@ import { SearchDialog } from '@/components/layout/search-dialog'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
+import { SidebarTrigger } from '@/components/ui/sidebar'
+
 export function Header() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const activeModule = useAppStore((s) => s.activeModule)
   const setActiveModule = useAppStore((s) => s.setActiveModule)
   const setSearchOpen = useAppStore((s) => s.setSearchOpen)
-  const collapsed = useAppStore((s) => s.sidebarCollapsed)
-  const toggleSidebar = useAppStore((s) => s.toggleSidebar)
   const { unreadCount, notifications, markRead, markAllRead, deleteNotification } = useNotifications()
 
   const initials = user?.name
@@ -51,15 +51,7 @@ export function Header() {
 
         {/* Left: Sidebar Toggle + Page title */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="h-8 w-8 shrink-0 rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 transition-colors hidden lg:flex"
-            aria-label="Toggle sidebar"
-          >
-            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-          </Button>
+          <SidebarTrigger className="h-8 w-8 shrink-0 rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 transition-colors" />
 
           {ActiveIcon && (
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-50 border border-zinc-200/60">

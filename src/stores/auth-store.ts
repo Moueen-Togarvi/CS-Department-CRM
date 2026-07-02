@@ -11,6 +11,7 @@ export interface AuthUser {
   avatar?: string | null
   studentId?: string | null
   facultyId?: string | null
+  semester?: number | null
 }
 
 interface AuthState {

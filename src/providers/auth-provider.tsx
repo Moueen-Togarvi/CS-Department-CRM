@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               avatar: data.user.avatar,
               studentId: data.user.student?.id ?? null,
               facultyId: data.user.faculty?.id ?? null,
+              semester: data.user.semester ?? null,
             })
             setLoading(false)
             return

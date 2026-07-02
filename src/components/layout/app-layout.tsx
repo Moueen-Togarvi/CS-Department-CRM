@@ -4,8 +4,9 @@ import { useEffect, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
 import { Header } from '@/components/layout/header'
-import { Sidebar } from '@/components/layout/sidebar'
+import { AppSidebar } from '@/components/layout/app-sidebar'
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav'
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { isLoading, isAuthenticated } = useAuthStore()
@@ -17,7 +18,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
     }
   }, [isLoading, isAuthenticated, router])
 
-  // Full-screen loading or redirecting
   if (isLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -32,17 +32,21 @@ export function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="h-screen flex bg-slate-50 overflow-hidden">
-      <Sidebar />
-      <div className="flex flex-col flex-1 overflow-hidden relative">
+    <SidebarProvider
+      style={{
+        "--sidebar-width": "16rem",
+      } as React.CSSProperties}
+    >
+      <AppSidebar />
+      <SidebarInset className="bg-white text-zinc-950 flex flex-col min-h-screen">
         <Header />
         <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
-          <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-8 lg:px-10">
+          <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
             {children}
           </div>
         </main>
         <MobileBottomNav />
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

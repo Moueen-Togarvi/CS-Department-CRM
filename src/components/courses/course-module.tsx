@@ -341,10 +341,6 @@ export function CourseModule() {
   const [detailCourseId, setDetailCourseId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<CourseListItem | null>(null)
 
-  // Enroll dialog
-  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false)
-  const [enrollCourseId, setEnrollCourseId] = useState<string | null>(null)
-  const [enrollCourseSemesterOffered, setEnrollCourseSemesterOffered] = useState<number | null>(null)
   const [importOpen, setImportOpen] = useState(false)
 
   // Build query string
@@ -388,19 +384,6 @@ export function CourseModule() {
       return res.json()
     },
     enabled: !!detailCourseId,
-  })
-
-  const { data: enrollmentsData, isLoading: enrollmentsLoading } = useQuery<ApiOk<{
-    enrollments: CourseEnrollment[]
-    semester: { id: string; name: string } | null
-  }>>({
-    queryKey: ['course-enrollments', enrollCourseId],
-    queryFn: async () => {
-      const res = await fetch(`/api/courses/${enrollCourseId}/enrollments`)
-      if (!res.ok) throw new Error('Failed to fetch enrollments')
-      return res.json()
-    },
-    enabled: !!enrollCourseId,
   })
 
   const { data: departments } = useDepartments()
@@ -465,31 +448,6 @@ export function CourseModule() {
     onError: (err) => toast.error(err.message),
   })
 
-  const enrollMutation = useMutation({
-    mutationFn: async ({ courseId, studentIds, semesterId, section }: {
-      courseId: string
-      studentIds: string[]
-      semesterId: string
-      section: string
-    }) => {
-      const res = await fetch(`/api/courses/${courseId}/enroll`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentIds, semesterId, section }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to enroll students')
-      return json
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['courses'] })
-      queryClient.invalidateQueries({ queryKey: ['course-enrollments'] })
-      if (detailCourseId) queryClient.invalidateQueries({ queryKey: ['course-detail', detailCourseId] })
-      toast.success('Students enrolled successfully')
-      setEnrollDialogOpen(false)
-    },
-    onError: (err) => toast.error(err.message),
-  })
 
   // Table setup
   const courseList = courseData?.data ?? []
@@ -660,25 +618,7 @@ export function CourseModule() {
         }
       />
 
-      {/* Stats Cards */}
-      {stats?.data && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Card className="p-4">
-            <div className="text-2xl font-bold text-primary">{stats.data.total}</div>
-            <p className="text-xs text-muted-foreground mt-1">Total Courses</p>
-          </Card>
-          {Object.entries(stats.data.byType).map(([key, val]) => (
-            <Card key={key} className="p-4">
-              <div className="text-2xl font-bold">{val}</div>
-              <p className="text-xs text-muted-foreground mt-1">{key}</p>
-            </Card>
-          ))}
-          <Card className="p-4">
-            <div className="text-2xl font-bold text-primary">{stats.data.activeEnrollments}</div>
-            <p className="text-xs text-muted-foreground mt-1">Enrollments</p>
-          </Card>
-        </div>
-      )}
+
 
       {/* Filters */}
       <Card className="p-4">
@@ -1180,35 +1120,12 @@ export function CourseModule() {
               }
             }}
             isAdmin={isAdmin || (isFaculty && detailData?.data?.instructor?.id === user?.facultyId)}
-            onEnroll={() => {
-              setEnrollCourseId(detailCourseId)
-              setEnrollCourseSemesterOffered(detailData?.data?.semesterOffered || null)
-              setEnrollDialogOpen(true)
-            }}
+
           />
         </SheetContent>
       </Sheet>
 
-      {/* ==================== ENROLLMENT DIALOG ==================== */}
-      <EnrollmentDialog
-        open={enrollDialogOpen}
-        onOpenChange={(open) => {
-          setEnrollDialogOpen(open)
-          if (!open) {
-            setEnrollCourseId(null)
-            setEnrollCourseSemesterOffered(null)
-          }
-        }}
-        courseId={enrollCourseId}
-        semesterOffered={enrollCourseSemesterOffered}
-        existingEnrollments={enrollmentsData?.data?.enrollments ?? []}
-        onEnroll={({ studentIds, semesterId, section }) => {
-          if (enrollCourseId) {
-            enrollMutation.mutate({ courseId: enrollCourseId, studentIds, semesterId, section })
-          }
-        }}
-        isSubmitting={enrollMutation.isPending}
-      />
+
 
       {/* ==================== DELETE DIALOG ==================== */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
@@ -1526,13 +1443,10 @@ interface CourseDetailSheetProps {
   isLoading: boolean
   onEdit: () => void
   isAdmin: boolean
-  onEnroll: () => void
 }
 
-function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin, onEnroll }: CourseDetailSheetProps) {
+function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailSheetProps) {
   const queryClient = useQueryClient()
-  const [enrollCourseId, setEnrollCourseId] = useState<string | null>(null)
-  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false)
   const [enrollmentsData, setEnrollmentsData] = useState<{
     enrollments: CourseEnrollment[]
     semester: { id: string; name: string } | null
@@ -1553,7 +1467,6 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin, onEnroll }: Cou
   }
 
   const handleEnrollTabClick = (courseId: string) => {
-    setEnrollCourseId(courseId)
     fetchEnrollments(courseId)
   }
 
@@ -1737,19 +1650,6 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin, onEnroll }: Cou
                   </p>
                 )}
               </div>
-              {isAdmin && detail.id && (
-                <Button
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => {
-                    setEnrollCourseId(detail.id)
-                    setEnrollDialogOpen(true)
-                  }}
-                >
-                  <UserPlus className="h-3.5 w-3.5" />
-                  Enroll Students
-                </Button>
-              )}
             </div>
 
             {enrollmentsLoading ? (
@@ -1924,322 +1824,6 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin, onEnroll }: Cou
   )
 }
 
-// ==================== ENROLLMENT DIALOG COMPONENT ====================
-
-interface EnrollmentDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  courseId: string | null
-  existingEnrollments: CourseEnrollment[]
-  onEnroll: (data: { studentIds: string[]; semesterId: string; section: string }) => void
-  isSubmitting: boolean
-  semesterOffered?: number | null
-}
-
-function EnrollmentDialog({
-  open,
-  onOpenChange,
-  courseId,
-  existingEnrollments,
-  onEnroll,
-  isSubmitting,
-  semesterOffered,
-}: EnrollmentDialogProps) {
-  const [studentSearch, setStudentSearch] = useState('')
-  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set())
-  const [section, setSection] = useState('A')
-  const [semesterId, setSemesterId] = useState<string>('')
-  const [filterSemester, setFilterSemester] = useState<string>('')
-  const [hasAutoSelected, setHasAutoSelected] = useState(false)
-  const [initialized, setInitialized] = useState(false)
-
-  // Fetch current semester
-  const { data: semesters } = useQuery<SemesterOption[]>({
-    queryKey: ['semesters-for-enroll'],
-    queryFn: async () => {
-      const res = await fetch('/api/departments')
-      return []
-    },
-    enabled: open,
-    staleTime: 5 * 60 * 1000,
-  })
-
-  // Fetch available students (search)
-  const { data: studentResults, isLoading: studentsLoading } = useQuery<
-    PaginatedResponse<{
-      id: string
-      studentId: string
-      name: string
-      email: string
-      batch: string | null
-      currentSemester: number
-      status: string
-    }>
-  >({
-    queryKey: ['students-for-enrollment', studentSearch, filterSemester],
-    queryFn: async () => {
-      const params = new URLSearchParams()
-      params.set('limit', '200')
-      params.set('status', 'ACTIVE')
-      if (filterSemester && filterSemester !== 'all') {
-        params.set('semester', filterSemester)
-      }
-      if (studentSearch) params.set('search', studentSearch)
-      const res = await fetch(`/api/students?${params}`)
-      if (!res.ok) throw new Error('Failed to fetch students')
-      return res.json()
-    },
-    enabled: open,
-  })
-
-  // Get current semester from existing enrollments
-  const currentSemesterId = existingEnrollments.length > 0 ? existingEnrollments[0].semester.id : ''
-  const currentSemesterName = existingEnrollments.length > 0 ? existingEnrollments[0].semester.name : ''
-
-  // Set semester and filterSemester when dialog opens
-  if (open && !initialized) {
-    if (currentSemesterId) setSemesterId(currentSemesterId)
-    setFilterSemester(semesterOffered ? String(semesterOffered) : '')
-    setInitialized(true)
-  }
-
-  // Clean states when dialog is closed
-  useEffect(() => {
-    if (!open && initialized) {
-      setInitialized(false)
-      setSelectedStudents(new Set())
-      setStudentSearch('')
-      setSection('A')
-      setSemesterId('')
-      setFilterSemester('')
-      setHasAutoSelected(false)
-    }
-  }, [open, initialized])
-
-  const existingStudentIds = useMemo(() => new Set(existingEnrollments.map((e) => e.student.id)), [existingEnrollments])
-
-  const availableStudents = useMemo(() => {
-    return (studentResults?.data ?? []).filter(
-      (s) => s.status !== 'INACTIVE' && !existingStudentIds.has(s.id)
-    )
-  }, [studentResults?.data, existingStudentIds])
-
-  // Reset auto-select trigger when student results change
-  useEffect(() => {
-    setHasAutoSelected(false)
-  }, [studentResults?.data])
-
-  // Auto-select all matching active students by default
-  useEffect(() => {
-    if (availableStudents.length > 0 && !hasAutoSelected && open) {
-      setSelectedStudents(new Set(availableStudents.map((s) => s.id)))
-      setHasAutoSelected(true)
-    }
-  }, [availableStudents, hasAutoSelected, open])
-
-  const toggleStudent = (id: string) => {
-    setSelectedStudents((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }
-
-  const handleSubmit = () => {
-    if (selectedStudents.size === 0) {
-      toast.error('Select at least one student')
-      return
-    }
-    if (!semesterId) {
-      toast.error('Please select a semester')
-      return
-    }
-    onEnroll({
-      studentIds: Array.from(selectedStudents),
-      semesterId,
-      section,
-    })
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Enroll Students</DialogTitle>
-          <DialogDescription>
-            Search and select students to enroll in this course.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {/* Semester Select */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Semester *</label>
-            {currentSemesterId ? (
-              <div className="flex items-center gap-2 rounded-lg border p-2.5 bg-muted/30">
-                <span className="text-sm font-medium">{currentSemesterName}</span>
-                <Badge variant="outline" className="text-xs">Current</Badge>
-              </div>
-            ) : (
-              <Input placeholder="Semester ID" disabled />
-            )}
-          </div>
-
-          {/* Section Select */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Section *</label>
-            <Select value={section} onValueChange={setSection}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {['A', 'B', 'C', 'D'].map((s) => (
-                  <SelectItem key={s} value={s}>
-                    Section {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Student Semester Filter */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Student Semester Filter</label>
-            <Select value={filterSemester || 'all'} onValueChange={(v) => setFilterSemester(v === 'all' ? '' : v)}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="All Semesters" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Semesters</SelectItem>
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-                  <SelectItem key={num} value={String(num)}>
-                    Semester {num}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Student Search */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Search Students</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, ID, email..."
-                value={studentSearch}
-                onChange={(e) => setStudentSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-          </div>
-
-          {/* Selected Count */}
-          <div className="flex items-center justify-between rounded-lg bg-primary/5 border border-primary/20 p-2.5">
-            <span className="text-sm font-medium text-primary">
-              {selectedStudents.size} student(s) selected
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedStudents(new Set(availableStudents.map(s => s.id)))}
-                className="text-xs h-7 text-primary hover:text-primary hover:bg-primary/10"
-              >
-                Select All
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedStudents(new Set())}
-                className="text-xs h-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              >
-                Clear
-              </Button>
-            </div>
-          </div>
-
-          {/* Student List */}
-          <div className="max-h-64 overflow-auto rounded-lg border">
-            {studentsLoading ? (
-              <div className="p-4 space-y-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full" />
-                ))}
-              </div>
-            ) : availableStudents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <Users className="h-8 w-8 text-muted-foreground/30 mb-2" />
-                <p className="text-sm text-muted-foreground">No students found</p>
-              </div>
-            ) : (
-              <div className="divide-y">
-                {availableStudents.map((student) => {
-                  const isSelected = selectedStudents.has(student.id)
-                  return (
-                    <div
-                      key={student.id}
-                      className={cn(
-                        'flex items-center gap-3 p-2.5 cursor-pointer transition-colors hover:bg-muted/50',
-                        isSelected && 'bg-primary/5'
-                      )}
-                      onClick={() => toggleStudent(student.id)}
-                    >
-                      <Checkbox checked={isSelected} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{student.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {student.studentId} · Sem {student.currentSemester}
-                          {student.batch ? ` · ${student.batch}` : ''}
-                        </p>
-                      </div>
-                      {isSelected && (
-                        <Check className="h-4 w-4 text-primary shrink-0" />
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Already Enrolled Info */}
-          {existingEnrollments.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {existingEnrollments.length} student(s) already enrolled (excluded from list)
-            </p>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting || selectedStudents.size === 0}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Enrolling...
-              </>
-            ) : (
-              <>
-                <UserPlus className="mr-2 h-4 w-4" />
-                Enroll {selectedStudents.size > 0 ? `(${selectedStudents.size})` : ''}
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
 
 // ==================== SMALL HELPERS ====================
 

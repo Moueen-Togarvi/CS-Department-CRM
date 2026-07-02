@@ -15,10 +15,12 @@ declare module "next-auth" {
       name: string;
       role: string;
       image?: string | null;
+      semester?: number | null;
     };
   }
   interface User {
     role?: string;
+    semester?: number | null;
   }
 }
 
@@ -26,6 +28,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     userId: string;
     role: string;
+    semester?: number | null;
   }
 }
 
@@ -44,6 +47,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await db.user.findUnique({
           where: { email: credentials.email },
+          include: { student: true }
         });
 
         if (!user) {
@@ -75,6 +79,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           image: user.avatar,
+          semester: user.student ? user.student.currentSemester : null,
         };
       },
     }),
@@ -84,6 +89,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.userId = user.id!;
         token.role = user.role || "STUDENT";
+        token.semester = user.semester;
       }
       return token;
     },
@@ -99,6 +105,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role;
         session.user.email = token.email || "";
         session.user.name = token.name || "";
+        session.user.semester = token.semester;
       }
       return session;
     },

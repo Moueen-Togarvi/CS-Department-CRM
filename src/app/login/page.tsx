@@ -121,51 +121,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen">
-      {/* Left panel: Premium Brand Sidebar */}
-      <div className="hidden lg:flex w-1/2 relative bg-slate-900 overflow-hidden select-none">
-        {/* Abstract vector backgrounds/glows */}
-        <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] rounded-full bg-emerald-600/10 blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-20%] w-[80%] h-[80%] rounded-full bg-blue-600/10 blur-[120px]" />
-        <div className="absolute top-[40%] left-[30%] w-[40%] h-[40%] rounded-full bg-emerald-500/5 blur-[80px]" />
-
-        {/* Content */}
-        <div className="flex flex-col justify-between p-16 z-10 w-full">
-          {/* Logo & Header */}
-          <div className="flex items-center gap-3 text-white">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 shadow-lg shadow-emerald-600/20">
-              <GraduationCap className="h-6 w-6" />
-            </div>
-            <span className="font-semibold text-xl tracking-tight">CS Dept CRM</span>
+    <div className="flex min-h-screen items-center justify-center p-4 sm:p-8 bg-slate-50 dark:bg-slate-950">
+      <div className="w-full max-w-md space-y-6">
+        <div className="flex flex-col items-center justify-center gap-2 mb-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-lg shadow-emerald-600/20">
+            <GraduationCap className="h-6 w-6" />
           </div>
-
-          {/* Core branding message */}
-          <div className="space-y-6">
-            <h1 className="text-4xl font-extrabold text-white leading-tight tracking-tight max-w-lg">
-              Empowering Academic Excellence & Student Success
-            </h1>
-            <p className="text-slate-400 text-lg max-w-md">
-              Manage courses, monitor attendance, evaluate final year projects, and check academic results in one unified platform.
-            </p>
-          </div>
-
-          {/* Footer info */}
-          <div className="text-sm text-slate-500">
-            &copy; {new Date().getFullYear()} CS Department. All rights reserved.
-          </div>
+          <span className="font-bold text-2xl text-slate-900">CS Dept CRM</span>
+          <p className="text-slate-500 text-sm text-center px-4">
+            Empowering Academic Excellence & Student Success
+          </p>
         </div>
-      </div>
-
-      {/* Right panel: Login form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-slate-50 dark:bg-slate-950">
-        <div className="w-full max-w-md space-y-6">
-          {/* Mobile logo (visible on smaller viewports) */}
-          <div className="flex lg:hidden items-center justify-center gap-2 mb-6">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white">
-              <GraduationCap className="h-5 w-5" />
-            </div>
-            <span className="font-bold text-lg text-slate-900">CS Dept CRM</span>
-          </div>
 
           <Card className="border-slate-100 shadow-xl shadow-slate-100/50 bg-white">
             <CardHeader className="space-y-1">
@@ -290,6 +256,5 @@ export default function LoginPage() {
           </Card>
         </div>
       </div>
-    </div>
   )
 }
