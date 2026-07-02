@@ -140,7 +140,7 @@ export async function POST(_request: NextRequest) {
           description: projDef.description,
           semesterId: currentSemester.id,
           supervisorId: supervisor.id,
-          status: projDef.status,
+          status: projDef.status as any,
           domain: projDef.domain,
           methodology: projDef.methodology,
         },
@@ -170,7 +170,7 @@ export async function POST(_request: NextRequest) {
             title: ms.title,
             description: ms.description,
             dueDate: new Date(ms.dueDate),
-            status: ms.status,
+            status: ms.status as any,
             completedDate: ms.completedDate ? new Date(ms.completedDate) : null,
           },
         })
@@ -186,7 +186,7 @@ export async function POST(_request: NextRequest) {
             data: {
               projectId: project.id,
               evaluatorId: evaluator.id,
-              evaluationType: evalDef.type,
+              evaluationType: evalDef.type as any,
               criteriaScores: JSON.stringify(evalDef.scores),
               totalScore: evalDef.total,
               maxTotalScore: evalDef.maxTotal,

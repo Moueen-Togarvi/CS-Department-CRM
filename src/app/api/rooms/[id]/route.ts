@@ -6,11 +6,11 @@ import { updateRoomSchema } from '@/lib/validators/room'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await props.params
   try {
     await requireRole(request, 'ADMIN')
-    const id = params.id
 
     const body = await request.json()
     const parsed = updateRoomSchema.safeParse(body)
@@ -67,18 +67,18 @@ export async function PUT(
         return errorResponse(error.message, error.message.includes('Forbidden') ? 403 : 401)
       }
     }
-    console.error(`PUT /api/rooms/${params.id} error:`, error)
+    console.error(`PUT /api/rooms/${id} error:`, error)
     return errorResponse('Failed to update room', 500)
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireRole(request, 'ADMIN')
-    const id = params.id
+    const { id } = await props.params
 
     const existingRoom = await db.room.findUnique({
       where: { id },
@@ -108,7 +108,8 @@ export async function DELETE(
         return errorResponse(error.message, error.message.includes('Forbidden') ? 403 : 401)
       }
     }
-    console.error(`DELETE /api/rooms/${params.id} error:`, error)
+    const { id } = await props.params
+    console.error(`DELETE /api/rooms/${id} error:`, error)
     return errorResponse('Failed to delete room', 500)
   }
 }

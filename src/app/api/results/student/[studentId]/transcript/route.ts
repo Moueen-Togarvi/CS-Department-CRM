@@ -75,7 +75,20 @@ export async function GET(
     }
 
     // Calculate per-semester GPA and build response
-    const semesters = []
+    const semesters: Array<{
+      semesterName: string
+      gpa: number
+      courses: Array<{
+        code: string
+        name: string
+        creditHours: number
+        labCreditHours: number
+        grade: string | null
+        gradePoint: number | null
+        totalMarks: number | null
+        percentage: number | null
+      }>
+    }> = []
     let allCoursesForCumulative: Array<{ gradePoint: number | null; creditHours: number; labCreditHours: number }> = []
 
     for (const [, semData] of semesterMap) {

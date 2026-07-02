@@ -1,8 +1,8 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const { createLLM } = await import('z-ai-web-dev-sdk')
+    const { createLLM } = (await import('z-ai-web-dev-sdk')) as any
     const llm = createLLM()
 
     const body = await request.json()

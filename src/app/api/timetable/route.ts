@@ -84,6 +84,8 @@ export async function GET(request: NextRequest) {
     const session = await requireAuth()
     const { searchParams } = new URL(request.url)
     const { page, limit, sort, order } = parsePaginationParams(searchParams)
+    const pageVal = page ?? 1
+    const limitVal = limit ?? 20
 
     const semesterId = searchParams.get('semesterId') || undefined
     let facultyId = searchParams.get('facultyId') || undefined
@@ -141,7 +143,7 @@ export async function GET(request: NextRequest) {
       orderBy.startTime = order
     }
 
-    const { skip, take } = skipTake(page, limit)
+    const { skip, take } = skipTake(pageVal, limitVal)
 
     const [slots, total] = await Promise.all([
       db.timetable.findMany({
@@ -201,7 +203,7 @@ export async function GET(request: NextRequest) {
       updatedAt: s.updatedAt,
     }))
 
-    return paginatedResponse(data, total, page, limit)
+    return paginatedResponse(data, total, pageVal, limitVal)
   } catch (error) {
     return handleApiError(error, 'Failed to fetch timetable slots')
   }

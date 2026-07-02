@@ -4,6 +4,7 @@ export async function GET() {
   try {
     let available = false
     try {
+      // @ts-ignore
       const { createLLM } = await import('z-ai-web-dev-sdk')
       if (typeof createLLM === 'function') {
         available = true

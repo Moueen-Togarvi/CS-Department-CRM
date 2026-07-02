@@ -76,7 +76,17 @@ export async function GET(request: Request) {
       courseMap.get(r.courseId)!.results.push(r)
     }
 
-    const courseStats = []
+    const courseStats: Array<{
+      courseId: string
+      courseCode: string
+      courseName: string
+      totalStudents: number
+      average: number
+      classAverage: number
+      passRate: number
+      failCount: number
+      topPerformer: { name: string; marks: number } | null
+    }> = []
     for (const [, data] of courseMap) {
       const courseResults = data.results
       const courseTotal = courseResults.length

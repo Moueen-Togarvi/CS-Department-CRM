@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
             departmentId,
             creditHours,
             labCreditHours: isNaN(labCreditHours) ? 0 : labCreditHours,
-            courseType: courseType || 'THEORY',
+            courseType: (courseType as any) || 'THEORY',
             semesterOffered: semesterOffered ? parseInt(semesterOffered, 10) : null,
             description,
           },

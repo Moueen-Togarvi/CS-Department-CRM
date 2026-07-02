@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
     const session = await requireAuth()
     const { searchParams } = new URL(request.url)
     const { page, limit } = parsePaginationParams(searchParams)
+    const pageVal = page ?? 1
+    const limitVal = limit ?? 20
 
     const courseId = searchParams.get('courseId') || undefined
     const studentId = searchParams.get('studentId') || undefined
@@ -56,7 +58,7 @@ export async function GET(request: NextRequest) {
       where.studentId = studentId
     }
 
-    const { skip, take } = skipTake(page, limit)
+    const { skip, take } = skipTake(pageVal, limitVal)
 
     const [records, total] = await Promise.all([
       db.attendance.findMany({
@@ -99,7 +101,7 @@ export async function GET(request: NextRequest) {
       createdAt: r.createdAt,
     }))
 
-    return paginatedResponse(data, total, page, limit)
+    return paginatedResponse(data, total, pageVal, limitVal)
   } catch (error) {
     return handleApiError(error, 'Failed to fetch attendance records')
   }

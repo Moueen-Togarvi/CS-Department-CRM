@@ -11,6 +11,8 @@ export async function GET(request: NextRequest) {
     const session = await requireAuth();
     const { searchParams } = new URL(request.url);
     const { page, limit, search, sort, order } = parsePaginationParams(searchParams);
+    const pageVal = page ?? 1;
+    const limitVal = limit ?? 20;
 
     const courseType = searchParams.get("courseType") || undefined;
     const creditHours = searchParams.get("creditHours")
@@ -78,7 +80,7 @@ export async function GET(request: NextRequest) {
       orderBy.createdAt = order;
     }
 
-    const { skip, take } = skipTake(page, limit);
+    const { skip, take } = skipTake(pageVal, limitVal);
 
     const [courses, total] = await Promise.all([
       db.course.findMany({
@@ -125,7 +127,7 @@ export async function GET(request: NextRequest) {
       createdAt: c.createdAt,
     }));
 
-    return paginatedResponse(data, total, page, limit);
+    return paginatedResponse(data, total, pageVal, limitVal);
   } catch (error) {
     return handleApiError(error, "Failed to fetch courses");
   }
@@ -192,7 +194,7 @@ export async function POST(request: NextRequest) {
         courseType: data.courseType,
         semesterOffered: data.semesterOffered ?? null,
         description: data.description || null,
-        prerequisiteIds: data.prerequisites || [],
+        prerequisiteIds: (data.prerequisites || []) as string[],
         objectives: data.objectives || null,
         instructorId: data.instructorId ?? null,
       },

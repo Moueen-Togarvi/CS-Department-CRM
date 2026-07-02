@@ -12,6 +12,8 @@ export async function GET(request: NextRequest) {
     const session = await requireFacultyOrAdmin()
     const { searchParams } = new URL(request.url)
     const { page, limit, search, sort, order } = parsePaginationParams(searchParams)
+    const pageVal = page ?? 1
+    const limitVal = limit ?? 20
 
     const batch = searchParams.get('batch') || undefined
     const semester = searchParams.get('semester') || undefined
@@ -109,7 +111,7 @@ export async function GET(request: NextRequest) {
       orderBy.createdAt = order
     }
 
-    const { skip, take } = skipTake(page, limit)
+    const { skip, take } = skipTake(pageVal, limitVal)
 
     const [students, total] = await Promise.all([
       db.student.findMany({
@@ -147,7 +149,7 @@ export async function GET(request: NextRequest) {
       updatedAt: s.updatedAt,
     }))
 
-    return paginatedResponse(data, total, page, limit)
+    return paginatedResponse(data, total, pageVal, limitVal)
   } catch (error) {
     return handleApiError(error, 'Failed to fetch students')
   }
