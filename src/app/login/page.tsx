@@ -79,6 +79,7 @@ export default function LoginPage() {
           avatar: u.avatar,
           studentId: u.student?.id ?? null,
           facultyId: u.faculty?.id ?? null,
+          semester: u.semester ?? null,
         })
         toast.success(`Welcome back, ${u.name}!`)
         router.replace('/')

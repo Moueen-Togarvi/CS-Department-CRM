@@ -34,11 +34,7 @@ export async function GET(request: NextRequest) {
         where: { userId: session.user.id }
       });
       if (student) {
-        where.enrollments = {
-          some: {
-            studentId: student.id
-          }
-        };
+        where.semesterOffered = student.currentSemester;
       }
     }
 
@@ -57,7 +53,7 @@ export async function GET(request: NextRequest) {
       where.creditHours = creditHours;
     }
 
-    if (semesterOffered) {
+    if (semesterOffered && session.user.role !== 'STUDENT') {
       where.semesterOffered = semesterOffered;
     }
 

@@ -324,6 +324,8 @@ function useSemesters() {
 
 export function CourseModule() {
   const user = useAuthStore((s) => s.user)
+  const isStudent = user?.role === 'STUDENT'
+  const studentSemester = user?.semester ? String(user.semester) : ''
   const queryClient = useQueryClient()
 
   // Filters
@@ -334,6 +336,12 @@ export function CourseModule() {
   const [semesterFilter, setSemesterFilter] = useState<string>('_all')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'code', desc: false }])
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
+
+  useEffect(() => {
+    if (isStudent && studentSemester) {
+      setSemesterFilter(studentSemester)
+    }
+  }, [isStudent, studentSemester])
 
   // Dialog / Sheet
   const [formOpen, setFormOpen] = useState(false)
@@ -512,12 +520,12 @@ export function CourseModule() {
         ),
       },
       {
-        accessorKey: 'enrollmentCount',
-        header: 'Enrolled',
-        size: 90,
+        accessorKey: 'semesterOffered',
+        header: 'Semester',
+        size: 100,
         cell: ({ row }) => (
-          <Badge variant="outline" className="font-semibold">
-            {row.original.enrollmentCount}
+          <Badge variant="outline" className="font-semibold text-xs">
+            {row.original.semesterOffered ? `Semester ${row.original.semesterOffered}` : 'N/A'}
           </Badge>
         ),
       },
@@ -688,12 +696,20 @@ export function CourseModule() {
               <SelectValue placeholder="Semester" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="_all">All Semesters</SelectItem>
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-                <SelectItem key={num} value={String(num)}>
-                  Semester {num}
+              {isStudent && user?.semester ? (
+                <SelectItem value={String(user.semester)}>
+                  Semester {user.semester}
                 </SelectItem>
-              ))}
+              ) : (
+                <>
+                  <SelectItem value="_all">All Semesters</SelectItem>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                    <SelectItem key={num} value={String(num)}>
+                      Semester {num}
+                    </SelectItem>
+                  ))}
+                </>
+              )}
             </SelectContent>
           </Select>
           <div className="flex items-center gap-1 border rounded-lg p-1 bg-muted/50 self-end sm:self-auto shrink-0">
