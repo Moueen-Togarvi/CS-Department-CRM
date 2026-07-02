@@ -137,6 +137,7 @@ export async function GET(request: NextRequest) {
       name: s.user.name,
       email: s.user.email,
       batch: s.batch,
+      shift: s.shift,
       currentSemester: s.currentSemester,
       program: s.program,
       gpa: s.gpa,
@@ -221,6 +222,7 @@ export async function POST(request: NextRequest) {
           fatherPhone: data.fatherPhone || null,
           session: data.session || null,
           section: data.section || null,
+          shift: data.shift || null,
         },
         include: {
           user: {
@@ -240,6 +242,7 @@ export async function POST(request: NextRequest) {
         name: student.user.name,
         email: student.user.email,
         batch: student.batch,
+        shift: student.shift,
         currentSemester: student.currentSemester,
         program: student.program,
         gpa: student.gpa,

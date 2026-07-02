@@ -219,6 +219,7 @@ model Student {
   fatherPhone      String?
   session          String?
   section          String?
+  shift            String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

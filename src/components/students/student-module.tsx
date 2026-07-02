@@ -596,32 +596,26 @@ export function StudentModule() {
         ),
       },
       {
-        accessorKey: 'batch',
-        header: 'Batch',
+        accessorKey: 'shift',
+        header: 'Shift',
         cell: ({ row }) => {
-          const batch = row.getValue('batch') as string | null
-          return batch ? <Badge variant="secondary">{batch.replace('Batch-', '')}</Badge> : <span className="text-muted-foreground">—</span>
+          const shift = row.getValue('shift') as string | null
+          if (!shift) return <span className="text-muted-foreground">—</span>
+          const isMorning = shift.toLowerCase() === 'morning'
+          return (
+            <Badge className={isMorning 
+              ? "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-50 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-900"
+              : "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-900"
+            }>
+              {shift.charAt(0).toUpperCase() + shift.slice(1).toLowerCase()}
+            </Badge>
+          )
         },
       },
       {
         accessorKey: 'currentSemester',
         header: 'Sem',
         cell: ({ row }) => <span>{row.getValue('currentSemester')}</span>,
-      },
-      {
-        accessorKey: 'gpa',
-        header: 'GPA',
-        cell: ({ row }) => {
-          const gpa = row.getValue('gpa') as number | null
-          if (gpa === null) return <span className="text-muted-foreground">—</span>
-          const colorClass =
-            gpa >= 3.0
-              ? 'text-emerald-600 dark:text-emerald-400'
-              : gpa >= 2.0
-                ? 'text-amber-600 dark:text-amber-400'
-                : 'text-red-600 dark:text-red-400'
-          return <span className={`font-semibold ${colorClass}`}>{gpa.toFixed(2)}</span>
-        },
       },
       {
         accessorKey: 'status',
@@ -1648,31 +1642,31 @@ export function StudentDetailPanel({ student }: { student: StudentDetail }) {
     )
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="border-b px-6 py-4 space-y-3 shrink-0">
+      <div className="border-b px-6 py-5 space-y-4 shrink-0 bg-muted/20">
         <SheetHeader>
           <SheetTitle className="sr-only">Student Details</SheetTitle>
           <SheetDescription className="sr-only">View student information, enrollments, attendance, and results</SheetDescription>
         </SheetHeader>
-        <div className="flex items-start gap-3">
-          <Avatar className="size-12">
+        <div className="flex items-center gap-4">
+          <Avatar className="size-16 border-2 border-border shadow-sm">
             {student.profilePicture && (
               <AvatarImage src={student.profilePicture} alt={student.user.name} className="object-cover" />
             )}
-            <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+            <AvatarFallback className="bg-primary/5 text-primary text-lg font-semibold">
               {initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg font-bold truncate">{student.user.name}</h2>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">{student.user.name}</h2>
               {statusBadge}
             </div>
-            <p className="text-sm text-muted-foreground font-mono">{student.studentId}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {student.department.name} &middot; {student.program} &middot; Batch {student.batch?.replace('Batch-', '') || 'N/A'}
-              {student.section && ` &middot; Section: ${student.section}`}
+            <p className="text-sm font-mono text-muted-foreground mt-0.5">{student.studentId}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {student.department.name} &middot; {student.program}
+              {student.shift && ` &middot; ${student.shift.charAt(0).toUpperCase() + student.shift.slice(1).toLowerCase()} Shift`}
             </p>
           </div>
         </div>
@@ -1680,7 +1674,7 @@ export function StudentDetailPanel({ student }: { student: StudentDetail }) {
 
       {/* Tabs */}
       <Tabs defaultValue="profile" className="flex-1 min-h-0">
-        <div className="px-6 pt-2 shrink-0">
+        <div className="px-6 pt-3 shrink-0">
           <TabsList className="w-full">
             <TabsTrigger value="profile" className="flex-1"><Users className="size-3.5 sm:mr-1.5" /><span className="hidden sm:inline">Profile</span></TabsTrigger>
             <TabsTrigger value="enrollments" className="flex-1"><BookOpen className="size-3.5 sm:mr-1.5" /><span className="hidden sm:inline">Enrollments</span></TabsTrigger>
@@ -1714,20 +1708,20 @@ function ProfileTab({ student }: { student: StudentDetail }) {
   return (
     <div className="space-y-6">
       {/* Quick Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="text-center p-3 rounded-lg bg-muted/50">
-          <p className="text-xs text-muted-foreground">GPA</p>
-          <p className={`text-lg font-bold ${student.gpa && student.gpa >= 3.0 ? 'text-emerald-600 dark:text-emerald-400' : student.gpa && student.gpa >= 2.0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="text-center p-4 rounded-xl border border-border/50 bg-card shadow-sm">
+          <p className="text-xs font-medium text-muted-foreground">GPA</p>
+          <p className={`text-xl font-bold tracking-tight mt-1 ${student.gpa && student.gpa >= 3.0 ? 'text-emerald-600 dark:text-emerald-400' : student.gpa && student.gpa >= 2.0 ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'}`}>
             {student.gpa?.toFixed(2) || 'N/A'}
           </p>
         </div>
-        <div className="text-center p-3 rounded-lg bg-muted/50">
-          <p className="text-xs text-muted-foreground">Semester</p>
-          <p className="text-lg font-bold">{student.currentSemester}</p>
+        <div className="text-center p-4 rounded-xl border border-border/50 bg-card shadow-sm">
+          <p className="text-xs font-medium text-muted-foreground">Semester</p>
+          <p className="text-xl font-bold tracking-tight text-foreground mt-1">{student.currentSemester}</p>
         </div>
-        <div className="text-center p-3 rounded-lg bg-muted/50">
-          <p className="text-xs text-muted-foreground">Credits</p>
-          <p className="text-lg font-bold">{student.totalCredits}</p>
+        <div className="text-center p-4 rounded-xl border border-border/50 bg-card shadow-sm">
+          <p className="text-xs font-medium text-muted-foreground">Credits</p>
+          <p className="text-xl font-bold tracking-tight text-foreground mt-1">{student.totalCredits}</p>
         </div>
       </div>
 
@@ -1745,6 +1739,7 @@ function ProfileTab({ student }: { student: StudentDetail }) {
           <InfoRow icon={<Calendar className="size-4" />} label="Session" value={student.session || 'N/A'} />
           <InfoRow icon={<Calendar className="size-4" />} label="Batch" value={student.batch?.replace('Batch-', '') || 'N/A'} />
           <InfoRow icon={<Shield className="size-4" />} label="Student ID" value={student.studentId} />
+          <InfoRow icon={<Calendar className="size-4" />} label="Shift" value={student.shift ? student.shift.charAt(0).toUpperCase() + student.shift.slice(1).toLowerCase() : 'Not assigned'} />
           <InfoRow icon={<Calendar className="size-4" />} label="Enrollment Year" value={String(student.enrollmentYear)} />
           {student.section && <InfoRow icon={<Users className="size-4" />} label="Section" value={student.section} />}
         </Section>
@@ -1924,20 +1919,20 @@ function ResultsTab({ results }: { results: StudentDetail['results'] }) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div>
-      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{title}</h4>
-      <div className="space-y-2">{children}</div>
+    <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
+      <h4 className="text-sm font-semibold tracking-tight text-foreground/90 border-b border-border/40 pb-2 mb-3">{title}</h4>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
     </div>
   )
 }
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-start gap-3 text-sm">
-      <div className="text-muted-foreground mt-0.5">{icon}</div>
+    <div className="flex items-center gap-3 text-sm p-1">
+      <div className="text-muted-foreground bg-muted/60 p-2 rounded-lg shrink-0">{icon}</div>
       <div className="flex-1 min-w-0">
-        <p className="text-muted-foreground text-xs">{label}</p>
-        <p className="font-medium truncate">{value}</p>
+        <p className="text-muted-foreground text-xs font-medium">{label}</p>
+        <p className="font-semibold text-foreground/90 truncate">{value}</p>
       </div>
     </div>
   )

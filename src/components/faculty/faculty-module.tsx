@@ -1285,27 +1285,27 @@ function FacultyDetailSheet({ detail, isLoading, onEdit, isAdmin }: FacultyDetai
 
   return (
     <>
-      <SheetHeader className="p-4 pb-2 border-b">
+      <SheetHeader className="p-6 pb-4 border-b bg-muted/20">
         <div className="flex items-center gap-4">
-          <Avatar className="h-14 w-14">
+          <Avatar className="size-16 border-2 border-border shadow-sm">
             {detail.user.avatar ? (
               <AvatarImage src={detail.user.avatar} alt={detail.user.name} className="object-cover" />
             ) : null}
-            <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
+            <AvatarFallback className="bg-primary/5 text-primary text-lg font-bold">
               {initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <SheetTitle className="text-lg">{detail.user.name}</SheetTitle>
-            <SheetDescription className="flex flex-wrap items-center gap-2 mt-1">
+            <SheetTitle className="text-xl font-bold tracking-tight text-foreground">{detail.user.name}</SheetTitle>
+            <SheetDescription className="flex flex-wrap items-center gap-2 mt-1.5">
               <Badge variant="secondary" className={designationColor(detail.designation)}>
                 {detail.designation}
               </Badge>
-              <span className="text-sm">{detail.department.name}</span>
+              <span className="text-xs text-muted-foreground">{detail.department.name}</span>
             </SheetDescription>
           </div>
           {isAdmin && (
-            <Button variant="outline" size="sm" onClick={onEdit} className="shrink-0 gap-1.5">
+            <Button variant="outline" size="sm" onClick={onEdit} className="shrink-0 gap-1.5 border-border/80">
               <Pencil className="h-3.5 w-3.5" />
               Edit
             </Button>
@@ -1315,44 +1315,50 @@ function FacultyDetailSheet({ detail, isLoading, onEdit, isAdmin }: FacultyDetai
 
       <ScrollArea className="flex-1">
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="mx-4 mt-2 w-auto">
-            <TabsTrigger value="profile" className="gap-1.5">
+          <TabsList className="mx-6 mt-3 w-auto flex">
+            <TabsTrigger value="profile" className="flex-1 gap-1.5">
               <UserCircle className="h-3.5 w-3.5 hidden sm:block" />
               Profile
             </TabsTrigger>
-            <TabsTrigger value="courses" className="gap-1.5">
+            <TabsTrigger value="courses" className="flex-1 gap-1.5">
               <BookOpen className="h-3.5 w-3.5 hidden sm:block" />
               Courses
             </TabsTrigger>
-            <TabsTrigger value="schedule" className="gap-1.5">
+            <TabsTrigger value="schedule" className="flex-1 gap-1.5">
               <Clock className="h-3.5 w-3.5 hidden sm:block" />
               Schedule
             </TabsTrigger>
-            <TabsTrigger value="projects" className="gap-1.5">
+            <TabsTrigger value="projects" className="flex-1 gap-1.5">
               <FolderKanban className="h-3.5 w-3.5 hidden sm:block" />
               Projects
             </TabsTrigger>
           </TabsList>
 
           {/* ===== PROFILE TAB ===== */}
-          <TabsContent value="profile" className="p-4 space-y-4 mt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+          <TabsContent value="profile" className="p-6 space-y-5 mt-0">
+            <Section title="Professional Details">
               <InfoItem icon={<GraduationCap className="h-4 w-4" />} label="Faculty ID" value={detail.facultyId} />
-              <InfoItem icon={<Mail className="h-4 w-4" />} label="Email" value={detail.user.email} />
-              <InfoItem icon={<Phone className="h-4 w-4" />} label="Phone" value={detail.user.phone || '—'} />
-              <InfoItem icon={<MapPin className="h-4 w-4" />} label="Office Room" value={detail.officeRoom || '—'} />
               <InfoItem icon={<BookOpen className="h-4 w-4" />} label="Specialization" value={detail.specialization || '—'} />
               <InfoItem icon={<GraduationCap className="h-4 w-4" />} label="Highest Degree" value={detail.highestDegree || '—'} />
               <InfoItem
                 icon={<Clock className="h-4 w-4" />}
                 label="Status"
                 value={
-                  <Badge variant="secondary" className={statusColor(detail.isAvailable)}>
+                  <Badge className={detail.isAvailable 
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900"
+                    : "bg-red-50 text-red-700 border-red-200 hover:bg-red-50 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900"
+                  }>
                     {detail.isAvailable ? 'Available' : 'Unavailable'}
                   </Badge>
                 }
               />
-            </div>
+            </Section>
+
+            <Section title="Contact Information">
+              <InfoItem icon={<Mail className="h-4 w-4" />} label="Email" value={detail.user.email} />
+              <InfoItem icon={<Phone className="h-4 w-4" />} label="Phone" value={detail.user.phone || '—'} />
+              <InfoItem icon={<MapPin className="h-4 w-4" />} label="Office Room" value={detail.officeRoom || '—'} />
+            </Section>
 
             {/* Office Hours */}
             {parsedOfficeHours && Object.keys(parsedOfficeHours).length > 0 && (
@@ -1508,6 +1514,15 @@ function FacultyDetailSheet({ detail, isLoading, onEdit, isAdmin }: FacultyDetai
 
 // ==================== SMALL HELPERS ====================
 
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
+      <h4 className="text-sm font-semibold tracking-tight text-foreground/90 border-b border-border/40 pb-2 mb-3">{title}</h4>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
+    </div>
+  )
+}
+
 function InfoItem({
   icon,
   label,
@@ -1518,11 +1533,11 @@ function InfoItem({
   value: React.ReactNode
 }) {
   return (
-    <div className="flex items-start gap-2.5">
-      <div className="mt-0.5 text-muted-foreground">{icon}</div>
-      <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <div className="text-sm mt-0.5">{value}</div>
+    <div className="flex items-center gap-3 text-sm p-1">
+      <div className="text-muted-foreground bg-muted/60 p-2 rounded-lg shrink-0">{icon}</div>
+      <div className="flex-1 min-w-0">
+        <p className="text-muted-foreground text-xs font-medium">{label}</p>
+        <div className="font-semibold text-foreground/90 truncate mt-0.5">{value}</div>
       </div>
     </div>
   )
