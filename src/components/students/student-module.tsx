@@ -12,6 +12,7 @@ import {
   MoreHorizontal,
   MoreVertical,
   Eye,
+  EyeOff,
   Pencil,
   UserX,
   Search,
@@ -843,7 +844,7 @@ export function StudentModule() {
           <AlertDialogHeader>
             <AlertDialogTitle>Deactivate Student</AlertDialogTitle>
             <AlertDialogDescription>
-              This will deactivate the student&apos;s account and mark them as inactive. The student will no longer be able to log in. This action can be reversed by an administrator.
+              This will deactivate the student&apos;s account and mark them as inactive. The student will no longer be able to log in. This action can be reversed by a coordinator.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -913,6 +914,13 @@ function StudentFormDialog({
   onAiOpen?: () => void
 }) {
   const [uploading, setUploading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+
+  useEffect(() => {
+    if (!open) {
+      setShowPassword(false)
+    }
+  }, [open])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1217,21 +1225,35 @@ function StudentFormDialog({
               <h3 className="text-sm font-semibold mb-3">Account Credentials</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-5">
                 <FormField control={form.control} name="email" render={({ field }) => (
-                  <FormItem className={editingStudent ? "sm:col-span-2" : ""}>
+                  <FormItem>
                     <FormLabel>Email *</FormLabel>
-                    <FormControl><Input type="email" placeholder="student@csdept.edu" {...field} disabled={!!editingStudent} /></FormControl>
+                    <FormControl><Input type="email" placeholder="student@csdept.edu" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
-                {!editingStudent && (
-                  <FormField control={form.control} name="password" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password *</FormLabel>
-                      <FormControl><Input type="password" placeholder="Min. 6 characters" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                )}
+                <FormField control={form.control} name="password" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{editingStudent ? 'New Password' : 'Password *'}</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder={editingStudent ? '••••••••' : 'Min. 6 characters'}
+                          className="pr-10"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                        </button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
               </div>
             </div>
 
@@ -1268,6 +1290,13 @@ function StudentFormSheet({
   isSubmitting: boolean
 }) {
   const [uploading, setUploading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+
+  useEffect(() => {
+    if (!open) {
+      setShowPassword(false)
+    }
+  }, [open])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -1553,21 +1582,35 @@ function StudentFormSheet({
                 <h3 className="text-sm font-semibold mb-3">Account Credentials</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-5">
                   <FormField control={form.control} name="email" render={({ field }) => (
-                    <FormItem className={editingStudent ? "sm:col-span-2" : ""}>
+                    <FormItem>
                       <FormLabel>Email *</FormLabel>
-                      <FormControl><Input type="email" placeholder="student@csdept.edu" {...field} disabled={!!editingStudent} /></FormControl>
+                      <FormControl><Input type="email" placeholder="student@csdept.edu" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
-                  {!editingStudent && (
-                    <FormField control={form.control} name="password" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password *</FormLabel>
-                        <FormControl><Input type="password" placeholder="Min. 6 characters" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  )}
+                  <FormField control={form.control} name="password" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{editingStudent ? 'New Password' : 'Password *'}</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? 'text' : 'password'}
+                            placeholder={editingStudent ? '••••••••' : 'Min. 6 characters'}
+                            className="pr-10"
+                            {...field}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                          >
+                            {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                          </button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                 </div>
               </div>
               <div className="flex gap-2 pt-2">

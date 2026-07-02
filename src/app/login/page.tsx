@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2, Shield, User, GraduationCap } from 'lucide-react'
+import { Loader2, Shield, User, GraduationCap, Eye, EyeOff } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { signIn } from 'next-auth/react'
 import { toast } from 'sonner'
@@ -31,6 +31,7 @@ type LoginFormValues = z.infer<typeof loginSchema>
 export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
   const { user, setUser, isAuthenticated, isLoading } = useAuthStore()
 
@@ -165,14 +166,24 @@ export default function LoginPage() {
                       <FormItem>
                         <FormLabel className="text-slate-700 font-medium">Password</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="••••••••"
-                            type="password"
-                            autoComplete="current-password"
-                            className="bg-slate-50/50 border-slate-200 focus:bg-white focus:ring-emerald-500 focus:border-emerald-500"
-                            disabled={isSubmitting}
-                            {...field}
-                          />
+                          <div className="relative">
+                            <Input
+                              placeholder="••••••••"
+                              type={showPassword ? "text" : "password"}
+                              autoComplete="current-password"
+                              className="bg-slate-50/50 border-slate-200 focus:bg-white focus:ring-emerald-500 focus:border-emerald-500 pr-10"
+                              disabled={isSubmitting}
+                              {...field}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                              disabled={isSubmitting}
+                            >
+                              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                            </button>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -219,7 +230,7 @@ export default function LoginPage() {
                   disabled={isSubmitting}
                 >
                   <Shield className="h-4 w-4 mb-1 text-emerald-600" />
-                  <span className="text-[10px] font-bold">Admin</span>
+                  <span className="text-[10px] font-bold">Coordinator</span>
                 </Button>
                 <Button
                   variant="outline"

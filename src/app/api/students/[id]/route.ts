@@ -137,12 +137,19 @@ export async function PUT(
 
     const data = parsed.data
 
-    // Build update data - exclude email, studentId, userId
+    // Build update data - exclude studentId, userId
     const studentUpdateData: Record<string, unknown> = {}
     const userUpdateData: Record<string, unknown> = {}
 
     if (data.name !== undefined) {
       userUpdateData.name = data.name
+    }
+    if (data.email !== undefined) {
+      userUpdateData.email = data.email
+    }
+    if (data.password !== undefined && data.password !== '') {
+      const bcrypt = require('bcryptjs')
+      userUpdateData.password = await bcrypt.hash(data.password, 10)
     }
 
     if (data.currentSemester !== undefined) {

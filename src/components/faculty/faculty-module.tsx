@@ -22,6 +22,7 @@ import {
   Plus,
   Search,
   Eye,
+  EyeOff,
   Pencil,
   Trash2,
   MoreHorizontal,
@@ -860,6 +861,13 @@ function FacultyFormDialog({
 }: FacultyFormDialogProps) {
   const isEdit = !!editingFaculty
   const [uploading, setUploading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+
+  useEffect(() => {
+    if (!open) {
+      setShowPassword(false)
+    }
+  }, [open])
 
   const form = useForm<CreateFacultyInput | UpdateFacultyInput>({
     resolver: zodResolver(isEdit ? updateFacultySchema : createFacultySchema),
@@ -876,6 +884,7 @@ function FacultyFormDialog({
           officeRoom: editingFaculty.officeRoom ?? '',
           officeHours: editingFaculty.officeHours ?? '',
           avatar: editingFaculty.user.avatar ?? '',
+          password: '',
         }
       : {
           name: '',
@@ -912,6 +921,7 @@ function FacultyFormDialog({
         officeRoom: editingFaculty.officeRoom ?? '',
         officeHours: editingFaculty.officeHours ?? '',
         avatar: editingFaculty.user.avatar ?? '',
+        password: '',
       })
     } else {
       form.reset({
@@ -1171,21 +1181,33 @@ function FacultyFormDialog({
                     </FormItem>
                   )}
                 />
-                {!isEdit && (
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password *</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Min 6 characters" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{isEdit ? 'New Password' : 'Password *'}</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? 'text' : 'password'}
+                            placeholder={isEdit ? '••••••••' : 'Min 6 characters'}
+                            className="pr-10"
+                            {...field}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                          >
+                            {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                          </button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </div>
 

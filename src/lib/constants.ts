@@ -124,14 +124,14 @@ export const NAV_ITEMS: NavItem[] = [
     section: 'RECORDS',
     url: '/results',
   },
-  {
-    id: 'fyp',
-    label: 'FYP Projects',
-    icon: FolderKanban,
-    roles: ['ALL'],
-    section: 'RECORDS',
-    url: '/fyp',
-  },
+//   {
+//     id: 'fyp',
+//     label: 'FYP Projects',
+//     icon: FolderKanban,
+//     roles: ['ALL'],
+//     section: 'RECORDS',
+//     url: '/fyp',
+//   },
   {
     id: 'documents',
     label: 'Documents',

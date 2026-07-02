@@ -130,11 +130,15 @@ export async function PUT(
     }
 
     // Update user fields
-    const userUpdateData: Record<string, string | null> = {};
+    const userUpdateData: Record<string, any> = {};
     if (data.name) userUpdateData.name = data.name;
     if (data.email) userUpdateData.email = data.email;
     if (data.phone !== undefined) userUpdateData.phone = data.phone || null;
     if (data.avatar !== undefined) userUpdateData.avatar = data.avatar || null;
+    if (data.password !== undefined && data.password !== '') {
+      const bcrypt = require('bcryptjs');
+      userUpdateData.password = await bcrypt.hash(data.password, 10);
+    }
 
     // Update faculty fields
     const facultyUpdateData: Record<string, unknown> = {};

@@ -14,6 +14,10 @@ import {
   Hash,
   Award,
   Clock,
+  Eye,
+  EyeOff,
+  Upload,
+  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -33,6 +37,8 @@ interface Profile {
   role: string
   avatar: string | null
   phone: string | null
+  isActive?: boolean
+  lastLogin?: string | null
   student: any
   faculty: any
 }
@@ -41,7 +47,48 @@ export function ProfileModule() {
   const queryClient = useQueryClient()
   const authUser = useAuthStore((s) => s.user)
   const [editing, setEditing] = useState(false)
-  const [form, setForm] = useState({ name: '', phone: '', avatar: '', address: '', mobileNumber: '' })
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    avatar: '',
+    address: '',
+    mobileNumber: '',
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
+  const [uploading, setUploading] = useState(false)
+  const [showOldPassword, setShowOldPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      if (!res.ok) throw new Error('Upload failed')
+      const json = await res.json()
+      if (json.url) {
+        setForm((prev) => ({ ...prev, avatar: json.url }))
+        toast.success('Avatar uploaded successfully')
+      } else {
+        toast.error(json.error || 'Upload failed')
+      }
+    } catch (err) {
+      toast.error('Failed to upload image')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const { data: profile, isLoading } = useQuery<Profile>({
     queryKey: ['my-profile'],
@@ -77,8 +124,32 @@ export function ProfileModule() {
       avatar: profile?.avatar || '',
       address: profile?.student?.address || '',
       mobileNumber: profile?.student?.mobileNumber || '',
+      oldPassword: '',
+      newPassword: '',
+      confirmPassword: '',
     })
+    setShowOldPassword(false)
+    setShowNewPassword(false)
+    setShowConfirmPassword(false)
     setEditing(true)
+  }
+
+  const handleSave = () => {
+    if (profile?.role === 'ADMIN' && form.newPassword) {
+      if (!form.oldPassword) {
+        toast.error('Please enter your current password')
+        return
+      }
+      if (form.newPassword.length < 6) {
+        toast.error('New password must be at least 6 characters')
+        return
+      }
+      if (form.newPassword !== form.confirmPassword) {
+        toast.error('New password and confirm password do not match')
+        return
+      }
+    }
+    updateMutation.mutate(form)
   }
 
   const initials = (profile?.name || authUser?.name || '?')
@@ -95,21 +166,14 @@ export function ProfileModule() {
   }[profile?.role || authUser?.role || 'STUDENT']
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 max-w-5xl mx-auto py-2 animate-fade-in">
       <PageHeader
         title="My Profile"
-        description="View and update your personal information."
-        actions={
-          !editing ? (
-            <Button onClick={startEdit} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
-              <Save className="size-4" /> Edit Profile
-            </Button>
-          ) : undefined
-        }
+        description="View your personal and academic information."
       />
 
       {isLoading ? (
-        <Card className="border-slate-100 shadow-sm">
+        <Card className="border-slate-200/80 shadow-sm bg-white">
           <CardContent className="p-10 animate-pulse space-y-4">
             <div className="h-20 w-20 rounded-full bg-slate-200" />
             <div className="h-5 w-48 bg-slate-200 rounded" />
@@ -117,155 +181,259 @@ export function ProfileModule() {
           </CardContent>
         </Card>
       ) : (
-        <>
-          {/* Header card */}
-          <Card className="border-slate-100 shadow-sm overflow-hidden">
-            <div className="h-24 bg-gradient-to-r from-emerald-500 to-emerald-700" />
-            <CardContent className="px-6 pb-6">
-              <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
-                <Avatar className="size-24 border-4 border-white shadow-md">
-                  <AvatarImage src={profile?.avatar || undefined} />
-                  <AvatarFallback className="text-2xl font-bold bg-emerald-100 text-emerald-700">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Left Column: Summary Card */}
+          <div className="md:col-span-1 space-y-6">
+            <Card className="border-slate-200/80 shadow-sm bg-white overflow-hidden">
+              <CardContent className="pt-8 pb-6 px-6 text-center space-y-5">
+                <Avatar className="size-28 border-2 border-slate-100 shadow-sm mx-auto">
+                  <AvatarImage src={profile?.avatar || undefined} className="object-cover" />
+                  <AvatarFallback className="text-3xl font-semibold bg-emerald-50 text-emerald-700">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1 pb-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-xl font-bold text-slate-800">{profile?.name}</h2>
-                    <Badge className={roleBadge + ' border-0'}>{profile?.role}</Badge>
-                  </div>
-                  <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-1">
-                    <Mail className="size-3.5" /> {profile?.email}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Edit form */}
-          {editing ? (
-            <Card className="border-slate-100 shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold text-slate-800">Edit Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs font-semibold text-slate-600">Full Name</Label>
-                    <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <div className="space-y-1.5">
+                  <h2 className="text-xl font-semibold text-slate-900 tracking-tight">{profile?.name}</h2>
+                  <Badge className={roleBadge + ' border-0 px-2.5 py-0.5 text-xs font-medium'}>
+                    {profile?.role === 'ADMIN' ? 'COORDINATOR' : profile?.role}
+                  </Badge>
+                </div>
+
+                <div className="border-t border-slate-100 pt-4 text-left space-y-3 text-sm text-slate-600">
+                  <div className="flex items-center gap-2.5">
+                    <Mail className="size-4 text-slate-400 shrink-0" />
+                    <span className="truncate">{profile?.email}</span>
                   </div>
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs font-semibold text-slate-600">Phone</Label>
-                    <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-                  </div>
-                  {profile?.role === 'STUDENT' && (
-                    <>
-                      <div className="grid gap-1.5">
-                        <Label className="text-xs font-semibold text-slate-600">Mobile Number</Label>
-                        <Input value={form.mobileNumber} onChange={(e) => setForm({ ...form, mobileNumber: e.target.value })} />
-                      </div>
-                      <div className="grid gap-1.5">
-                        <Label className="text-xs font-semibold text-slate-600">Address</Label>
-                        <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-                      </div>
-                    </>
-                  )}
-                  <div className="grid gap-1.5 sm:col-span-2">
-                    <Label className="text-xs font-semibold text-slate-600">Avatar URL</Label>
-                    <Input value={form.avatar} onChange={(e) => setForm({ ...form, avatar: e.target.value })} placeholder="https://..." />
+                  <div className="flex items-center gap-2.5">
+                    <Phone className="size-4 text-slate-400 shrink-0" />
+                    <span>{profile?.phone || '—'}</span>
                   </div>
                 </div>
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
-                  <Button
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                    onClick={() => updateMutation.mutate(form)}
-                    disabled={updateMutation.isPending}
-                  >
-                    {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </div>
+
+                {profile?.role !== 'STUDENT' && !editing && (
+                  <div className="pt-2">
+                    <Button onClick={startEdit} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-medium text-sm">
+                      <Save className="size-4" /> Edit Profile
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {profile?.student && (
-                <Card className="border-slate-100 shadow-sm">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                      <GraduationCap className="size-4 text-emerald-600" /> Academic Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2.5 text-sm">
-                    <InfoRow icon={Hash} label="Student ID" value={profile.student.studentId} />
-                    <InfoRow icon={Award} label="Program" value={profile.student.program} />
-                    <InfoRow icon={Calendar} label="Current Semester" value={`Semester ${profile.student.currentSemester}`} />
-                    <InfoRow icon={Calendar} label="Enrollment Year" value={String(profile.student.enrollmentYear)} />
-                    {profile.student.session && <InfoRow icon={Calendar} label="Session" value={profile.student.session} />}
-                    {profile.student.batch && <InfoRow icon={Hash} label="Batch" value={profile.student.batch} />}
-                    {profile.student.gpa != null && <InfoRow icon={Award} label="CGPA" value={String(profile.student.gpa)} />}
-                    {profile.student.section && (
-                      <>
-                        <InfoRow icon={Hash} label="Section" value={profile.student.section} />
-                        <InfoRow icon={Clock} label="Shift" value={profile.student.section.startsWith('Evening') ? 'Evening' : 'Morning'} />
-                      </>
-                    )}
-                    {profile.student.department && (
-                      <InfoRow icon={Building2} label="Department" value={`${profile.student.department.name} (${profile.student.department.code})`} />
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+          </div>
 
-              {profile?.faculty && (
-                <Card className="border-slate-100 shadow-sm">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                      <UserCircle className="size-4 text-emerald-600" /> Faculty Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2.5 text-sm">
-                    <InfoRow icon={Hash} label="Faculty ID" value={profile.faculty.facultyId} />
-                    <InfoRow icon={Award} label="Designation" value={profile.faculty.designation} />
-                    {profile.faculty.specialization && <InfoRow icon={Award} label="Specialization" value={profile.faculty.specialization} />}
-                    {profile.faculty.highestDegree && <InfoRow icon={Award} label="Highest Degree" value={profile.faculty.highestDegree} />}
-                    {profile.faculty.officeRoom && <InfoRow icon={MapPin} label="Office" value={profile.faculty.officeRoom} />}
-                    {profile.faculty.department && (
-                      <InfoRow icon={Building2} label="Department" value={`${profile.faculty.department.name} (${profile.faculty.department.code})`} />
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-
-              <Card className="border-slate-100 shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                    <Phone className="size-4 text-emerald-600" /> Contact Information
-                  </CardTitle>
+          {/* Right Column: Details / Form */}
+          <div className="md:col-span-2 space-y-6">
+            {editing ? (
+              <Card className="border-slate-200/80 shadow-sm bg-white">
+                <CardHeader className="pb-3 border-b border-slate-100/80">
+                  <CardTitle className="text-base font-semibold text-slate-800">Edit Details</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2.5 text-sm">
-                  <InfoRow icon={Mail} label="Email" value={profile?.email} />
-                  <InfoRow icon={Phone} label="Phone" value={profile?.phone || '—'} />
-                  {profile?.student?.mobileNumber && <InfoRow icon={Phone} label="Mobile" value={profile.student.mobileNumber} />}
-                  {profile?.student?.address && <InfoRow icon={MapPin} label="Address" value={profile.student.address} />}
+                <CardContent className="pt-6 space-y-5">
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid gap-1.5">
+                      <Label className="text-xs font-semibold text-slate-600">Full Name</Label>
+                      <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="bg-slate-50/30 focus:bg-white" />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label className="text-xs font-semibold text-slate-600">Phone</Label>
+                      <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="bg-slate-50/30 focus:bg-white" />
+                    </div>
+
+                    <div className="grid gap-1.5 sm:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-600">Profile Picture</Label>
+                      <div className="flex items-center gap-4 mt-1">
+                        <Avatar className="size-16 border border-slate-200">
+                          <AvatarImage src={form.avatar || undefined} className="object-cover" />
+                          <AvatarFallback className="text-lg font-bold bg-emerald-100 text-emerald-700">
+                            {initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="cursor-pointer">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors">
+                              {uploading ? <Loader2 className="size-3 animate-spin" /> : <Upload className="size-3" />}
+                              {uploading ? 'Uploading...' : 'Upload Photo'}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleImageUpload}
+                              disabled={uploading}
+                            />
+                          </label>
+                          <p className="text-[10px] text-slate-400">PNG, JPG or WEBP. Max 5MB.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {profile?.role === 'ADMIN' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:col-span-2 border-t border-slate-100 pt-5 mt-2">
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs font-semibold text-slate-600">Old Password</Label>
+                          <div className="relative">
+                            <Input
+                              type={showOldPassword ? "text" : "password"}
+                              value={form.oldPassword}
+                              onChange={(e) => setForm({ ...form, oldPassword: e.target.value })}
+                              placeholder="Current password"
+                              className="pr-10 bg-slate-50/30 focus:bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowOldPassword(!showOldPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                              {showOldPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs font-semibold text-slate-600">New Password</Label>
+                          <div className="relative">
+                            <Input
+                              type={showNewPassword ? "text" : "password"}
+                              value={form.newPassword}
+                              onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
+                              placeholder="New password"
+                              className="pr-10 bg-slate-50/30 focus:bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowNewPassword(!showNewPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                              {showNewPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs font-semibold text-slate-600">Confirm Password</Label>
+                          <div className="relative">
+                            <Input
+                              type={showConfirmPassword ? "text" : "password"}
+                              value={form.confirmPassword}
+                              onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                              placeholder="Confirm new password"
+                              className="pr-10 bg-slate-50/30 focus:bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                              {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 justify-end pt-4 border-t border-slate-100">
+                    <Button variant="outline" size="sm" onClick={() => setEditing(false)} className="text-slate-600 hover:bg-slate-50">Cancel</Button>
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                      onClick={handleSave}
+                      disabled={updateMutation.isPending || uploading}
+                    >
+                      {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
-            </div>
-          )}
-        </>
+            ) : (
+              <div className="space-y-6">
+                {profile?.role === 'ADMIN' && (
+                  <InfoGroup title="Coordinator Information">
+                    <InfoItem label="Full Name" value={profile.name} icon={UserCircle} />
+                    <InfoItem label="Email" value={profile.email} icon={Mail} />
+                    <InfoItem label="Role" value="System Coordinator" icon={Award} />
+                    <InfoItem label="Status" value={profile.isActive ? 'Active' : 'Inactive'} icon={Clock} />
+                    <InfoItem label="Last Login" value={profile.lastLogin ? new Date(profile.lastLogin).toLocaleString() : undefined} icon={Calendar} />
+                  </InfoGroup>
+                )}
+
+                {profile?.student && (
+                  <>
+                    <InfoGroup title="Academic Information">
+                      <InfoItem label="Student ID" value={profile.student.studentId} icon={Hash} />
+                      <InfoItem label="Program" value={profile.student.program} icon={GraduationCap} />
+                      <InfoItem label="Current Semester" value={profile.student.currentSemester != null ? `Semester ${profile.student.currentSemester}` : undefined} icon={Calendar} />
+                      <InfoItem label="Enrollment Year" value={profile.student.enrollmentYear} icon={Calendar} />
+                      <InfoItem label="Session" value={profile.student.session} icon={Calendar} />
+                      <InfoItem label="Batch" value={profile.student.batch} icon={Hash} />
+                      <InfoItem label="CGPA" value={profile.student.gpa} icon={Award} />
+                      <InfoItem label="Section" value={profile.student.section} icon={Hash} />
+                      <InfoItem label="Department" value={profile.student.department ? `${profile.student.department.name} (${profile.student.department.code})` : undefined} icon={Building2} />
+                    </InfoGroup>
+
+                    <InfoGroup title="Contact Details">
+                      <InfoItem label="Mobile Number" value={profile.student.mobileNumber} icon={Phone} />
+                      <InfoItem label="Address" value={profile.student.address} icon={MapPin} />
+                    </InfoGroup>
+                  </>
+                )}
+
+                {profile?.faculty && (
+                  <>
+                    <InfoGroup title="Academic & Department Details">
+                      <InfoItem label="Faculty ID" value={profile.faculty.facultyId} icon={Hash} />
+                      <InfoItem label="Designation" value={profile.faculty.designation} icon={Award} />
+                      <InfoItem label="Specialization" value={profile.faculty.specialization} icon={Award} />
+                      <InfoItem label="Highest Degree" value={profile.faculty.highestDegree} icon={Award} />
+                      <InfoItem label="Office Room" value={profile.faculty.officeRoom} icon={MapPin} />
+                      <InfoItem label="Office Hours" value={profile.faculty.officeHours} icon={Clock} />
+                      <InfoItem label="Department" value={profile.faculty.department ? `${profile.faculty.department.name} (${profile.faculty.department.code})` : undefined} icon={Building2} />
+                    </InfoGroup>
+
+                    {profile.faculty.bio && (
+                      <Card className="border-slate-200/80 shadow-sm bg-white">
+                        <CardHeader className="pb-3 border-b border-slate-100/80">
+                          <CardTitle className="text-sm font-semibold text-slate-800 tracking-tight">Biography</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-4 px-6 pb-6 text-sm text-slate-600 leading-relaxed">
+                          {profile.faculty.bio}
+                        </CardContent>
+                      </Card>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )
 }
 
-function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value?: string }) {
+function InfoGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-slate-500 flex items-center gap-1.5">
-        <Icon className="size-3.5 text-slate-400" /> {label}
+    <Card className="border-slate-200/80 shadow-sm bg-white">
+      <CardHeader className="pb-3 border-b border-slate-100/80">
+        <CardTitle className="text-sm font-semibold text-slate-800 tracking-tight">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="pt-4 px-6 pb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+          {children}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function InfoItem({ label, value, icon: Icon }: { label: string; value?: string | number | null; icon?: any }) {
+  return (
+    <div className="flex justify-between items-center sm:items-start sm:flex-col gap-1 py-1">
+      <span className="text-slate-400 font-medium text-[11px] flex items-center gap-1.5 shrink-0 tracking-wide uppercase">
+        {Icon && <Icon className="size-3.5 text-slate-400 shrink-0" />}
+        {label}
       </span>
-      <span className="font-medium text-slate-800 text-right truncate">{value || '—'}</span>
+      <span className="font-semibold text-slate-800 break-words max-w-full text-right sm:text-left text-sm">
+        {value !== undefined && value !== null && value !== '' ? String(value) : '—'}
+      </span>
     </div>
   )
 }

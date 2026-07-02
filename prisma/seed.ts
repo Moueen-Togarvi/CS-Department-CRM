@@ -146,7 +146,7 @@ async function main() {
     data: {
       email: "admin@csdept.edu",
       password: adminPassword,
-      name: "System Administrator",
+      name: "System Coordinator",
       role: "ADMIN",
       phone: "+92-300-0000001",
       isActive: true,

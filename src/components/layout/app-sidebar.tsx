@@ -30,12 +30,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     if (!roleMatch) return false
     
     // FYP is only for all faculty/admins, but for students, only semester 7 and 8
-    if (item.id === 'fyp' && userRole === 'STUDENT') {
-      const sem = user?.semester
-      if (sem !== 7 && sem !== 8) {
-        return false
-      }
-    }
+    // if (item.id === 'fyp' && userRole === 'STUDENT') {
+    //   const sem = user?.semester
+    //   if (sem !== 7 && sem !== 8) {
+    //     return false
+    //   }
+    // }
     
     return true
   })

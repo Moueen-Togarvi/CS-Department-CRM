@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { requireAuth, handleApiError } from '@/lib/auth-utils'
+import bcrypt from 'bcryptjs'
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,13 +41,40 @@ export async function PUT(request: NextRequest) {
   try {
     const session = await requireAuth()
 
+    if (session.user.role === 'STUDENT') {
+      return errorResponse('Students are not allowed to update their profile', 403)
+    }
+
     const body = await request.json()
-    const { name, phone, avatar, address, mobileNumber } = body
+    const { name, phone, avatar, address, mobileNumber, oldPassword, newPassword, confirmPassword } = body
 
     const userUpdate: Record<string, unknown> = {}
     if (name !== undefined) userUpdate.name = name
     if (phone !== undefined) userUpdate.phone = phone || null
     if (avatar !== undefined) userUpdate.avatar = avatar || null
+    if (newPassword !== undefined && newPassword !== '') {
+      if (session.user.role === 'ADMIN') {
+        const currentUser = await db.user.findUnique({
+          where: { id: session.user.id },
+        })
+        if (!currentUser) {
+          return errorResponse('User not found', 404)
+        }
+        if (!oldPassword) {
+          return errorResponse('Old password is required', 400)
+        }
+        const isMatch = await bcrypt.compare(oldPassword, currentUser.password)
+        if (!isMatch) {
+          return errorResponse('Incorrect old password', 400)
+        }
+        if (newPassword !== confirmPassword) {
+          return errorResponse('New password and confirm password do not match', 400)
+        }
+        userUpdate.password = await bcrypt.hash(newPassword, 10)
+      } else {
+        return errorResponse('Only Coordinator can update password here', 403)
+      }
+    }
 
     const updated = await db.user.update({
       where: { id: session.user.id },

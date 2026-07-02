@@ -46,6 +46,7 @@ export const updateFacultySchema = z
     officeRoom: z.string().optional(),
     officeHours: z.string().optional(),
     isAvailable: z.boolean().optional(),
+    password: z.string().min(6, "Password must be at least 6 characters").or(z.literal("")).optional(),
     avatar: z.string().optional(),
   })
   .strict();

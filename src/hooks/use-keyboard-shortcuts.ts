@@ -13,7 +13,7 @@ const KEY_MAP: Record<string, ModuleId> = {
   '6': 'attendance',
   '7': 'results',
   '8': 'announcements',
-  '9': 'fyp',
+//   '9': 'fyp',
   '0': 'documents',
 }
 

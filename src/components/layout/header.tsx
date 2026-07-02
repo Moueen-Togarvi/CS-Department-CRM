@@ -210,7 +210,7 @@ export function Header() {
                     'text-[8px] font-bold px-1.5 py-0.5 rounded border leading-none tracking-wider uppercase transition-colors duration-200',
                     roleBadgeColor
                   )}>
-                    {user?.role ?? 'STUDENT'}
+                    {user?.role === 'ADMIN' ? 'COORDINATOR' : (user?.role ?? 'STUDENT')}
                   </span>
                 </div>
                 <ChevronDown className="hidden sm:block size-3.5 text-zinc-400 group-hover:text-zinc-600 ml-0.5 shrink-0 transition-colors duration-200" />

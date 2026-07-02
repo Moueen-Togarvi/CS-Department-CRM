@@ -37,6 +37,8 @@ export const updateStudentSchema = z.object({
   program: z.string().optional(),
   gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
   dateOfBirth: z.string().optional(),
+  email: z.string().email('Please enter a valid email address').optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters').or(z.literal("")).optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
   guardianName: z.string().optional(),
