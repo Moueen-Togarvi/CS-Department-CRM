@@ -39,6 +39,7 @@ export interface NavItem {
   icon: LucideIcon
   roles: RoleAccess[]
   section: 'CORE' | 'PEOPLE' | 'ACADEMICS' | 'RECORDS' | 'ACCOUNT'
+  url: string
 }
 
 // All navigation items for the sidebar
@@ -49,6 +50,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: LayoutDashboard,
     roles: ['ALL'],
     section: 'CORE',
+    url: '/',
   },
   {
     id: 'announcements',
@@ -56,6 +58,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Megaphone,
     roles: ['ALL'],
     section: 'CORE',
+    url: '/announcements',
   },
   {
     id: 'students',
@@ -63,6 +66,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: GraduationCap,
     roles: ['ADMIN', 'FACULTY'],
     section: 'PEOPLE',
+    url: '/students',
   },
   {
     id: 'faculty',
@@ -70,6 +74,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Users,
     roles: ['ADMIN'],
     section: 'PEOPLE',
+    url: '/faculty',
   },
   {
     id: 'courses',
@@ -77,6 +82,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: BookOpen,
     roles: ['ALL'],
     section: 'ACADEMICS',
+    url: '/courses',
   },
   {
     id: 'timetable',
@@ -84,6 +90,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: CalendarDays,
     roles: ['ALL'],
     section: 'ACADEMICS',
+    url: '/timetable',
   },
   {
     id: 'classrooms',
@@ -91,6 +98,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: School,
     roles: ['ADMIN', 'FACULTY'],
     section: 'ACADEMICS',
+    url: '/classrooms',
   },
   {
     id: 'attendance',
@@ -98,6 +106,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ClipboardCheck,
     roles: ['ADMIN', 'FACULTY'],
     section: 'RECORDS',
+    url: '/attendance',
   },
   {
     id: 'my-attendance',
@@ -105,6 +114,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ClipboardCheck,
     roles: ['STUDENT'],
     section: 'RECORDS',
+    url: '/my-attendance',
   },
   {
     id: 'results',
@@ -112,6 +122,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: BarChart3,
     roles: ['ALL'],
     section: 'RECORDS',
+    url: '/results',
   },
   {
     id: 'fyp',
@@ -119,6 +130,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: FolderKanban,
     roles: ['ALL'],
     section: 'RECORDS',
+    url: '/fyp',
   },
   {
     id: 'documents',
@@ -126,6 +138,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: FileText,
     roles: ['ALL'],
     section: 'RECORDS',
+    url: '/documents',
   },
   {
     id: 'profile',
@@ -133,6 +146,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: UserCircle,
     roles: ['ALL'],
     section: 'ACCOUNT',
+    url: '/profile',
   },
 ]
 

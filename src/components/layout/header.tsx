@@ -19,14 +19,16 @@ import { useNotifications } from '@/hooks/use-notifications'
 import { SearchDialog } from '@/components/layout/search-dialog'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { usePathname, useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 import { SidebarTrigger } from '@/components/ui/sidebar'
 
 export function Header() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
-  const activeModule = useAppStore((s) => s.activeModule)
-  const setActiveModule = useAppStore((s) => s.setActiveModule)
+  const pathname = usePathname()
+  const router = useRouter()
   const setSearchOpen = useAppStore((s) => s.setSearchOpen)
   const { unreadCount, notifications, markRead, markAllRead, deleteNotification } = useNotifications()
 
@@ -34,7 +36,7 @@ export function Header() {
     ? user.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : 'U'
 
-  const activeLabel = NAV_ITEMS.find((i) => i.id === activeModule)?.label ?? 'Dashboard'
+  const activeLabel = NAV_ITEMS.find((i) => pathname === i.url || (i.url !== '/' && pathname.startsWith(i.url)))?.label ?? 'Dashboard'
 
   const roleBadgeColor =
     user?.role === 'ADMIN'
@@ -145,8 +147,7 @@ export function Header() {
                         onClick={() => {
                           if (!n.isRead) markRead(n.id)
                           if (n.linkUrl) {
-                            const moduleId = n.linkUrl.replace('/', '')
-                            setActiveModule(moduleId as any)
+                            router.push(n.linkUrl)
                           }
                         }}
                         className={cn(
@@ -224,11 +225,13 @@ export function Header() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-zinc-100" />
               <DropdownMenuItem
+                asChild
                 className="rounded-lg px-2 py-1.5 text-zinc-600 focus:bg-zinc-50 focus:text-zinc-900 cursor-pointer gap-2"
-                onClick={() => setActiveModule('profile')}
               >
-                <User className="size-4 text-zinc-400" />
-                Profile
+                <Link href="/profile">
+                  <User className="size-4 text-zinc-400" />
+                  Profile
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-zinc-100" />
               <DropdownMenuItem

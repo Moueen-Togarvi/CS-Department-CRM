@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/command'
 import { useAppStore } from '@/stores/app-store'
 import { GraduationCap, BookOpen, Megaphone, FileText, Users, Presentation, DoorOpen } from 'lucide-react'
-import type { ModuleId } from '@/lib/constants'
+import { NAV_ITEMS, type ModuleId } from '@/lib/constants'
 
 interface SearchResult {
   type: string
@@ -36,12 +36,15 @@ const TYPE_META: Record<string, { icon: any; label: string; group: string }> = {
 export function SearchDialog() {
   const searchOpen = useAppStore((s) => s.searchOpen)
   const setSearchOpen = useAppStore((s) => s.setSearchOpen)
-  const setActiveModule = useAppStore((s) => s.setActiveModule)
+  const router = useRouter()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
 
   const handleSelect = (r: SearchResult) => {
-    setActiveModule(r.moduleId as ModuleId)
+    const target = NAV_ITEMS.find((item) => item.id === r.moduleId)
+    if (target) {
+      router.push(target.url)
+    }
     setSearchOpen(false)
     setQuery('')
     setResults([])

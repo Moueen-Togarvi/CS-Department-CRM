@@ -8,14 +8,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { useAppStore } from '@/stores/app-store'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { useAuthStore } from '@/stores/auth-store'
 import { getMobileNavItems, getMoreNavItems, type ModuleId } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
 export function MobileBottomNav() {
-  const activeModule = useAppStore((s) => s.activeModule)
-  const setActiveModule = useAppStore((s) => s.setActiveModule)
+  const pathname = usePathname()
   const user = useAuthStore((s) => s.user)
   const [moreOpen, setMoreOpen] = useState(false)
 
@@ -24,22 +24,17 @@ export function MobileBottomNav() {
   const visibleItems = getMobileNavItems(userRole)
   const moreItems = getMoreNavItems(userRole)
 
-  const handleNav = (id: ModuleId) => {
-    setActiveModule(id)
-    setMoreOpen(false)
-  }
-
   return (
     <>
       <nav className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200/80 bg-white/90 backdrop-blur-xl lg:hidden">
         <div className="flex h-[60px] items-center justify-around px-1">
           {visibleItems.map((item) => {
             const Icon = item.icon
-            const isActive = activeModule === item.id
+            const isActive = pathname === item.url || (item.url !== '/' && pathname.startsWith(item.url))
             return (
-              <button
+              <Link
                 key={item.id}
-                onClick={() => handleNav(item.id)}
+                href={item.url}
                 className={cn(
                   'relative flex flex-col items-center justify-center gap-0.5 py-1 min-w-0 flex-1 transition-colors duration-150',
                   isActive ? 'text-emerald-600' : 'text-slate-400 active:text-slate-600'
@@ -50,7 +45,7 @@ export function MobileBottomNav() {
                 )}
                 <Icon className={cn('size-[22px]', isActive && 'drop-shadow-sm')} />
                 <span className="text-[10px] font-medium leading-none">{item.label}</span>
-              </button>
+              </Link>
             )
           })}
 
@@ -59,12 +54,12 @@ export function MobileBottomNav() {
             onClick={() => setMoreOpen(true)}
             className={cn(
               'relative flex flex-col items-center justify-center gap-0.5 py-1 min-w-0 flex-1 transition-colors duration-150',
-              moreItems.some((i) => activeModule === i.id)
+              moreItems.some((i) => pathname === i.url || (i.url !== '/' && pathname.startsWith(i.url)))
                 ? 'text-emerald-600'
                 : 'text-slate-400 active:text-slate-600'
             )}
           >
-            {moreItems.some((i) => activeModule === i.id) && (
+            {moreItems.some((i) => pathname === i.url || (i.url !== '/' && pathname.startsWith(i.url))) && (
               <span className="absolute -top-px left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-emerald-600" />
             )}
             <Grid3X3 className="size-[22px]" />
@@ -85,11 +80,12 @@ export function MobileBottomNav() {
             <ul className="grid grid-cols-2 gap-2">
               {moreItems.map((item) => {
                 const Icon = item.icon
-                const isActive = activeModule === item.id
+                const isActive = pathname === item.url || (item.url !== '/' && pathname.startsWith(item.url))
                 return (
                   <li key={item.id}>
-                    <button
-                      onClick={() => handleNav(item.id)}
+                    <Link
+                      href={item.url}
+                      onClick={() => setMoreOpen(false)}
                       className={cn(
                         'flex items-center gap-3 w-full rounded-xl px-3.5 py-3 text-sm font-medium transition-all duration-150 border',
                         isActive
@@ -104,7 +100,7 @@ export function MobileBottomNav() {
                         <Icon className="size-[18px]" />
                       </div>
                       <span className="truncate">{item.label}</span>
-                    </button>
+                    </Link>
                   </li>
                 )
               })}

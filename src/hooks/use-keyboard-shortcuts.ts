@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useAppStore } from '@/stores/app-store'
-import type { ModuleId } from '@/lib/constants'
+import { useRouter } from 'next/navigation'
+import { NAV_ITEMS, type ModuleId } from '@/lib/constants'
 
 const KEY_MAP: Record<string, ModuleId> = {
   '1': 'dashboard',
@@ -18,7 +18,7 @@ const KEY_MAP: Record<string, ModuleId> = {
 }
 
 export function useKeyboardShortcuts() {
-  const setActiveModule = useAppStore((s) => s.setActiveModule)
+  const router = useRouter()
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -34,11 +34,15 @@ export function useKeyboardShortcuts() {
       const key = e.key
       if (key in KEY_MAP) {
         e.preventDefault()
-        setActiveModule(KEY_MAP[key])
+        const targetId = KEY_MAP[key]
+        const target = NAV_ITEMS.find((item) => item.id === targetId)
+        if (target) {
+          router.push(target.url)
+        }
       }
     }
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [setActiveModule])
+  }, [router])
 }

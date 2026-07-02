@@ -13,14 +13,14 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { NAV_ITEMS } from '@/lib/constants'
-import { useAppStore } from '@/stores/app-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const activeModule = useAppStore((s) => s.activeModule)
-  const setActiveModule = useAppStore((s) => s.setActiveModule)
+  const pathname = usePathname()
   const user = useAuthStore((s) => s.user)
   const userRole = user?.role
 
@@ -71,12 +71,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <SidebarMenu className="gap-0">
                 {group.items.map((item) => {
                   const Icon = item.icon
-                  const isActive = activeModule === item.id
+                  const isActive = pathname === item.url || (item.url !== '/' && pathname.startsWith(item.url))
                   
                   return (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
-                        onClick={() => setActiveModule(item.id)}
+                        asChild
                         isActive={isActive}
                         tooltip={item.label}
                         size="sm"
@@ -86,8 +86,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                             : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 font-medium"
                         )}
                       >
-                        <Icon className={cn("size-3.5", isActive ? "text-emerald-600" : "text-zinc-500")} />
-                        <span>{item.label}</span>
+                        <Link href={item.url}>
+                          <Icon className={cn("size-3.5", isActive ? "text-emerald-600" : "text-zinc-500")} />
+                          <span>{item.label}</span>
+                        </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   )
