@@ -66,6 +66,18 @@ export function ProfileModule() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Client-side validation: Max 5MB
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size exceeds the 5MB limit.')
+      return
+    }
+
+    // Client-side validation: Must be an image
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file (PNG, JPG, or WEBP).')
+      return
+    }
+
     setUploading(true)
     const formData = new FormData()
     formData.append('file', file)
@@ -75,7 +87,10 @@ export function ProfileModule() {
         method: 'POST',
         body: formData,
       })
-      if (!res.ok) throw new Error('Upload failed')
+      if (!res.ok) {
+        const errorText = await res.text()
+        throw new Error(`Upload failed: ${res.statusText} (${res.status}) - ${errorText}`)
+      }
       const json = await res.json()
       if (json.url) {
         setForm((prev) => ({ ...prev, avatar: json.url }))
@@ -84,6 +99,7 @@ export function ProfileModule() {
         toast.error(json.error || 'Upload failed')
       }
     } catch (err) {
+      console.error('Image upload client error:', err)
       toast.error('Failed to upload image')
     } finally {
       setUploading(false)

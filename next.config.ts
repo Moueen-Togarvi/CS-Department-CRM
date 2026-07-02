@@ -7,6 +7,16 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  webpack: (config) => {
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: [
+        ...(config.watchOptions?.ignored || []),
+        '**/public/uploads/**',
+      ],
+    }
+    return config
+  },
 };
 
 export default nextConfig;
