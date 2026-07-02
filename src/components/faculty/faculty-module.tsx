@@ -295,15 +295,7 @@ export function FacultyModule() {
     placeholderData: keepPreviousData,
   })
 
-  const { data: stats } = useQuery<ApiOk<FacultyStats>>({
-    queryKey: ['faculty-stats'],
-    queryFn: async () => {
-      const res = await fetch('/api/faculty/stats')
-      if (!res.ok) throw new Error('Failed to fetch stats')
-      return res.json()
-    },
-    staleTime: 60 * 1000,
-  })
+
 
   const { data: detailData, isLoading: detailLoading } = useQuery<ApiOk<FacultyDetail>>({
     queryKey: ['faculty-detail', detailFacultyId],
@@ -331,7 +323,6 @@ export function FacultyModule() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['faculty'] })
-      queryClient.invalidateQueries({ queryKey: ['faculty-stats'] })
       toast.success('Faculty member created successfully')
       setFormOpen(false)
     },
@@ -351,7 +342,6 @@ export function FacultyModule() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['faculty'] })
-      queryClient.invalidateQueries({ queryKey: ['faculty-stats'] })
       if (detailFacultyId) queryClient.invalidateQueries({ queryKey: ['faculty-detail', detailFacultyId] })
       toast.success('Faculty updated successfully')
       setFormOpen(false)
@@ -369,7 +359,6 @@ export function FacultyModule() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['faculty'] })
-      queryClient.invalidateQueries({ queryKey: ['faculty-stats'] })
       toast.success('Faculty deleted successfully')
       setDeleteTarget(null)
     },
@@ -551,21 +540,7 @@ export function FacultyModule() {
         }
       />
 
-      {/* Stats Cards */}
-      {stats?.data && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Card className="p-4">
-            <div className="text-2xl font-bold text-primary">{stats.data.total}</div>
-            <p className="text-xs text-muted-foreground mt-1">Total Faculty</p>
-          </Card>
-          {Object.entries(stats.data.byDesignation).map(([key, val]) => (
-            <Card key={key} className="p-4">
-              <div className="text-2xl font-bold">{val}</div>
-              <p className="text-xs text-muted-foreground mt-1">{key}</p>
-            </Card>
-          ))}
-        </div>
-      )}
+
 
       {/* Filters */}
       <Card className="p-4">

@@ -34,7 +34,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider
       style={{
-        "--sidebar-width": "16rem",
+        "--sidebar-width": "13rem",
       } as React.CSSProperties}
     >
       <AppSidebar />

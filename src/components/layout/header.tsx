@@ -35,7 +35,6 @@ export function Header() {
     : 'U'
 
   const activeLabel = NAV_ITEMS.find((i) => i.id === activeModule)?.label ?? 'Dashboard'
-  const ActiveIcon = NAV_ITEMS.find((i) => i.id === activeModule)?.icon
 
   const roleBadgeColor =
     user?.role === 'ADMIN'
@@ -53,11 +52,6 @@ export function Header() {
         <div className="flex items-center gap-2.5 min-w-0">
           <SidebarTrigger className="h-8 w-8 shrink-0 rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 transition-colors" />
 
-          {ActiveIcon && (
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-50 border border-zinc-200/60">
-              <ActiveIcon className="size-4 text-zinc-600" />
-            </div>
-          )}
           <h1 className="text-sm font-semibold text-zinc-800 truncate hidden sm:block">
             {activeLabel}
           </h1>
