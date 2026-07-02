@@ -7,20 +7,66 @@ import { requireAuth } from '@/lib/auth-utils'
 const DAYS_ORDER: DayOfWeek[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00']
 
-function getSlotStartHour(time: string): number {
-  return parseInt(time.split(':')[0], 10)
-}
-
-function timeOverlaps(startA: string, endA: string, startB: string, endB: string): boolean {
-  const toMin = (t: string) => {
-    const [h, m] = t.split(':').map(Number)
-    return h * 60 + (m || 0)
+function getCompatibleSections(studentSection: string | null, studentSession: string | null): string[] {
+  if (!studentSection) return []
+  
+  const sections = [studentSection]
+  const sectionLower = studentSection.toLowerCase().trim()
+  
+  // If section is "Morning A" or "Morning B", also include "Morning" and the letter ("A"/"B")
+  if (sectionLower.startsWith('morning ')) {
+    sections.push('Morning')
+    const letter = studentSection.substring(8).trim() // e.g. "A" or "B"
+    if (letter) {
+      sections.push(letter)
+      sections.push(letter.toUpperCase())
+      sections.push(letter.toLowerCase())
+    }
   }
-  const aStart = toMin(startA)
-  const aEnd = toMin(endA)
-  const bStart = toMin(startB)
-  const bEnd = toMin(endB)
-  return aStart < bEnd && bStart < aEnd
+  // If section is "Evening A" or "Evening B", also include "Evening" and the letter ("A"/"B")
+  else if (sectionLower.startsWith('evening ')) {
+    sections.push('Evening')
+    const letter = studentSection.substring(8).trim()
+    if (letter) {
+      sections.push(letter)
+      sections.push(letter.toUpperCase())
+      sections.push(letter.toLowerCase())
+    }
+  }
+  // If section is just "A" or "B"
+  else if (sectionLower === 'a' || sectionLower === 'b') {
+    sections.push(studentSection)
+    sections.push(studentSection.toUpperCase())
+    sections.push(studentSection.toLowerCase())
+    // If we have shift information
+    if (studentSession) {
+      const shiftName = studentSession.charAt(0).toUpperCase() + studentSession.slice(1).toLowerCase() // e.g. "Morning"
+      sections.push(shiftName)
+      sections.push(shiftName.toLowerCase())
+      sections.push(`${shiftName} ${studentSection.toUpperCase()}`) // e.g. "Morning A"
+      sections.push(`${shiftName} ${studentSection.toLowerCase()}`) // e.g. "Morning a"
+    }
+  }
+  // If section is "Morning" or "Evening"
+  else if (sectionLower === 'morning') {
+    sections.push('Morning')
+    sections.push('morning')
+    sections.push('Morning A')
+    sections.push('Morning B')
+    sections.push('A')
+    sections.push('B')
+  }
+  else if (sectionLower === 'evening') {
+    sections.push('Evening')
+    sections.push('evening')
+    sections.push('Evening A')
+    sections.push('Evening B')
+    sections.push('A')
+    sections.push('B')
+  }
+
+  // Deduplicate and filter out empty strings
+  return Array.from(new Set(sections.filter(Boolean)))
 }
 
 export async function GET(request: NextRequest) {
@@ -37,6 +83,8 @@ export async function GET(request: NextRequest) {
     let facultyId = searchParams.get('facultyId') || undefined
     const roomId = searchParams.get('roomId') || undefined
     let academicSemester = searchParams.get('academicSemester') || undefined
+    let studentCompatibleSections: string[] = []
+    let studentSessionVal: string | null = null
 
     // Enforce role-based restrictions
     if (session.user.role === 'STUDENT') {
@@ -44,8 +92,9 @@ export async function GET(request: NextRequest) {
         where: { userId: session.user.id },
       })
       if (student) {
-        section = student.section || undefined
+        studentCompatibleSections = getCompatibleSections(student.section, student.session)
         academicSemester = String(student.currentSemester)
+        studentSessionVal = student.session
       }
     } else if (session.user.role === 'FACULTY') {
       const faculty = await db.faculty.findUnique({
@@ -57,7 +106,9 @@ export async function GET(request: NextRequest) {
     }
 
     let shift = searchParams.get('shift') || 'Morning'
-    if (section) {
+    if (session.user.role === 'STUDENT' && studentSessionVal) {
+      shift = studentSessionVal
+    } else if (section) {
       if (section.toLowerCase().includes('evening')) {
         shift = 'Evening'
       } else if (section.toLowerCase().includes('morning')) {
@@ -65,16 +116,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    let timeSlots = shift === 'Evening'
-      ? ['11:00', '12:00', '13:00', '14:00', '15:00']
-      : ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00']
-
-    if (session.user.role === 'FACULTY') {
-      timeSlots = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00']
+    const where: any = { semesterId }
+    
+    if (session.user.role === 'STUDENT') {
+      if (studentCompatibleSections.length > 0) {
+        where.section = { in: studentCompatibleSections }
+      }
+    } else {
+      if (section) where.section = section
     }
 
-    const where: any = { semesterId }
-    if (section) where.section = section
     if (facultyId) where.facultyId = facultyId
     if (roomId) where.roomId = roomId
     if (academicSemester) {
@@ -99,6 +150,31 @@ export async function GET(request: NextRequest) {
       orderBy: { startTime: 'asc' },
     })
 
+    // Determine default base slots depending on shift/role
+    let baseSlots = shift === 'Evening'
+      ? ['11:00', '12:00', '13:00', '14:00', '15:00']
+      : ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00']
+
+    if (session.user.role === 'FACULTY' || session.user.role === 'STUDENT') {
+      baseSlots = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00']
+    }
+
+    // Dynamically expand time slots with any scheduled starts/ends to prevent cut-off slots
+    const timeSlots = [...baseSlots]
+    for (const slot of slots) {
+      if (slot.startTime && !timeSlots.includes(slot.startTime)) {
+        timeSlots.push(slot.startTime)
+      }
+    }
+
+    // Sort timeSlots chronologically
+    timeSlots.sort((a, b) => {
+      const [ah, am] = a.split(':').map(Number)
+      const [bh, bm] = b.split(':').map(Number)
+      if (ah !== bh) return ah - bh
+      return am - bm
+    })
+
     // Build the grid
     const grid: Record<string, Record<string, Array<{
       id: string
@@ -119,13 +195,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const toMin = (t: string) => {
+      const [h, m] = t.split(':').map(Number)
+      return h * 60 + (m || 0)
+    }
+
     for (const slot of slots) {
       const day = slot.day
       if (!grid[day]) continue
 
-      const slotStartHour = getSlotStartHour(slot.startTime)
-      const slotEndHour = getSlotStartHour(slot.endTime)
-      const span = slotEndHour - slotStartHour
+      // Calculate span based on exact minute difference
+      const durationMinutes = toMin(slot.endTime) - toMin(slot.startTime)
+      const span = Math.max(1, Math.ceil(durationMinutes / 60))
 
       // Place the slot at the starting time slot
       const timeKey = slot.startTime
