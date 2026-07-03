@@ -1,49 +1,102 @@
 import { NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import path from 'path'
+import { db } from '@/lib/db'
+import { requireAdmin, requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 
-const filePath = path.join(process.cwd(), 'data', 'class-rooms.json')
+const jsonFilePath = path.join(process.cwd(), 'data', 'class-rooms.json')
 
-async function getMappings() {
+// One-time migration: import legacy JSON mappings into the DB.
+// The JSON file is read-only on serverless hosts (e.g. Vercel), so the DB
+// is the only durable store. Reading the legacy file once is still safe.
+let migrated = false
+async function migrateFromJson() {
+  if (migrated) return
+  migrated = true
   try {
-    await fs.mkdir(path.dirname(filePath), { recursive: true })
+    const count = await db.classRoomAssignment.count()
+    if (count > 0) return
+    let raw: string
     try {
-      const data = await fs.readFile(filePath, 'utf-8')
-      return JSON.parse(data)
+      raw = await fs.readFile(jsonFilePath, 'utf-8')
     } catch {
-      await fs.writeFile(filePath, JSON.stringify({}), 'utf-8')
-      return {}
+      return
     }
-  } catch (e) {
-    return {}
+    const parsed = JSON.parse(raw) as Record<
+      string,
+      { roomId?: string | null; roomName?: string | null; floor?: number | null }
+    >
+    for (const [key, val] of Object.entries(parsed)) {
+      const dashIdx = key.indexOf('-')
+      if (dashIdx === -1) continue
+      const semester = Number(key.slice(0, dashIdx))
+      const section = key.slice(dashIdx + 1)
+      if (!semester || !section || Number.isNaN(semester)) continue
+      await db.classRoomAssignment.upsert({
+        where: { semester_section: { semester, section } },
+        update: {},
+        create: {
+          semester,
+          section,
+          roomId: val.roomId ?? null,
+          roomName: val.roomName ?? null,
+          floor: val.floor ?? null,
+        },
+      })
+    }
+  } catch {
+    // ignore — migration is best-effort
   }
 }
 
 export async function GET() {
-  const mappings = await getMappings()
-  return NextResponse.json({ success: true, data: mappings })
+  try {
+    await requireFacultyOrAdmin()
+    await migrateFromJson()
+    const assignments = await db.classRoomAssignment.findMany()
+    const data: Record<string, { roomId: string | null; roomName: string | null; floor: number | null }> = {}
+    for (const a of assignments) {
+      data[`${a.semester}-${a.section}`] = {
+        roomId: a.roomId,
+        roomName: a.roomName,
+        floor: a.floor,
+      }
+    }
+    return NextResponse.json({ success: true, data })
+  } catch (error) {
+    return handleApiError(error, 'Failed to fetch class rooms')
+  }
 }
 
 export async function POST(req: Request) {
   try {
-    const { semester, section, roomId, roomName, floor } = await req.json()
+    await requireAdmin()
+    const { semester, section, room, roomId, floor } = await req.json()
     if (!semester || !section) {
       return NextResponse.json({ success: false, error: 'Missing semester or section' }, { status: 400 })
     }
 
-    const mappings = await getMappings()
-    const key = `${semester}-${section}`
-    
-    mappings[key] = {
-      roomId,
-      roomName,
-      floor: floor !== undefined && floor !== null ? Number(floor) : null
-    }
+    const assignment = await db.classRoomAssignment.upsert({
+      where: { semester_section: { semester: Number(semester), section } },
+      update: {
+        roomId: roomId || null,
+        roomName: room || null,
+        floor: floor !== undefined && floor !== null ? Number(floor) : null,
+      },
+      create: {
+        semester: Number(semester),
+        section,
+        roomId: roomId || null,
+        roomName: room || null,
+        floor: floor !== undefined && floor !== null ? Number(floor) : null,
+      },
+    })
 
-    await fs.writeFile(filePath, JSON.stringify(mappings, null, 2), 'utf-8')
-    return NextResponse.json({ success: true, data: mappings[key] })
+    return NextResponse.json({
+      success: true,
+      data: { roomName: assignment.roomName, floor: assignment.floor },
+    })
   } catch (error) {
-    console.error('POST /api/students/class-rooms error:', error)
-    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 })
+    return handleApiError(error, 'Failed to assign class room')
   }
 }

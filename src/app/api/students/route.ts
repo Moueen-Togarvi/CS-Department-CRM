@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || undefined
     const section = searchParams.get('section') || undefined
     const sessionParam = searchParams.get('session') || undefined
+    const shift = searchParams.get('shift') || undefined
 
     // Find allowed semesters for faculty
     let allowedSemesters: number[] | null = null
@@ -92,6 +93,10 @@ export async function GET(request: NextRequest) {
 
     if (sessionParam && sessionParam !== 'all') {
       where.session = sessionParam
+    }
+
+    if (shift && shift !== 'all') {
+      where.shift = shift
     }
 
     const orderBy: Prisma.StudentOrderByWithRelationInput = {}

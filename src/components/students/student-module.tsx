@@ -171,6 +171,7 @@ export interface StudentDetail {
   fatherPhone: string | null
   session: string | null
   section: string | null
+  shift: string | null
   createdAt: string
   updatedAt: string
   user: {
@@ -256,6 +257,8 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
+const SESSION_OPTIONS = ['2023-2027', '2024-2028', '2025-2029', '2026-2030', '2027-2031']
+
 // ==================== Main Component ====================
 
 export function StudentModule() {
@@ -265,7 +268,7 @@ export function StudentModule() {
 
   // Filters
   const [search, setSearch] = useState('')
-  const [batchFilter, setBatchFilter] = useState('all')
+  const [shiftFilter, setShiftFilter] = useState('all')
   const [semesterFilter, setSemesterFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sectionFilter, setSectionFilter] = useState('all')
@@ -290,7 +293,7 @@ export function StudentModule() {
     params.set('page', String(page))
     params.set('limit', String(pageSize))
     if (search) params.set('search', search)
-    if (batchFilter !== 'all') params.set('batch', batchFilter)
+    if (shiftFilter !== 'all') params.set('shift', shiftFilter)
     if (semesterFilter !== 'all') params.set('semester', semesterFilter)
     if (statusFilter !== 'all') params.set('status', statusFilter)
     if (sectionFilter !== 'all') params.set('section', sectionFilter)
@@ -299,7 +302,7 @@ export function StudentModule() {
       params.set('order', sorting[0].desc ? 'desc' : 'asc')
     }
     return params.toString()
-  }, [page, pageSize, search, batchFilter, semesterFilter, statusFilter, sectionFilter, sorting])
+  }, [page, pageSize, search, shiftFilter, semesterFilter, statusFilter, sectionFilter, sorting])
 
   // Queries
   const { data: studentsData, isLoading } = useQuery<PaginatedResponse<StudentRow>>({
@@ -750,19 +753,14 @@ export function StudentModule() {
               </SelectContent>
             </Select>
 
-            <Select value={batchFilter} onValueChange={(v) => { setBatchFilter(v); setPage(1) }}>
+            <Select value={shiftFilter} onValueChange={(v) => { setShiftFilter(v); setPage(1) }}>
               <SelectTrigger size="sm" className="w-[130px]">
-                <SelectValue placeholder="Batch" />
+                <SelectValue placeholder="Shift" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Batches</SelectItem>
-                {stats?.bySemesterSection ? (
-                  Array.from(new Set(students.map(s => s.batch || '2023'))).sort().map((b) => (
-                    <SelectItem key={b} value={b}>{b}</SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="2023">2023</SelectItem>
-                )}
+                <SelectItem value="all">All Shifts</SelectItem>
+                <SelectItem value="Morning">Morning</SelectItem>
+                <SelectItem value="Evening">Evening</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1073,24 +1071,17 @@ function StudentFormDialog({
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="program" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Program</FormLabel>
-                    <Select value={field.value || 'BS'} onValueChange={field.onChange}>
-                      <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="BS">BS</SelectItem>
-                        <SelectItem value="MS">MS</SelectItem>
-                        <SelectItem value="PhD">PhD</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
                 <FormField control={form.control} name="session" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Session</FormLabel>
-                    <FormControl><Input placeholder="e.g. 2022-2026" {...field} /></FormControl>
+                    <FormLabel>Session *</FormLabel>
+                    <Select value={field.value || ''} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select session" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {SESSION_OPTIONS.map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -1105,15 +1096,6 @@ function StudentFormDialog({
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="enrollmentYear" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Enrollment Year</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="2025" {...field} />
-                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -1437,24 +1419,17 @@ function StudentFormSheet({
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <FormField control={form.control} name="program" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Program</FormLabel>
-                      <Select value={field.value || 'BS'} onValueChange={field.onChange}>
-                        <FormControl><SelectTrigger className="w-full"><SelectValue /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          <SelectItem value="BS">BS</SelectItem>
-                          <SelectItem value="MS">MS</SelectItem>
-                          <SelectItem value="PhD">PhD</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
                   <FormField control={form.control} name="session" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Session</FormLabel>
-                      <FormControl><Input placeholder="e.g. 2022-2026" {...field} /></FormControl>
+                      <FormLabel>Session *</FormLabel>
+                      <Select value={field.value || ''} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select session" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {SESSION_OPTIONS.map((s) => (
+                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -1469,13 +1444,6 @@ function StudentFormSheet({
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="enrollmentYear" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Enrollment Year</FormLabel>
-                      <FormControl><Input type="number" placeholder="2025" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -1708,20 +1676,18 @@ function ProfileTab({ student }: { student: StudentDetail }) {
   return (
     <div className="space-y-6">
       {/* Quick Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="text-center p-4 rounded-xl border border-border/50 bg-card shadow-sm">
-          <p className="text-xs font-medium text-muted-foreground">GPA</p>
-          <p className={`text-xl font-bold tracking-tight mt-1 ${student.gpa && student.gpa >= 3.0 ? 'text-emerald-600 dark:text-emerald-400' : student.gpa && student.gpa >= 2.0 ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'}`}>
-            {student.gpa?.toFixed(2) || 'N/A'}
-          </p>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="text-center p-3 rounded-lg border bg-card">
+          <p className="text-xs font-medium text-muted-foreground">Courses</p>
+          <p className="text-lg font-bold tracking-tight mt-1 text-foreground">{student.enrollments.length}</p>
         </div>
-        <div className="text-center p-4 rounded-xl border border-border/50 bg-card shadow-sm">
+        <div className="text-center p-3 rounded-lg border bg-card">
           <p className="text-xs font-medium text-muted-foreground">Semester</p>
-          <p className="text-xl font-bold tracking-tight text-foreground mt-1">{student.currentSemester}</p>
+          <p className="text-lg font-bold tracking-tight text-foreground mt-1">{student.currentSemester}</p>
         </div>
-        <div className="text-center p-4 rounded-xl border border-border/50 bg-card shadow-sm">
+        <div className="text-center p-3 rounded-lg border bg-card">
           <p className="text-xs font-medium text-muted-foreground">Credits</p>
-          <p className="text-xl font-bold tracking-tight text-foreground mt-1">{student.totalCredits}</p>
+          <p className="text-lg font-bold tracking-tight text-foreground mt-1">{student.totalCredits}</p>
         </div>
       </div>
 
@@ -1737,7 +1703,6 @@ function ProfileTab({ student }: { student: StudentDetail }) {
         <Section title="Academic Details">
           <InfoRow icon={<GraduationCap className="size-4" />} label="Program" value={`${student.program} ${student.department.name}`} />
           <InfoRow icon={<Calendar className="size-4" />} label="Session" value={student.session || 'N/A'} />
-          <InfoRow icon={<Calendar className="size-4" />} label="Batch" value={student.batch?.replace('Batch-', '') || 'N/A'} />
           <InfoRow icon={<Shield className="size-4" />} label="Student ID" value={student.studentId} />
           <InfoRow icon={<Calendar className="size-4" />} label="Shift" value={student.shift ? student.shift.charAt(0).toUpperCase() + student.shift.slice(1).toLowerCase() : 'Not assigned'} />
           <InfoRow icon={<Calendar className="size-4" />} label="Enrollment Year" value={String(student.enrollmentYear)} />

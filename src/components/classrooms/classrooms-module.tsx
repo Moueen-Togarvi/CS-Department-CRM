@@ -141,6 +141,7 @@ export function ClassroomsModule() {
         body: JSON.stringify({
           semester: assignRoomClass.semester,
           section: assignRoomClass.section,
+          roomId: selectedRoomId !== 'custom' ? selectedRoomId : null,
           room: customRoomName.trim() || null,
           floor: customFloor ? parseInt(customFloor) : null,
         }),

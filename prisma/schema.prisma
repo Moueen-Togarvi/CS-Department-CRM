@@ -192,6 +192,22 @@ model Room {
   updatedAt   DateTime @updatedAt
 
   timetables Timetable[]
+  classRoomAssignments ClassRoomAssignment[] @relation("ClassRoomAssignmentRoom")
+}
+
+model ClassRoomAssignment {
+  id        String   @id @default(cuid())
+  semester  Int
+  section   String
+  roomId    String?
+  roomName  String?
+  floor     Int?
+  room      Room?    @relation("ClassRoomAssignmentRoom", fields: [roomId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([semester, section])
+  @@index([roomId])
 }
 
 model Student {

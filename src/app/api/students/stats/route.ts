@@ -1,8 +1,6 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
-import { promises as fs } from 'fs'
-import path from 'path'
 import { requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 
 export const dynamic = 'force-dynamic'
@@ -85,13 +83,20 @@ export async function GET(request: NextRequest) {
       bySemester[String(item.currentSemester)] = item._count
     }
 
-    const filePath = path.join(process.cwd(), 'data', 'class-rooms.json')
-    let fileMappings: Record<string, { roomId?: string; roomName?: string; floor?: number | null }> = {}
+    let assignments: { semester: number; section: string; roomId: string | null; roomName: string | null; floor: number | null }[] = []
     try {
-      const fileData = await fs.readFile(filePath, 'utf-8')
-      fileMappings = JSON.parse(fileData)
-    } catch (e) {
-      // Ignore if file doesn't exist
+      assignments = await db.classRoomAssignment.findMany()
+    } catch {
+      // Table may not exist yet before `prisma db push` is run — degrade gracefully.
+      assignments = []
+    }
+    let fileMappings: Record<string, { roomId?: string | null; roomName?: string | null; floor?: number | null }> = {}
+    for (const a of assignments) {
+      fileMappings[`${a.semester}-${a.section}`] = {
+        roomId: a.roomId ?? undefined,
+        roomName: a.roomName ?? undefined,
+        floor: a.floor ?? undefined,
+      }
     }
 
     const bySemesterSection = await Promise.all(
