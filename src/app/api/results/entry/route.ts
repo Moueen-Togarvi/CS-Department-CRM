@@ -20,8 +20,14 @@ export async function GET(request: NextRequest) {
       await assertFacultyOwnsCourse(session.user.id, courseId, semesterId)
     }
 
-    const enrollments = await db.enrollment.findMany({
-      where: { courseId, semesterId, status: 'ENROLLED' },
+    const course = await db.course.findUnique({ where: { id: courseId } })
+    if (!course) {
+      return errorResponse('Course not found', 404)
+    }
+
+    // Query enrollments for this course + semester (any status)
+    let enrollments = await db.enrollment.findMany({
+      where: { courseId, semesterId },
       include: {
         student: {
           include: { user: { select: { name: true } } },
@@ -30,6 +36,60 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { student: { studentId: 'asc' } },
     })
+
+    // Fallback: if no enrollments exist for this semester,
+    // try any enrollment for this course (regardless of semester)
+    if (enrollments.length === 0) {
+      enrollments = await db.enrollment.findMany({
+        where: { courseId },
+        include: {
+          student: {
+            include: { user: { select: { name: true } } },
+          },
+          result: true,
+        },
+        orderBy: { student: { studentId: 'asc' } },
+      })
+    }
+
+    // Fallback: if STILL no enrollments, auto-create them for all
+    // active students matching the course's semesterOffered
+    if (enrollments.length === 0) {
+      const students = await db.student.findMany({
+        where: {
+          user: { isActive: true },
+          status: 'ACTIVE',
+          ...(course.semesterOffered
+            ? { currentSemester: course.semesterOffered }
+            : {}),
+        },
+        orderBy: { studentId: 'asc' },
+      })
+
+      if (students.length > 0) {
+        await db.enrollment.createMany({
+          data: students.map((s) => ({
+            studentId: s.id,
+            courseId,
+            semesterId,
+            section: s.section || 'A',
+            status: 'ENROLLED',
+            enrollmentDate: new Date(),
+          })),
+        })
+
+        enrollments = await db.enrollment.findMany({
+          where: { courseId, semesterId },
+          include: {
+            student: {
+              include: { user: { select: { name: true } } },
+            },
+            result: true,
+          },
+          orderBy: { student: { studentId: 'asc' } },
+        })
+      }
+    }
 
     // Check if results are published for this course+semester
     const anyLocked = await db.result.findFirst({

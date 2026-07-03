@@ -287,8 +287,11 @@ function CourseResultsTab() {
   const filteredCourses = useMemo(() => {
     if (!courses) return []
     const targetSem = parseInt(selectedAcademicSemester, 10)
+    // For faculty: show all their courses regardless of semester filter
+    // (they only see courses assigned to them)
+    if (isFaculty) return courses
     return courses.filter((c) => c.semesterOffered === targetSem)
-  }, [courses, selectedAcademicSemester])
+  }, [courses, selectedAcademicSemester, isFaculty])
 
   // Reset course selection if it is no longer in the filtered list
   useEffect(() => {
@@ -444,6 +447,7 @@ function CourseResultsTab() {
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-3">
+        {!isFaculty && (
         <div className="flex-1 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Semester</label>
               <Select value={selectedAcademicSemester} onValueChange={setSelectedAcademicSemester}>
@@ -459,7 +463,8 @@ function CourseResultsTab() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex-1 space-y-1.5">
+        )}
+            <div className={isFaculty ? "flex-1 space-y-1.5" : "flex-1 space-y-1.5"}>
               <label className="text-xs font-medium text-muted-foreground">Course</label>
               <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                 <SelectTrigger className="w-full">

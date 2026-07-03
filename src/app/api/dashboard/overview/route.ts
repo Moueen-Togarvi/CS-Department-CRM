@@ -80,14 +80,18 @@ export async function GET(request: NextRequest) {
       }
 
 
-      const [offerings, todayClasses, pendingResults, recentAnnouncements] = await Promise.all([
+      const [offerings, instructorCourses, todayClasses, pendingResults, recentAnnouncements] = await Promise.all([
         db.courseOffering.findMany({
           where: { facultyId: faculty.id },
           take: 10,
           include: {
-            course: { select: { id: true, code: true, name: true } },
+            course: { select: { id: true, code: true, name: true, semesterOffered: true } },
             semester: { select: { id: true, name: true } },
           },
+        }),
+        db.course.findMany({
+          where: { instructorId: faculty.id, isActive: true },
+          select: { id: true, code: true, name: true, semesterOffered: true },
         }),
         db.timetable.findMany({
           where: { facultyId: faculty.id, day: today as any },
@@ -124,16 +128,32 @@ export async function GET(request: NextRequest) {
         }),
       ])
 
+      // Merge CourseOffering results with instructor-assigned courses (dedup by courseId)
+      const seenCourseIds = new Set(offerings.map((o) => o.course.id))
+      const mergedCourses = offerings.map((o) => ({
+        id: o.id,
+        courseCode: o.course.code,
+        courseName: o.course.name,
+        semester: o.semester.name,
+        section: o.section,
+      }))
+      for (const c of instructorCourses) {
+        if (!seenCourseIds.has(c.id)) {
+          seenCourseIds.add(c.id)
+          mergedCourses.push({
+            id: `instructor-${c.id}`,
+            courseCode: c.code,
+            courseName: c.name,
+            semester: c.semesterOffered ? `Semester ${c.semesterOffered}` : '',
+            section: 'A',
+          })
+        }
+      }
+
       return successResponse({
         role: 'FACULTY',
-        courseCount: offerings.length,
-        courses: offerings.map((o) => ({
-          id: o.id,
-          courseCode: o.course.code,
-          courseName: o.course.name,
-          semester: o.semester.name,
-          section: o.section,
-        })),
+        courseCount: mergedCourses.length,
+        courses: mergedCourses,
         todayClasses: todayClasses.map((t) => ({
           id: t.id,
           startTime: t.startTime,

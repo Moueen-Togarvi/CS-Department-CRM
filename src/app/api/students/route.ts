@@ -5,7 +5,7 @@ import { paginatedResponse, errorResponse, successResponse } from '@/lib/api-res
 import { createStudentSchema } from '@/lib/validators/student'
 import { Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import { requireFacultyOrAdmin, requireAdmin, handleApiError } from '@/lib/auth-utils'
+import { requireFacultyOrAdmin, requireAdmin, handleApiError, getFacultySectionScope, scopeToWhere } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,28 +22,8 @@ export async function GET(request: NextRequest) {
     const sessionParam = searchParams.get('session') || undefined
     const shift = searchParams.get('shift') || undefined
 
-    // Find allowed semesters for faculty
-    let allowedSemesters: number[] | null = null
-    if (session.user.role === 'FACULTY') {
-      const faculty = await db.faculty.findUnique({
-        where: { userId: session.user.id }
-      })
-      if (faculty) {
-        const offerings = await db.courseOffering.findMany({
-          where: { facultyId: faculty.id, isActive: true },
-          include: {
-            course: {
-              select: { semesterOffered: true }
-            }
-          }
-        })
-        allowedSemesters = offerings
-          .map(o => o.course.semesterOffered)
-          .filter((sem): sem is number => sem !== null)
-      } else {
-        allowedSemesters = []
-      }
-    }
+    // Faculty section scope (semester + section level)
+    const facultyScope = await getFacultySectionScope(session)
 
     const where: Prisma.StudentWhereInput = {
       status: { not: 'INACTIVE' },
@@ -61,22 +41,14 @@ export async function GET(request: NextRequest) {
       where.batch = batch
     }
 
-    if (allowedSemesters !== null) {
-      if (semester && semester !== 'all') {
-        const reqSem = parseInt(semester)
-        if (!allowedSemesters.includes(reqSem)) {
-          // If trying to access a semester not allowed, force empty or restrict
-          where.currentSemester = -1
-        } else {
-          where.currentSemester = reqSem
-        }
-      } else {
-        where.currentSemester = { in: allowedSemesters }
-      }
-    } else {
-      if (semester && semester !== 'all') {
-        where.currentSemester = parseInt(semester)
-      }
+    // Apply faculty section scope
+    if (facultyScope !== null) {
+      where.AND = [scopeToWhere(facultyScope) as Prisma.StudentWhereInput]
+    }
+
+    // Semester URL param (further restricts within scope)
+    if (semester && semester !== 'all') {
+      where.currentSemester = parseInt(semester)
     }
 
     if (status && status !== 'all') {

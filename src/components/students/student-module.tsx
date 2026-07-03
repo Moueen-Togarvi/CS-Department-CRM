@@ -651,9 +651,11 @@ export function StudentModule() {
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openDetail(student) }}>
                   <Eye className="size-4" /> View Details
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditForm(student) }}>
-                  <Pencil className="size-4" /> Edit
-                </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditForm(student) }}>
+                    <Pencil className="size-4" /> Edit
+                  </DropdownMenuItem>
+                )}
                 {isAdmin && student.status === 'ACTIVE' && (
                   <>
                     <DropdownMenuSeparator />

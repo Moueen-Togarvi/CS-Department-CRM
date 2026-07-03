@@ -317,13 +317,15 @@ export function ClassroomsModule() {
       />
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-        <TabsList className="grid grid-cols-2 max-w-[400px]">
+        <TabsList className={isAdmin ? "grid grid-cols-2 max-w-[400px]" : "grid grid-cols-1 max-w-[400px]"}>
           <TabsTrigger value="classes" className="font-semibold gap-2">
             <School className="size-4" /> Class Sections
           </TabsTrigger>
-          <TabsTrigger value="rooms" className="font-semibold gap-2">
-            <Building2 className="size-4" /> Facility Rooms
-          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="rooms" className="font-semibold gap-2">
+              <Building2 className="size-4" /> Facility Rooms
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="classes" className="mt-6 space-y-6">
@@ -622,9 +624,11 @@ export function ClassroomsModule() {
           )}
         </TabsContent>
 
-        <TabsContent value="rooms" className="mt-6">
-          <RoomsModule />
-        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="rooms" className="mt-6">
+            <RoomsModule />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Assign Room & Floor Dialog */}

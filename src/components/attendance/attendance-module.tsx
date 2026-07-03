@@ -381,19 +381,23 @@ export function AttendanceModule() {
 
   // Derive available academic semester options from courses
   const availableSemesters = useMemo(() => {
-    const sems = new Set<number>()
-    for (const c of courses) {
-      if (c.semesterOffered != null) sems.add(c.semesterOffered)
+    if (isFaculty) {
+      const sems = new Set<number>()
+      for (const c of courses) {
+        if (c.semesterOffered != null) sems.add(c.semesterOffered)
+      }
+      return Array.from(sems).sort((a, b) => a - b).map(String)
     }
-    return Array.from(sems).sort((a, b) => a - b).map(String)
-  }, [courses])
+    // Admin: always show all 8 semesters
+    return ['1', '2', '3', '4', '5', '6', '7', '8']
+  }, [courses, isFaculty])
 
-  // Set default to first available semester when data loads (faculty: no '_all' option)
+  // Set default to first available semester when data loads
   useEffect(() => {
-    if (availableSemesters.length > 0 && selectedAcademicSemester === '_all' && isFaculty) {
+    if (availableSemesters.length > 0 && selectedAcademicSemester === '_all') {
       setSelectedAcademicSemester(availableSemesters[0])
     }
-  }, [availableSemesters, isFaculty])
+  }, [availableSemesters])
 
   // Filter courses by selected academic semester
   const filteredCourses = useMemo(() => {

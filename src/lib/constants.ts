@@ -96,7 +96,7 @@ export const NAV_ITEMS: NavItem[] = [
     id: 'classrooms',
     label: 'Classrooms',
     icon: School,
-    roles: ['ADMIN', 'FACULTY'],
+    roles: ['ADMIN'],
     section: 'ACADEMICS',
     url: '/classrooms',
   },

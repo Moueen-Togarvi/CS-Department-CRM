@@ -90,6 +90,87 @@ export async function assertFacultyOwnsCourse(
   return faculty;
 }
 
+/**
+ * Get the faculty's allowed semester+section scope.
+ * Returns Map<semester, string[] | null> where null = all sections for that semester.
+ * Returns null for non-faculty (no restriction).
+ * Returns empty Map for faculty with no assignments.
+ *
+ * Section values come from CourseOffering.section and Timetable.section.
+ * If faculty is a Course.instructorId but has no CourseOffering/Timetable,
+ * the semester gets null (all sections) as a fallback.
+ */
+export async function getFacultySectionScope(
+  session: Session
+): Promise<Map<number, string[] | null> | null> {
+  if (session.user.role !== "FACULTY") return null;
+
+  const faculty = await getFacultyForUser(session.user.id);
+  if (!faculty) return new Map();
+
+  const [offerings, timetableSlots, instructorCourses] = await Promise.all([
+    db.courseOffering.findMany({
+      where: { facultyId: faculty.id, isActive: true },
+      include: { course: { select: { semesterOffered: true } } },
+    }),
+    db.timetable.findMany({
+      where: { facultyId: faculty.id },
+      include: { course: { select: { semesterOffered: true } } },
+    }),
+    db.course.findMany({
+      where: { instructorId: faculty.id, isActive: true },
+      select: { semesterOffered: true },
+    }),
+  ]);
+
+  const scope = new Map<number, string[] | null>();
+  const sectionMap = new Map<number, Set<string>>();
+
+  for (const o of offerings) {
+    if (o.course.semesterOffered != null) {
+      if (!sectionMap.has(o.course.semesterOffered))
+        sectionMap.set(o.course.semesterOffered, new Set());
+      sectionMap.get(o.course.semesterOffered)!.add(o.section);
+    }
+  }
+  for (const t of timetableSlots) {
+    if (t.course.semesterOffered != null) {
+      if (!sectionMap.has(t.course.semesterOffered))
+        sectionMap.set(t.course.semesterOffered, new Set());
+      sectionMap.get(t.course.semesterOffered)!.add(t.section);
+    }
+  }
+  for (const [sem, secs] of sectionMap) {
+    scope.set(sem, Array.from(secs));
+  }
+
+  for (const c of instructorCourses) {
+    if (c.semesterOffered != null && !scope.has(c.semesterOffered)) {
+      scope.set(c.semesterOffered, null);
+    }
+  }
+
+  return scope;
+}
+
+/**
+ * Convert a faculty section scope into a Prisma where-input fragment.
+ * Returns empty object for no restriction (admin).
+ */
+export function scopeToWhere(
+  scope: Map<number, string[] | null> | null
+): Record<string, unknown> {
+  if (scope === null) return {};
+  if (scope.size === 0) return { currentSemester: -1 };
+  return {
+    OR: Array.from(scope.entries()).map(([sem, secs]) =>
+      secs === null
+        ? { currentSemester: sem }
+        : { currentSemester: sem, section: { in: secs } }
+    ),
+  };
+}
+
 /** Ensure a student is only accessing their own data; returns their student.id. */
 export async function getSelfStudentId(userId: string): Promise<string> {
   const student = await getStudentForUser(userId);

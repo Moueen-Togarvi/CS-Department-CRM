@@ -20,6 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 import { ROOM_TYPES, type CreateRoomInput, type UpdateRoomInput } from '@/lib/validators/room'
+import { useAuthStore } from '@/stores/auth-store'
 
 interface Room {
   id: string
@@ -72,6 +73,8 @@ const TYPE_STYLE: Record<string, { bg: string; text: string; label: string }> = 
 
 export function RoomsModule() {
   const queryClient = useQueryClient()
+  const user = useAuthStore(s => s.user)
+  const isAdmin = user?.role === 'ADMIN'
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('ALL')
   const [filterBuilding, setFilterBuilding] = useState('ALL')
@@ -127,7 +130,7 @@ export function RoomsModule() {
   return (
     <div className="space-y-5">
       <PageHeader title="Room Management" description="Manage classrooms, labs, and facilities."
-        actions={<Button onClick={openCreate} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"><Plus className="size-4" /> Add Room</Button>}
+        actions={isAdmin ? <Button onClick={openCreate} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"><Plus className="size-4" /> Add Room</Button> : undefined}
       />
 
       {/* Filters */}
@@ -170,11 +173,12 @@ export function RoomsModule() {
             return (
               <Card
                 key={room.id}
-                className="border-slate-200 shadow-sm hover:shadow-md transition-shadow rounded-xl cursor-pointer group"
-                onClick={() => openEdit(room)}
+                className="border-slate-200 shadow-sm hover:shadow-md transition-shadow rounded-xl group"
+                onClick={() => isAdmin && openEdit(room)}
               >
                   <div className="p-3 flex flex-col justify-between h-[84px] relative">
                     {/* Absolute 3-dot menu at top right */}
+                    {isAdmin && (
                     <div className="absolute top-2 right-2 z-10">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -188,6 +192,7 @@ export function RoomsModule() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
+                    )}
 
                     {/* Top row: name and icon with spacing */}
                     <div className="flex items-center gap-3 min-w-0 pr-6">

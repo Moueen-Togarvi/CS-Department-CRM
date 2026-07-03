@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
-import { requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
+import { requireFacultyOrAdmin, handleApiError, getFacultySectionScope, scopeToWhere } from '@/lib/auth-utils'
+import { Prisma } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,63 +10,45 @@ export async function GET(request: NextRequest) {
   try {
     const session = await requireFacultyOrAdmin()
 
-    let allowedSemesters: number[] | null = null
-    if (session.user.role === 'FACULTY') {
-      const faculty = await db.faculty.findUnique({
-        where: { userId: session.user.id }
-      })
-      if (faculty) {
-        const offerings = await db.courseOffering.findMany({
-          where: { facultyId: faculty.id, isActive: true },
-          include: {
-            course: {
-              select: { semesterOffered: true }
-            }
-          }
-        })
-        allowedSemesters = offerings
-          .map(o => o.course.semesterOffered)
-          .filter((sem): sem is number => sem !== null)
-      } else {
-        allowedSemesters = []
-      }
-    }
+    // Faculty section scope (semester + section level)
+    const facultyScope = await getFacultySectionScope(session)
+    const scopeWhere = scopeToWhere(facultyScope) as Prisma.StudentWhereInput
 
     const [total, active, byBatchRaw, bySemesterRaw, bySemesterSectionRaw] = await Promise.all([
       db.student.count({
-        where: { 
+        where: {
           status: { not: 'INACTIVE' },
-          ...(allowedSemesters !== null ? { currentSemester: { in: allowedSemesters } } : {})
+          ...scopeWhere,
         },
       }),
       db.student.count({
-        where: { 
+        where: {
           status: 'ACTIVE',
-          ...(allowedSemesters !== null ? { currentSemester: { in: allowedSemesters } } : {})
+          ...scopeWhere,
         },
       }),
       db.student.groupBy({
         by: ['batch'],
-        where: { 
-          status: { not: 'INACTIVE' }, 
+        where: {
+          status: { not: 'INACTIVE' },
           batch: { not: null },
-          ...(allowedSemesters !== null ? { currentSemester: { in: allowedSemesters } } : {})
+          ...scopeWhere,
         },
         _count: true,
       }),
       db.student.groupBy({
         by: ['currentSemester'],
-        where: { 
+        where: {
           status: { not: 'INACTIVE' },
-          ...(allowedSemesters !== null ? { currentSemester: { in: allowedSemesters } } : {})
+          ...scopeWhere,
         },
         _count: true,
       }),
       db.student.groupBy({
         by: ['currentSemester', 'section'],
-        where: { 
+        where: {
           status: { not: 'INACTIVE' },
-          ...(allowedSemesters !== null ? { currentSemester: { in: allowedSemesters } } : {})
+          ...scopeWhere,
         },
         _count: true,
       }),

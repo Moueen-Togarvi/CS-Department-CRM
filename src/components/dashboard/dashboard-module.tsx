@@ -34,8 +34,6 @@ import {
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -301,29 +299,29 @@ function FacultyDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>My Courses</CardTitle>
-            <CardDescription>Currently assigned</CardDescription>
+            <CardTitle>Announcements</CardTitle>
+            <CardDescription>Latest updates</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-6">
+          <CardContent className="grid gap-4">
             {isLoading ? (
-              <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}</div>
-            ) : data?.courses?.length > 0 ? (
-              data.courses.map((c: any) => (
-                <div key={c.id} className="flex items-center gap-4">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-muted">
-                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+              <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}</div>
+            ) : data?.recentAnnouncements?.length > 0 ? (
+              data.recentAnnouncements.map((a: any) => (
+                <div key={a.id} className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-900/20">
+                    <Megaphone className="h-4 w-4 text-rose-500" />
                   </div>
-                  <div className="grid gap-1">
-                    <p className="text-sm font-medium leading-none">{c.courseName}</p>
-                    <p className="text-sm text-muted-foreground">{c.courseCode}</p>
-                  </div>
-                  <div className="ml-auto font-medium text-xs whitespace-nowrap">
-                    Sec {c.section}
+                  <div className="grid gap-0.5 min-w-0">
+                    <p className="text-sm font-medium leading-tight truncate">{a.title}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{a.content}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                      {a.publishedAt ? new Date(a.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                    </p>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">No courses assigned</div>
+              <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">No announcements</div>
             )}
           </CardContent>
         </Card>

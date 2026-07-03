@@ -9,16 +9,23 @@ export async function GET(request: NextRequest) {
       where: { isCurrent: true },
     })
 
-    if (!currentSemester) {
-      return successResponse([])
-    }
-
-    // Get all attendance records for the current semester
-    const attendanceRecords = await db.attendance.findMany({
-      where: { semesterId: currentSemester.id },
+    // Get attendance records — prefer current semester, fall back to all
+    const attendanceWhere = currentSemester
+      ? { semesterId: currentSemester.id }
+      : {}
+    let attendanceRecords = await db.attendance.findMany({
+      where: attendanceWhere,
       select: { date: true, status: true },
       orderBy: { date: 'asc' },
     })
+
+    // If current semester yielded nothing, try ALL records
+    if (attendanceRecords.length === 0) {
+      attendanceRecords = await db.attendance.findMany({
+        select: { date: true, status: true },
+        orderBy: { date: 'asc' },
+      })
+    }
 
     if (attendanceRecords.length === 0) {
       return successResponse([])

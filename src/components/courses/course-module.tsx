@@ -325,6 +325,7 @@ function useSemesters() {
 export function CourseModule() {
   const user = useAuthStore((s) => s.user)
   const isStudent = user?.role === 'STUDENT'
+  const isFaculty = user?.role === 'FACULTY'
   const studentSemester = user?.semester ? String(user.semester) : ''
   const queryClient = useQueryClient()
 
@@ -383,6 +384,37 @@ export function CourseModule() {
     },
     staleTime: 60 * 1000,
   })
+
+  // Faculty: fetch all their courses to derive available semesters
+  const { data: facultyAllCourses } = useQuery<{
+    data: CourseListItem[]
+  }>({
+    queryKey: ['faculty-all-courses'],
+    queryFn: async () => {
+      const res = await fetch('/api/courses?limit=100')
+      if (!res.ok) throw new Error('Failed to fetch courses')
+      return res.json()
+    },
+    enabled: isFaculty,
+    staleTime: 60 * 1000,
+  })
+
+  // Derive available semesters for faculty from their assigned courses
+  const availableSemesters = useMemo(() => {
+    if (!isFaculty) return [1, 2, 3, 4, 5, 6, 7, 8]
+    const sems = new Set<number>()
+    for (const c of (facultyAllCourses?.data || [])) {
+      if (c.semesterOffered != null) sems.add(c.semesterOffered)
+    }
+    return Array.from(sems).sort((a, b) => a - b)
+  }, [isFaculty, facultyAllCourses])
+
+  // Auto-select first available semester for faculty
+  useEffect(() => {
+    if (isFaculty && availableSemesters.length > 0 && semesterFilter === '_all') {
+      setSemesterFilter(String(availableSemesters[0]))
+    }
+  }, [isFaculty, availableSemesters, semesterFilter])
 
   const { data: detailData, isLoading: detailLoading } = useQuery<ApiOk<CourseDetail>>({
     queryKey: ['course-detail', detailCourseId],
@@ -589,7 +621,6 @@ export function CourseModule() {
   })
 
   const isAdmin = user?.role === 'ADMIN'
-  const isFaculty = user?.role === 'FACULTY'
   const canAddCourses = isAdmin || isFaculty
 
   return (
@@ -700,6 +731,12 @@ export function CourseModule() {
                 <SelectItem value={String(user.semester)}>
                   Semester {user.semester}
                 </SelectItem>
+              ) : isFaculty ? (
+                availableSemesters.map((num) => (
+                  <SelectItem key={num} value={String(num)}>
+                    Semester {num}
+                  </SelectItem>
+                ))
               ) : (
                 <>
                   <SelectItem value="_all">All Semesters</SelectItem>
