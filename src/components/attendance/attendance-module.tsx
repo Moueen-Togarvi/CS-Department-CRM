@@ -349,21 +349,21 @@ export function AttendanceModule() {
 
   const isFaculty = user?.role === 'FACULTY'
 
-  // Faculty: only the courses assigned to them this semester
+  // Faculty: courses from offerings (includes instructor-assigned fallback)
   const { data: facultyOfferings } = useQuery({
     queryKey: ['faculty-offerings', currentSemesterId],
     queryFn: () =>
-      fetch(`/api/faculty/me/offerings?semesterId=${currentSemesterId}`)
+      fetch(`/api/faculty/me/offerings${currentSemesterId ? `?semesterId=${currentSemesterId}` : ''}`)
         .then((r) => r.json())
         .then((d: any) => d.data?.offerings || []),
-    enabled: isFaculty && !!currentSemesterId,
+    enabled: isFaculty,
   })
 
   // Admin: all courses
   const { data: allCourses } = useQuery({
-    queryKey: ['courses-attendance', currentSemesterId],
+    queryKey: ['courses-attendance'],
     queryFn: () => fetch('/api/courses?limit=100').then((r) => r.json()).then((d: any) => (d.data || d || []) as Course[]),
-    enabled: !isFaculty && !!currentSemesterId,
+    enabled: !isFaculty,
   })
 
   const courses = useMemo(() => {
@@ -382,10 +382,10 @@ export function AttendanceModule() {
   // Filter courses by selected academic semester
   const filteredCourses = useMemo(() => {
     if (!courses) return []
-    if (isFaculty || selectedAcademicSemester === '_all') return courses
+    if (selectedAcademicSemester === '_all') return courses
     const targetSem = parseInt(selectedAcademicSemester, 10)
     return courses.filter((c) => c.semesterOffered === targetSem)
-  }, [courses, selectedAcademicSemester, isFaculty])
+  }, [courses, selectedAcademicSemester])
 
   // Reset course selection if it is no longer in the filtered list
   useEffect(() => {
@@ -453,7 +453,6 @@ export function AttendanceModule() {
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-3">
-            {!isFaculty && (
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-medium text-muted-foreground">Academic Semester</Label>
               <Select value={selectedAcademicSemester} onValueChange={setSelectedAcademicSemester}>
@@ -470,7 +469,6 @@ export function AttendanceModule() {
                 </SelectContent>
               </Select>
             </div>
-            )}
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-medium text-muted-foreground">Course</Label>
               <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
