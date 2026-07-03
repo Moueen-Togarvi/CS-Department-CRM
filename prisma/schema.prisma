@@ -278,6 +278,7 @@ model Faculty {
   coSupervisedProjects Project[] @relation("CoSupervisor")
   fypEvaluations  FYPEvaluation[]
   offerings       CourseOffering[]
+  documents       Document[]
 
   @@index([departmentId])
   @@index([facultyId])
@@ -547,6 +548,7 @@ model Document {
   courseId     String?
   semesterId   String?
   semesterNumber Int?
+  facultyId    String?
   uploadedBy   String
   fileUrl      String
   fileType     String?
@@ -558,11 +560,13 @@ model Document {
 
   course          Course?  @relation(fields: [courseId], references: [id])
   semester        Semester? @relation(fields: [semesterId], references: [id])
+  faculty         Faculty? @relation(fields: [facultyId], references: [id])
   uploadedByUser  User     @relation("DocumentUploader", fields: [uploadedBy], references: [id])
 
   @@index([courseId])
   @@index([category])
   @@index([uploadedBy])
+  @@index([facultyId])
 }
 
 model Upload {

@@ -5,6 +5,24 @@ import { NextRequest } from 'next/server'
 import { DocumentCategory } from '@prisma/client'
 import { requireAuth, requireRole, handleApiError } from '@/lib/auth-utils'
 
+const DOC_INCLUDE = {
+  uploadedByUser: { select: { id: true, name: true } },
+  course: { select: { id: true, code: true, name: true, semesterOffered: true } },
+  faculty: { select: { id: true, designation: true, user: { select: { id: true, name: true } } } },
+}
+
+function mapDoc(d: any) {
+  return {
+    ...d,
+    uploadedByName: d.uploadedByUser.name,
+    courseName: d.course?.name || null,
+    courseCode: d.course?.code || null,
+    courseSemester: d.course?.semesterOffered || null,
+    facultyName: d.faculty?.user?.name || null,
+    facultyDesignation: d.faculty?.designation || null,
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     await requireAuth()
@@ -34,22 +52,12 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
         skip,
         take,
-        include: {
-          uploadedByUser: { select: { id: true, name: true } },
-          course: { select: { id: true, code: true, name: true } },
-        },
+        include: DOC_INCLUDE,
       }),
       db.document.count({ where }),
     ])
 
-    const data = documents.map((d) => ({
-      ...d,
-      uploadedByName: d.uploadedByUser.name,
-      courseName: d.course?.name || null,
-      courseCode: d.course?.code || null,
-    }))
-
-    return paginatedResponse(data, total, pagination.page!, pagination.limit!)
+    return paginatedResponse(documents.map(mapDoc), total, pagination.page!, pagination.limit!)
   } catch (error) {
     return handleApiError(error, 'Error loading documents')
   }
@@ -65,6 +73,7 @@ export async function POST(request: NextRequest) {
       category = 'OTHER',
       courseId,
       semesterNumber,
+      facultyId,
       fileUrl,
       fileType,
       fileSize,
@@ -83,27 +92,16 @@ export async function POST(request: NextRequest) {
         category,
         courseId,
         semesterNumber: Number(semesterNumber),
+        facultyId: facultyId || null,
         uploadedBy,
         fileUrl,
         fileType: fileType || null,
         fileSize: fileSize ? Number(fileSize) : null,
       },
-      include: {
-        uploadedByUser: { select: { id: true, name: true } },
-        course: { select: { id: true, code: true, name: true } },
-      },
+      include: DOC_INCLUDE,
     })
 
-    return successResponse(
-      {
-        ...document,
-        uploadedByName: document.uploadedByUser.name,
-        courseName: document.course?.name || null,
-        courseCode: document.course?.code || null,
-      },
-      'Document created',
-      201
-    )
+    return successResponse(mapDoc(document), 'Document created', 201)
   } catch (error) {
     return handleApiError(error, 'Error creating document')
   }

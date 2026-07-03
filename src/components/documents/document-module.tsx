@@ -13,6 +13,9 @@ import {
   FolderOpen,
   File,
   X,
+  GraduationCap,
+  BookOpen,
+  Calendar,
 } from 'lucide-react'
 
 import { PageHeader } from '@/components/shared/page-header'
@@ -67,7 +70,6 @@ import { toast } from 'sonner'
 import { Upload, Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 
-// Types
 interface Document {
   id: string
   title: string
@@ -77,6 +79,9 @@ interface Document {
   courseName: string | null
   courseCode: string | null
   semesterNumber: number | null
+  facultyId: string | null
+  facultyName: string | null
+  facultyDesignation: string | null
   fileUrl: string
   fileType: string | null
   fileSize: number | null
@@ -89,6 +94,12 @@ interface Course {
   id: string
   code: string
   name: string
+}
+
+interface Faculty {
+  id: string
+  designation: string
+  user: { id: string; name: string }
 }
 
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
@@ -111,6 +122,15 @@ const CATEGORY_ICONS: Record<string, string> = {
   OTHER: '📎',
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  SYLLABUS: 'Syllabus',
+  NOTES: 'Notes',
+  ASSIGNMENT: 'Assignment',
+  PAPER: 'Past Papers',
+  REFERENCE: 'Reference',
+  OTHER: 'Other',
+}
+
 function formatFileSize(bytes: number | null) {
   if (!bytes) return '—'
   if (bytes < 1024) return `${bytes} B`
@@ -129,25 +149,28 @@ function formatDate(date: string) {
 export function DocumentModule() {
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize] = useState(10)
   const [filterCourse, setFilterCourse] = useState<string>('ALL')
   const [filterSemester, setFilterSemester] = useState<string>('ALL')
   const [filterCategory, setFilterCategory] = useState<string>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Dialog state
+  const [dcSearch, setDcSearch] = useState('')
+  const [dcSemester, setDcSemester] = useState<string>('ALL')
+  const [dcCourse, setDcCourse] = useState<string>('ALL')
+
   const [formOpen, setFormOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<Document | null>(null)
 
-  // Form state
   const [form, setForm] = useState({
     title: '',
     description: '',
     category: 'OTHER',
     courseId: '',
     semesterNumber: '' as string,
+    facultyId: '',
     fileUrl: '',
   })
   const [uploading, setUploading] = useState(false)
@@ -155,14 +178,18 @@ export function DocumentModule() {
   const user = useAuthStore((s) => s.user)
   const isAdmin = user?.role === 'ADMIN'
 
-  // Courses query for selects
   const { data: coursesData } = useQuery({
     queryKey: ['courses-select'],
     queryFn: () => fetch('/api/courses').then((r) => r.json()),
   })
   const courses: Course[] = coursesData?.data || []
 
-  // Build query params
+  const { data: facultyData } = useQuery({
+    queryKey: ['faculty-select'],
+    queryFn: () => fetch('/api/faculty?limit=100').then((r) => r.json()),
+  })
+  const faculty: Faculty[] = facultyData?.data || []
+
   const queryParams = useMemo(() => {
     const params = new URLSearchParams()
     params.set('page', String(page))
@@ -174,15 +201,22 @@ export function DocumentModule() {
     return params.toString()
   }, [page, pageSize, filterCourse, filterSemester, filterCategory, searchQuery])
 
-  // Queries
   const { data, isLoading } = useQuery({
     queryKey: ['documents', queryParams],
     queryFn: () => fetch(`/api/documents?${queryParams}`).then((r) => r.json()),
   })
 
+  const dcQueryParams = useMemo(() => {
+    const params = new URLSearchParams()
+    if (dcSemester !== 'ALL') params.set('semesterNumber', dcSemester)
+    if (dcCourse !== 'ALL') params.set('courseId', dcCourse)
+    if (dcSearch) params.set('search', dcSearch)
+    return params.toString()
+  }, [dcSemester, dcCourse, dcSearch])
+
   const { data: downloadCenterData, isLoading: dcLoading } = useQuery({
-    queryKey: ['download-center'],
-    queryFn: () => fetch('/api/documents/download-center').then((r) => r.json()),
+    queryKey: ['download-center', dcQueryParams],
+    queryFn: () => fetch(`/api/documents/download-center?${dcQueryParams}`).then((r) => r.json()),
   })
 
   const documents = data?.data || []
@@ -190,7 +224,6 @@ export function DocumentModule() {
   const totalPages = pagination?.totalPages || 1
   const groupedDocs: Record<string, Document[]> = downloadCenterData?.data || {}
 
-  // Mutations
   const createMutation = useMutation({
     mutationFn: (body: any) =>
       fetch('/api/documents', {
@@ -249,7 +282,7 @@ export function DocumentModule() {
   })
 
   function resetForm() {
-    setForm({ title: '', description: '', category: 'OTHER', courseId: '', semesterNumber: '', fileUrl: '' })
+    setForm({ title: '', description: '', category: 'OTHER', courseId: '', semesterNumber: '', facultyId: '', fileUrl: '' })
   }
 
   async function handleFileUpload(file: File) {
@@ -290,6 +323,7 @@ export function DocumentModule() {
       category: item.category,
       courseId: item.courseId || '',
       semesterNumber: item.semesterNumber ? String(item.semesterNumber) : '',
+      facultyId: item.facultyId || '',
       fileUrl: item.fileUrl,
     })
     setFormOpen(true)
@@ -317,6 +351,7 @@ export function DocumentModule() {
       ...form,
       courseId: form.courseId !== 'none' ? form.courseId : undefined,
       semesterNumber: Number(form.semesterNumber),
+      facultyId: form.facultyId || undefined,
       description: form.description || undefined,
     }
     if (editingItem) {
@@ -327,6 +362,8 @@ export function DocumentModule() {
   }
 
   const categoryOrder = ['SYLLABUS', 'NOTES', 'ASSIGNMENT', 'PAPER', 'REFERENCE', 'OTHER']
+  const activeCategories = categoryOrder.filter((cat) => groupedDocs[cat]?.length > 0)
+  const totalDcDocs = activeCategories.reduce((sum, cat) => sum + groupedDocs[cat].length, 0)
 
   return (
     <div className="space-y-6">
@@ -343,77 +380,255 @@ export function DocumentModule() {
         }
       />
 
-      <Tabs defaultValue="all" className="space-y-4">
+      <Tabs defaultValue={isAdmin ? 'all' : 'download-center'} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="all">
-            <FileText className="size-4 mr-1.5" />
-            All Documents
-          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="all">
+              <FileText className="size-4 mr-1.5" />
+              All Documents
+            </TabsTrigger>
+          )}
           <TabsTrigger value="download-center">
             <FolderOpen className="size-4 mr-1.5" />
             Download Center
           </TabsTrigger>
         </TabsList>
 
-        {/* All Documents Tab */}
-        <TabsContent value="all" className="space-y-4">
-          {/* Filters */}
+        {isAdmin && (
+          <TabsContent value="all" className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search documents..."
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Select value={filterSemester} onValueChange={(v) => { setFilterSemester(v); setPage(1) }}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Semester" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Semesters</SelectItem>
+                    {SEMESTERS.map((s) => (
+                      <SelectItem key={s} value={String(s)}>Semester {s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={filterCourse} onValueChange={(v) => { setFilterCourse(v); setPage(1) }}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Course" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Courses</SelectItem>
+                    {courses.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={filterCategory} onValueChange={(v) => { setFilterCategory(v); setPage(1) }}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Categories</SelectItem>
+                    <SelectItem value="SYLLABUS">Syllabus</SelectItem>
+                    <SelectItem value="NOTES">Notes</SelectItem>
+                    <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
+                    <SelectItem value="PAPER">Paper</SelectItem>
+                    <SelectItem value="REFERENCE">Reference</SelectItem>
+                    <SelectItem value="OTHER">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                {(filterCourse !== 'ALL' || filterSemester !== 'ALL' || filterCategory !== 'ALL' || searchQuery) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { setFilterCourse('ALL'); setFilterSemester('ALL'); setFilterCategory('ALL'); setSearchQuery(''); setPage(1) }}
+                  >
+                    <X className="size-3.5 mr-1" />
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="rounded-lg border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {['Title', 'Category', 'Course', 'Uploaded By', 'Type', 'Size', 'Downloads', 'Date', ''].map((h, i) => (
+                        <TableHead key={i}><Skeleton className="h-4 w-16" /></TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        {Array.from({ length: 9 }).map((_, j) => (
+                          <TableCell key={j}><Skeleton className="h-4 w-full max-w-[100px]" /></TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="rounded-lg border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead className="hidden sm:table-cell">Category</TableHead>
+                      <TableHead className="hidden md:table-cell">Course</TableHead>
+                      <TableHead className="hidden lg:table-cell">Faculty</TableHead>
+                      <TableHead className="hidden lg:table-cell">Uploaded By</TableHead>
+                      <TableHead className="hidden sm:table-cell">Type</TableHead>
+                      <TableHead className="hidden md:table-cell">Size</TableHead>
+                      <TableHead className="hidden md:table-cell">Date</TableHead>
+                      <TableHead className="w-12">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {documents.map((doc: Document) => (
+                      <TableRow key={doc.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <File className="size-4 text-muted-foreground shrink-0" />
+                            <div>
+                              <div className="font-medium text-sm truncate max-w-[200px]">{doc.title}</div>
+                              {doc.description && (
+                                <div className="text-xs text-muted-foreground truncate max-w-[200px]">{doc.description}</div>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Badge variant="secondary" className={CATEGORY_COLORS[doc.category] || CATEGORY_COLORS.OTHER}>
+                            {doc.category}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                          {doc.courseCode ? `${doc.courseCode}` : '—'}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                          {doc.facultyName || '—'}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                          {doc.uploadedByName}
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                          {doc.fileType?.toUpperCase() || '—'}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                          {formatFileSize(doc.fileSize)}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                          {formatDate(doc.createdAt)}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="size-8">
+                                <MoreHorizontal className="size-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => window.open(doc.fileUrl, '_blank')}>
+                                <Download className="size-4 mr-2" /> Download
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEdit(doc)}>
+                                <Pencil className="size-4 mr-2" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600 dark:text-red-400"
+                                onClick={() => handleDelete(doc.id)}
+                              >
+                                <Trash2 className="size-4 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            {!isLoading && documents.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <FileText className="size-12 text-muted-foreground/40 mb-4" />
+                <h3 className="text-lg font-medium text-muted-foreground">No documents found</h3>
+                <p className="text-sm text-muted-foreground/70 mt-1">
+                  Upload a document or adjust your filters
+                </p>
+              </div>
+            )}
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                    Previous
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        )}
+
+        {/* Download Center Tab */}
+        <TabsContent value="download-center" className="space-y-4">
+          {/* Search & Filters */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
                 placeholder="Search documents..."
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
+                value={dcSearch}
+                onChange={(e) => setDcSearch(e.target.value)}
                 className="pl-9"
               />
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Select value={filterSemester} onValueChange={(v) => { setFilterSemester(v); setPage(1) }}>
+              <Select value={dcSemester} onValueChange={setDcSemester}>
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Semester" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All Semesters</SelectItem>
                   {SEMESTERS.map((s) => (
-                    <SelectItem key={s} value={String(s)}>
-                      Semester {s}
-                    </SelectItem>
+                    <SelectItem key={s} value={String(s)}>Semester {s}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={filterCourse} onValueChange={(v) => { setFilterCourse(v); setPage(1) }}>
-                <SelectTrigger className="w-[160px]">
+              <Select value={dcCourse} onValueChange={setDcCourse}>
+                <SelectTrigger className="w-[170px]">
                   <SelectValue placeholder="Course" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All Courses</SelectItem>
                   {courses.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.code} - {c.name}
-                    </SelectItem>
+                    <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={filterCategory} onValueChange={(v) => { setFilterCategory(v); setPage(1) }}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Categories</SelectItem>
-                  <SelectItem value="SYLLABUS">Syllabus</SelectItem>
-                  <SelectItem value="NOTES">Notes</SelectItem>
-                  <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
-                  <SelectItem value="PAPER">Paper</SelectItem>
-                  <SelectItem value="REFERENCE">Reference</SelectItem>
-                  <SelectItem value="OTHER">Other</SelectItem>
-                </SelectContent>
-              </Select>
-              {(filterCourse !== 'ALL' || filterSemester !== 'ALL' || filterCategory !== 'ALL' || searchQuery) && (
+              {(dcSemester !== 'ALL' || dcCourse !== 'ALL' || dcSearch) && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => { setFilterCourse('ALL'); setFilterSemester('ALL'); setFilterCategory('ALL'); setSearchQuery(''); setPage(1) }}
+                  onClick={() => { setDcSemester('ALL'); setDcCourse('ALL'); setDcSearch('') }}
                 >
                   <X className="size-3.5 mr-1" />
                   Clear
@@ -422,212 +637,111 @@ export function DocumentModule() {
             </div>
           </div>
 
-          {/* Table */}
-          {isLoading ? (
-            <div className="rounded-lg border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {['Title', 'Category', 'Course', 'Uploaded By', 'Type', 'Size', 'Downloads', 'Date', ''].map((h, i) => (
-                      <TableHead key={i}><Skeleton className="h-4 w-16" /></TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      {Array.from({ length: 9 }).map((_, j) => (
-                        <TableCell key={j}><Skeleton className="h-4 w-full max-w-[100px]" /></TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="rounded-lg border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead className="hidden sm:table-cell">Category</TableHead>
-                    <TableHead className="hidden md:table-cell">Course</TableHead>
-                    <TableHead className="hidden lg:table-cell">Uploaded By</TableHead>
-                    <TableHead className="hidden sm:table-cell">Type</TableHead>
-                    <TableHead className="hidden md:table-cell">Size</TableHead>
-                    <TableHead className="hidden lg:table-cell">Downloads</TableHead>
-                    <TableHead className="hidden md:table-cell">Date</TableHead>
-                    <TableHead className="w-12">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {documents.map((doc: Document) => (
-                    <TableRow key={doc.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <File className="size-4 text-muted-foreground shrink-0" />
-                          <div>
-                            <div className="font-medium text-sm truncate max-w-[200px]">{doc.title}</div>
-                            {doc.description && (
-                              <div className="text-xs text-muted-foreground truncate max-w-[200px]">{doc.description}</div>
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        <Badge variant="secondary" className={CATEGORY_COLORS[doc.category] || CATEGORY_COLORS.OTHER}>
-                          {doc.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                        {doc.courseCode ? `${doc.courseCode}` : '—'}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                        {doc.uploadedByName}
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                        {doc.fileType?.toUpperCase() || '—'}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                        {formatFileSize(doc.fileSize)}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                        {doc.downloadCount}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                        {formatDate(doc.createdAt)}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="size-8">
-                              <MoreHorizontal className="size-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => window.open(doc.fileUrl, '_blank')}>
-                              <Download className="size-4 mr-2" /> Download
-                            </DropdownMenuItem>
-                            {isAdmin && (
-                              <>
-                                <DropdownMenuItem onClick={() => openEdit(doc)}>
-                                  <Pencil className="size-4 mr-2" /> Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-red-600 dark:text-red-400"
-                                  onClick={() => handleDelete(doc.id)}
-                                >
-                                  <Trash2 className="size-4 mr-2" /> Delete
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-
-          {!isLoading && documents.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <FileText className="size-12 text-muted-foreground/40 mb-4" />
-              <h3 className="text-lg font-medium text-muted-foreground">No documents found</h3>
-              <p className="text-sm text-muted-foreground/70 mt-1">
-                Upload a document or adjust your filters
-              </p>
-            </div>
-          )}
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
-              </span>
-              <div className="flex items-center gap-1">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                  Previous
-                </Button>
-                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Download Center Tab */}
-        <TabsContent value="download-center">
+          {/* Download Center Cards */}
           {dcLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Array.from({ length: 4 }).map((_, i) => (
+            <div className="space-y-6">
+              {Array.from({ length: 3 }).map((_, i) => (
                 <Card key={i}>
                   <CardHeader>
-                    <Skeleton className="h-6 w-32" />
+                    <Skeleton className="h-6 w-40" />
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {Array.from({ length: 3 }).map((_, j) => (
-                        <Skeleton key={j} className="h-16 w-full" />
+                        <Skeleton key={j} className="h-28 w-full rounded-lg" />
                       ))}
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
-          ) : Object.keys(groupedDocs).length === 0 ? (
+          ) : totalDcDocs === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <FolderOpen className="size-12 text-muted-foreground/40 mb-4" />
-              <h3 className="text-lg font-medium text-muted-foreground">No documents yet</h3>
+              <h3 className="text-lg font-medium text-muted-foreground">No documents found</h3>
               <p className="text-sm text-muted-foreground/70 mt-1">
-                Upload documents to see them organized by category
+                Try adjusting your search or filters
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {categoryOrder
-                .filter((cat) => groupedDocs[cat]?.length > 0)
-                .map((category) => (
-                  <Card key={category}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{CATEGORY_ICONS[category] || '📎'}</span>
-                        <CardTitle className="text-base">{category}</CardTitle>
-                        <Badge variant="secondary" className="ml-auto">
-                          {groupedDocs[category].length}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2 max-h-80 overflow-y-auto">
-                        {groupedDocs[category].map((doc: Document) => (
-                          <div
-                            key={doc.id}
-                            className="flex items-center justify-between gap-3 rounded-lg border p-3 hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium text-sm truncate">{doc.title}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {doc.courseCode ? `${doc.courseCode} · ` : ''}
-                                {doc.uploadedByName}
+            <div className="space-y-6">
+              {activeCategories.map((category) => (
+                <Card key={category}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{CATEGORY_ICONS[category] || '📎'}</span>
+                      <CardTitle className="text-base">{CATEGORY_LABELS[category] || category}</CardTitle>
+                      <Badge variant="secondary" className="ml-auto">
+                        {groupedDocs[category].length}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {groupedDocs[category].map((doc: Document) => (
+                        <div
+                          key={doc.id}
+                          className="group flex flex-col gap-2 rounded-xl border p-4 hover:border-primary/40 hover:shadow-sm transition-all"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="flex size-8 items-center justify-center rounded-lg bg-muted shrink-0">
+                                <File className="size-4 text-muted-foreground" />
                               </div>
+                              <span className="font-medium text-sm truncate">{doc.title}</span>
                             </div>
+                            {doc.fileType && (
+                              <Badge variant="outline" className="shrink-0 text-[10px] uppercase">
+                                {doc.fileType}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {doc.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">{doc.description}</p>
+                          )}
+
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                            {doc.semesterNumber && (
+                              <span className="inline-flex items-center gap-1">
+                                <Calendar className="size-3" />
+                                Sem {doc.semesterNumber}
+                              </span>
+                            )}
+                            {doc.courseCode && (
+                              <span className="inline-flex items-center gap-1">
+                                <BookOpen className="size-3" />
+                                {doc.courseCode}
+                              </span>
+                            )}
+                            {doc.facultyName && (
+                              <span className="inline-flex items-center gap-1">
+                                <GraduationCap className="size-3" />
+                                {doc.facultyName}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 mt-auto">
+                            <span className="text-[10px] text-muted-foreground/70">
+                              {formatFileSize(doc.fileSize)}
+                            </span>
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 shrink-0"
+                              variant="default"
+                              size="sm"
+                              className="h-7 text-xs"
                               onClick={() => window.open(doc.fileUrl, '_blank')}
                             >
-                              <Download className="size-4" />
+                              <Download className="size-3 mr-1" />
+                              Download
                             </Button>
                           </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
         </TabsContent>
@@ -642,7 +756,7 @@ export function DocumentModule() {
               {editingItem ? 'Update document metadata' : 'Add a new document to the system'}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-2">
+          <div className="grid gap-4 py-2 max-h-[60vh] overflow-y-auto">
             <div className="grid gap-2">
               <Label htmlFor="doc-title">Title *</Label>
               <Input
@@ -669,9 +783,7 @@ export function DocumentModule() {
                   <SelectTrigger><SelectValue placeholder="Select semester" /></SelectTrigger>
                   <SelectContent>
                     {SEMESTERS.map((s) => (
-                      <SelectItem key={s} value={String(s)}>
-                        Semester {s}
-                      </SelectItem>
+                      <SelectItem key={s} value={String(s)}>Semester {s}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -682,27 +794,40 @@ export function DocumentModule() {
                   <SelectTrigger><SelectValue placeholder="Select course" /></SelectTrigger>
                   <SelectContent>
                     {courses.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.code} - {c.name}
-                      </SelectItem>
+                      <SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label>Category</Label>
-              <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="SYLLABUS">Syllabus</SelectItem>
-                  <SelectItem value="NOTES">Notes</SelectItem>
-                  <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
-                  <SelectItem value="PAPER">Paper</SelectItem>
-                  <SelectItem value="REFERENCE">Reference</SelectItem>
-                  <SelectItem value="OTHER">Other</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label>Faculty (Teacher)</Label>
+                <Select value={form.facultyId} onValueChange={(v) => setForm({ ...form, facultyId: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select faculty" /></SelectTrigger>
+                  <SelectContent>
+                    {faculty.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>
+                        {f.user.name}{f.designation ? ` (${f.designation})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Category</Label>
+                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SYLLABUS">Syllabus</SelectItem>
+                    <SelectItem value="NOTES">Notes</SelectItem>
+                    <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
+                    <SelectItem value="PAPER">Past Paper</SelectItem>
+                    <SelectItem value="REFERENCE">Reference</SelectItem>
+                    <SelectItem value="OTHER">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid gap-2">
               <Label>File *</Label>
