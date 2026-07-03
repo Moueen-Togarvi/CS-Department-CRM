@@ -13,11 +13,13 @@ export async function GET(request: NextRequest) {
     const { skip, take } = skipTake(pagination.page!, pagination.limit!)
 
     const courseId = searchParams.get('courseId')
+    const semesterId = searchParams.get('semesterId')
     const category = searchParams.get('category') as DocumentCategory | null
     const search = searchParams.get('search')
 
     const where: any = {}
     if (courseId) where.courseId = courseId
+    if (semesterId) where.semesterId = semesterId
     if (category) where.category = category
     if (search) {
       where.OR = [
@@ -35,6 +37,7 @@ export async function GET(request: NextRequest) {
         include: {
           uploadedByUser: { select: { id: true, name: true } },
           course: { select: { id: true, code: true, name: true } },
+          semester: { select: { id: true, name: true, type: true, year: true } },
         },
       }),
       db.document.count({ where }),
@@ -45,6 +48,7 @@ export async function GET(request: NextRequest) {
       uploadedByName: d.uploadedByUser.name,
       courseName: d.course?.name || null,
       courseCode: d.course?.code || null,
+      semesterName: d.semester?.name || null,
     }))
 
     return paginatedResponse(data, total, pagination.page!, pagination.limit!)
@@ -68,22 +72,19 @@ export async function POST(request: NextRequest) {
       fileSize,
     } = body
 
-    if (!title || !fileUrl) {
-      return errorResponse('Title and file URL are required')
+    if (!title || !fileUrl || !courseId || !semesterId) {
+      return errorResponse('Title, file URL, course, and semester are required')
     }
 
-    const adminUser = await db.user.findFirst({ where: { role: 'ADMIN' } })
     const uploadedBy = session.user.id
-
-    const currentSemester = await db.semester.findFirst({ where: { isCurrent: true } })
 
     const document = await db.document.create({
       data: {
         title,
         description: description || null,
         category,
-        courseId: courseId || null,
-        semesterId: semesterId || currentSemester?.id || null,
+        courseId,
+        semesterId,
         uploadedBy,
         fileUrl,
         fileType: fileType || null,
@@ -92,6 +93,7 @@ export async function POST(request: NextRequest) {
       include: {
         uploadedByUser: { select: { id: true, name: true } },
         course: { select: { id: true, code: true, name: true } },
+        semester: { select: { id: true, name: true, type: true, year: true } },
       },
     })
 
@@ -101,6 +103,7 @@ export async function POST(request: NextRequest) {
         uploadedByName: document.uploadedByUser.name,
         courseName: document.course?.name || null,
         courseCode: document.course?.code || null,
+        semesterName: document.semester?.name || null,
       },
       'Document created',
       201

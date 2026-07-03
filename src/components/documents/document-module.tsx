@@ -76,6 +76,8 @@ interface Document {
   courseId: string | null
   courseName: string | null
   courseCode: string | null
+  semesterId: string | null
+  semesterName: string | null
   fileUrl: string
   fileType: string | null
   fileSize: number | null
@@ -88,6 +90,14 @@ interface Course {
   id: string
   code: string
   name: string
+}
+
+interface Semester {
+  id: string
+  name: string
+  type: string
+  year: number
+  isCurrent: boolean
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -128,6 +138,7 @@ export function DocumentModule() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [filterCourse, setFilterCourse] = useState<string>('ALL')
+  const [filterSemester, setFilterSemester] = useState<string>('ALL')
   const [filterCategory, setFilterCategory] = useState<string>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -143,6 +154,7 @@ export function DocumentModule() {
     description: '',
     category: 'OTHER',
     courseId: '',
+    semesterId: '',
     fileUrl: '',
   })
   const [uploading, setUploading] = useState(false)
@@ -157,16 +169,28 @@ export function DocumentModule() {
   })
   const courses: Course[] = coursesData?.data || []
 
+  // Semesters query for selects
+  const { data: semestersData } = useQuery({
+    queryKey: ['semesters-select'],
+    queryFn: () => fetch('/api/semesters').then((r) => r.json()),
+  })
+  const semesters: Semester[] = semestersData?.data || []
+  const currentSemesterId = useMemo(
+    () => semesters.find((s) => s.isCurrent)?.id || '',
+    [semesters]
+  )
+
   // Build query params
   const queryParams = useMemo(() => {
     const params = new URLSearchParams()
     params.set('page', String(page))
     params.set('limit', String(pageSize))
     if (filterCourse !== 'ALL') params.set('courseId', filterCourse)
+    if (filterSemester !== 'ALL') params.set('semesterId', filterSemester)
     if (filterCategory !== 'ALL') params.set('category', filterCategory)
     if (searchQuery) params.set('search', searchQuery)
     return params.toString()
-  }, [page, pageSize, filterCourse, filterCategory, searchQuery])
+  }, [page, pageSize, filterCourse, filterSemester, filterCategory, searchQuery])
 
   // Queries
   const { data, isLoading } = useQuery({
@@ -243,7 +267,7 @@ export function DocumentModule() {
   })
 
   function resetForm() {
-    setForm({ title: '', description: '', category: 'OTHER', courseId: '', fileUrl: '' })
+    setForm({ title: '', description: '', category: 'OTHER', courseId: '', semesterId: '', fileUrl: '' })
   }
 
   async function handleFileUpload(file: File) {
@@ -273,6 +297,7 @@ export function DocumentModule() {
   function openCreate() {
     resetForm()
     setEditingItem(null)
+    if (currentSemesterId) setForm((prev) => ({ ...prev, semesterId: currentSemesterId }))
     setFormOpen(true)
   }
 
@@ -283,6 +308,7 @@ export function DocumentModule() {
       description: item.description || '',
       category: item.category,
       courseId: item.courseId || '',
+      semesterId: item.semesterId || '',
       fileUrl: item.fileUrl,
     })
     setFormOpen(true)
@@ -298,9 +324,18 @@ export function DocumentModule() {
       toast.error('Title and File URL are required')
       return
     }
+    if (!form.courseId || form.courseId === 'none') {
+      toast.error('Please select a course')
+      return
+    }
+    if (!form.semesterId) {
+      toast.error('Please select a semester')
+      return
+    }
     const body = {
       ...form,
-      courseId: form.courseId && form.courseId !== 'none' ? form.courseId : undefined,
+      courseId: form.courseId !== 'none' ? form.courseId : undefined,
+      semesterId: form.semesterId,
       description: form.description || undefined,
     }
     if (editingItem) {
@@ -352,7 +387,20 @@ export function DocumentModule() {
                 className="pl-9"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <Select value={filterSemester} onValueChange={(v) => { setFilterSemester(v); setPage(1) }}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Semester" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Semesters</SelectItem>
+                  {semesters.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name || `${s.type} ${s.year}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={filterCourse} onValueChange={(v) => { setFilterCourse(v); setPage(1) }}>
                 <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="Course" />
@@ -380,11 +428,11 @@ export function DocumentModule() {
                   <SelectItem value="OTHER">Other</SelectItem>
                 </SelectContent>
               </Select>
-              {(filterCourse !== 'ALL' || filterCategory !== 'ALL' || searchQuery) && (
+              {(filterCourse !== 'ALL' || filterSemester !== 'ALL' || filterCategory !== 'ALL' || searchQuery) && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => { setFilterCourse('ALL'); setFilterCategory('ALL'); setSearchQuery(''); setPage(1) }}
+                  onClick={() => { setFilterCourse('ALL'); setFilterSemester('ALL'); setFilterCategory('ALL'); setSearchQuery(''); setPage(1) }}
                 >
                   <X className="size-3.5 mr-1" />
                   Clear
@@ -635,25 +683,23 @@ export function DocumentModule() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
-                <Label>Category</Label>
-                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Label>Semester *</Label>
+                <Select value={form.semesterId} onValueChange={(v) => setForm({ ...form, semesterId: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select semester" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="SYLLABUS">Syllabus</SelectItem>
-                    <SelectItem value="NOTES">Notes</SelectItem>
-                    <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
-                    <SelectItem value="PAPER">Paper</SelectItem>
-                    <SelectItem value="REFERENCE">Reference</SelectItem>
-                    <SelectItem value="OTHER">Other</SelectItem>
+                    {semesters.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name || `${s.type} ${s.year}`}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label>Course (optional)</Label>
+                <Label>Course *</Label>
                 <Select value={form.courseId} onValueChange={(v) => setForm({ ...form, courseId: v })}>
                   <SelectTrigger><SelectValue placeholder="Select course" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No Course</SelectItem>
                     {courses.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.code} - {c.name}
@@ -662,6 +708,20 @@ export function DocumentModule() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Category</Label>
+              <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SYLLABUS">Syllabus</SelectItem>
+                  <SelectItem value="NOTES">Notes</SelectItem>
+                  <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
+                  <SelectItem value="PAPER">Paper</SelectItem>
+                  <SelectItem value="REFERENCE">Reference</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label>File *</Label>
