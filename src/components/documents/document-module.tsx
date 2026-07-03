@@ -76,8 +76,7 @@ interface Document {
   courseId: string | null
   courseName: string | null
   courseCode: string | null
-  semesterId: string | null
-  semesterName: string | null
+  semesterNumber: number | null
   fileUrl: string
   fileType: string | null
   fileSize: number | null
@@ -92,13 +91,7 @@ interface Course {
   name: string
 }
 
-interface Semester {
-  id: string
-  name: string
-  type: string
-  year: number
-  isCurrent: boolean
-}
+const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8]
 
 const CATEGORY_COLORS: Record<string, string> = {
   SYLLABUS: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
@@ -154,7 +147,7 @@ export function DocumentModule() {
     description: '',
     category: 'OTHER',
     courseId: '',
-    semesterId: '',
+    semesterNumber: '' as string,
     fileUrl: '',
   })
   const [uploading, setUploading] = useState(false)
@@ -169,24 +162,13 @@ export function DocumentModule() {
   })
   const courses: Course[] = coursesData?.data || []
 
-  // Semesters query for selects
-  const { data: semestersData } = useQuery({
-    queryKey: ['semesters-select'],
-    queryFn: () => fetch('/api/semesters').then((r) => r.json()),
-  })
-  const semesters: Semester[] = semestersData?.data || []
-  const currentSemesterId = useMemo(
-    () => semesters.find((s) => s.isCurrent)?.id || '',
-    [semesters]
-  )
-
   // Build query params
   const queryParams = useMemo(() => {
     const params = new URLSearchParams()
     params.set('page', String(page))
     params.set('limit', String(pageSize))
     if (filterCourse !== 'ALL') params.set('courseId', filterCourse)
-    if (filterSemester !== 'ALL') params.set('semesterId', filterSemester)
+    if (filterSemester !== 'ALL') params.set('semesterNumber', filterSemester)
     if (filterCategory !== 'ALL') params.set('category', filterCategory)
     if (searchQuery) params.set('search', searchQuery)
     return params.toString()
@@ -267,7 +249,7 @@ export function DocumentModule() {
   })
 
   function resetForm() {
-    setForm({ title: '', description: '', category: 'OTHER', courseId: '', semesterId: '', fileUrl: '' })
+    setForm({ title: '', description: '', category: 'OTHER', courseId: '', semesterNumber: '', fileUrl: '' })
   }
 
   async function handleFileUpload(file: File) {
@@ -297,7 +279,6 @@ export function DocumentModule() {
   function openCreate() {
     resetForm()
     setEditingItem(null)
-    if (currentSemesterId) setForm((prev) => ({ ...prev, semesterId: currentSemesterId }))
     setFormOpen(true)
   }
 
@@ -308,7 +289,7 @@ export function DocumentModule() {
       description: item.description || '',
       category: item.category,
       courseId: item.courseId || '',
-      semesterId: item.semesterId || '',
+      semesterNumber: item.semesterNumber ? String(item.semesterNumber) : '',
       fileUrl: item.fileUrl,
     })
     setFormOpen(true)
@@ -328,14 +309,14 @@ export function DocumentModule() {
       toast.error('Please select a course')
       return
     }
-    if (!form.semesterId) {
+    if (!form.semesterNumber) {
       toast.error('Please select a semester')
       return
     }
     const body = {
       ...form,
       courseId: form.courseId !== 'none' ? form.courseId : undefined,
-      semesterId: form.semesterId,
+      semesterNumber: Number(form.semesterNumber),
       description: form.description || undefined,
     }
     if (editingItem) {
@@ -394,9 +375,9 @@ export function DocumentModule() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All Semesters</SelectItem>
-                  {semesters.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name || `${s.type} ${s.year}`}
+                  {SEMESTERS.map((s) => (
+                    <SelectItem key={s} value={String(s)}>
+                      Semester {s}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -684,12 +665,12 @@ export function DocumentModule() {
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
                 <Label>Semester *</Label>
-                <Select value={form.semesterId} onValueChange={(v) => setForm({ ...form, semesterId: v })}>
+                <Select value={form.semesterNumber} onValueChange={(v) => setForm({ ...form, semesterNumber: v })}>
                   <SelectTrigger><SelectValue placeholder="Select semester" /></SelectTrigger>
                   <SelectContent>
-                    {semesters.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name || `${s.type} ${s.year}`}
+                    {SEMESTERS.map((s) => (
+                      <SelectItem key={s} value={String(s)}>
+                        Semester {s}
                       </SelectItem>
                     ))}
                   </SelectContent>

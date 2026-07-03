@@ -546,6 +546,7 @@ model Document {
   category     DocumentCategory @default(OTHER)
   courseId     String?
   semesterId   String?
+  semesterNumber Int?
   uploadedBy   String
   fileUrl      String
   fileType     String?
@@ -562,6 +563,15 @@ model Document {
   @@index([courseId])
   @@index([category])
   @@index([uploadedBy])
+}
+
+model Upload {
+  id        String   @id @default(cuid())
+  filename  String
+  mimeType  String
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
 }
 
 model CourseOffering {

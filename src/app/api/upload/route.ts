@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
+import { db } from '@/lib/db'
+import { requireAuth, handleApiError } from '@/lib/auth-utils'
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAuth()
     const data = await request.formData()
     const file: File | null = data.get('file') as unknown as File
 
@@ -11,25 +12,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
     }
 
+    const MAX_SIZE = 25 * 1024 * 1024 // 25 MB
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json({ error: 'File too large (max 25 MB)' }, { status: 413 })
+    }
+
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    const uploadDir = join(process.cwd(), 'public', 'uploads')
-    
-    // Ensure uploads directory exists
-    try {
-      await mkdir(uploadDir, { recursive: true })
-    } catch (e) {}
+    const upload = await db.upload.create({
+      data: {
+        filename: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        size: file.size,
+        data: buffer,
+      },
+    })
 
-    // Generate a clean, unique name
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
-    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
-    const filename = `${uniqueSuffix}-${safeName}`
-    const filepath = join(uploadDir, filename)
-
-    await writeFile(filepath, buffer)
-
-    return NextResponse.json({ url: `/uploads/${filename}` })
+    return NextResponse.json({ url: `/api/uploads/${upload.id}` })
   } catch (error: any) {
     console.error('Upload error:', error)
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 })

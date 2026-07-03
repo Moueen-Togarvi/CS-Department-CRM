@@ -40,7 +40,7 @@ export async function PUT(
     await requireRole('ADMIN')
     const { id } = await params
     const body = await request.json()
-    const { title, description, category, courseId, semesterId, fileUrl, fileType, fileSize } = body
+    const { title, description, category, courseId, semesterNumber, fileUrl, fileType, fileSize } = body
 
     const existing = await db.document.findUnique({ where: { id } })
     if (!existing) {
@@ -52,7 +52,7 @@ export async function PUT(
     if (description !== undefined) updateData.description = description
     if (category !== undefined) updateData.category = category
     if (courseId !== undefined) updateData.courseId = courseId || null
-    if (semesterId !== undefined) updateData.semesterId = semesterId || null
+    if (semesterNumber !== undefined) updateData.semesterNumber = semesterNumber ? Number(semesterNumber) : null
     if (fileUrl !== undefined) updateData.fileUrl = fileUrl
     if (fileType !== undefined) updateData.fileType = fileType
     if (fileSize !== undefined) updateData.fileSize = Number(fileSize)
