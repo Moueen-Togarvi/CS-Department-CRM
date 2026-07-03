@@ -176,7 +176,7 @@ export function DocumentModule() {
   const [uploading, setUploading] = useState(false)
 
   const user = useAuthStore((s) => s.user)
-  const isAdmin = user?.role === 'ADMIN'
+  const canManage = user?.role === 'ADMIN' || user?.role === 'FACULTY'
 
   const { data: coursesData } = useQuery({
     queryKey: ['courses-select'],
@@ -371,7 +371,7 @@ export function DocumentModule() {
         title="Documents"
         description="Upload, organize, and share department documents"
         actions={
-          isAdmin ? (
+          canManage ? (
             <Button onClick={openCreate} size="sm">
               <Plus className="size-4 mr-1.5" />
               Upload Document
@@ -380,9 +380,9 @@ export function DocumentModule() {
         }
       />
 
-      <Tabs defaultValue={isAdmin ? 'all' : 'download-center'} className="space-y-4">
+      <Tabs defaultValue={canManage ? 'all' : 'download-center'} className="space-y-4">
         <TabsList>
-          {isAdmin && (
+          {canManage && (
             <TabsTrigger value="all">
               <FileText className="size-4 mr-1.5" />
               All Documents
@@ -394,7 +394,7 @@ export function DocumentModule() {
           </TabsTrigger>
         </TabsList>
 
-        {isAdmin && (
+        {canManage && (
           <TabsContent value="all" className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="relative flex-1">

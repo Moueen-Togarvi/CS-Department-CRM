@@ -3,7 +3,7 @@ import { successResponse, errorResponse, paginatedResponse } from '@/lib/api-res
 import { parsePaginationParams, skipTake } from '@/lib/pagination'
 import { NextRequest } from 'next/server'
 import { DocumentCategory } from '@prisma/client'
-import { requireAuth, requireRole, handleApiError } from '@/lib/auth-utils'
+import { requireAuth, requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 
 const DOC_INCLUDE = {
   uploadedByUser: { select: { id: true, name: true } },
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireRole('ADMIN')
+    const session = await requireFacultyOrAdmin()
     const body = await request.json()
     const {
       title,

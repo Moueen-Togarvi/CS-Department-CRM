@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { NextRequest } from 'next/server'
-import { requireAuth, requireRole, handleApiError } from '@/lib/auth-utils'
+import { requireAuth, requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(
   _request: NextRequest,
@@ -37,7 +37,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireRole('ADMIN')
+    await requireFacultyOrAdmin()
     const { id } = await params
     const body = await request.json()
     const { title, description, category, courseId, semesterNumber, facultyId, fileUrl, fileType, fileSize } = body
@@ -83,7 +83,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireRole('ADMIN')
+    await requireFacultyOrAdmin()
     const { id } = await params
     const existing = await db.document.findUnique({ where: { id } })
     if (!existing) {
