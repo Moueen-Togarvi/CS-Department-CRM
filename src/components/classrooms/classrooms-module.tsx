@@ -17,7 +17,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
@@ -62,6 +62,10 @@ export function ClassroomsModule() {
   // Student Detail Sheet state
   const [detailOpen, setDetailOpen] = useState(false)
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+
+  // Advance Semester (promote) state
+  const [promoteClass, setPromoteClass] = useState<{ semester: number; section: string; count: number } | null>(null)
+  const [isPromoting, setIsPromoting] = useState(false)
 
   // Load rooms and prefill state
   useEffect(() => {
@@ -159,6 +163,35 @@ export function ClassroomsModule() {
       toast.error('An error occurred while saving')
     } finally {
       setIsSavingRoom(false)
+    }
+  }
+
+  const handlePromote = async () => {
+    if (!promoteClass) return
+    setIsPromoting(true)
+    try {
+      const res = await fetch('/api/students/promote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          semester: promoteClass.semester,
+          section: promoteClass.section,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(data.message || 'Students promoted successfully')
+        queryClient.invalidateQueries({ queryKey: ['students', 'stats'] })
+        queryClient.invalidateQueries({ queryKey: ['students'] })
+        setPromoteClass(null)
+      } else {
+        toast.error(data.error || 'Failed to promote students')
+      }
+    } catch (e) {
+      console.error(e)
+      toast.error('An error occurred while promoting')
+    } finally {
+      setIsPromoting(false)
     }
   }
 
@@ -428,6 +461,18 @@ export function ClassroomsModule() {
                                       }}>
                                         Assign Room/Floor
                                       </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={(e) => {
+                                        e.stopPropagation();
+                                        setPromoteClass({
+                                          semester: item.semester,
+                                          section: item.section,
+                                          count: item.count,
+                                        });
+                                      }}>
+                                        <ArrowRight className="size-4 mr-2" />
+                                        Advance Semester
+                                      </DropdownMenuItem>
                                     </DropdownMenuContent>
                                   </DropdownMenu>
                                 )}
@@ -673,6 +718,63 @@ export function ClassroomsModule() {
               disabled={isSavingRoom}
             >
               {isSavingRoom ? 'Saving...' : 'Save Assignment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Advance Semester (Promote) Confirmation Dialog */}
+      <Dialog open={!!promoteClass} onOpenChange={(open) => !open && setPromoteClass(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              {promoteClass && promoteClass.semester >= 8 ? (
+                <GraduationCap className="size-5 text-primary" />
+              ) : (
+                <ArrowRight className="size-5 text-primary" />
+              )}
+              {promoteClass && promoteClass.semester >= 8 ? 'Graduate Students' : 'Advance Semester'}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {promoteClass && promoteClass.semester >= 8 ? (
+                <>
+                  Mark{' '}
+                  <span className="font-bold text-foreground">{promoteClass?.count}</span> student(s) of{' '}
+                  <span className="font-bold text-foreground">Semester {promoteClass?.semester} ({promoteClass?.section})</span> as graduated.
+                </>
+              ) : (
+                <>
+                  Promote{' '}
+                  <span className="font-bold text-foreground">{promoteClass?.count}</span> student(s) of{' '}
+                  <span className="font-bold text-foreground">Semester {promoteClass?.semester} ({promoteClass?.section})</span> to{' '}
+                  <span className="font-bold text-foreground">Semester {(promoteClass?.semester ?? 0) + 1}</span>.
+                  They will be auto-enrolled in the next semester&apos;s active courses.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 p-3 text-xs text-amber-800 dark:text-amber-300">
+            This action affects all students in this class and cannot be undone. Please verify before confirming.
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPromoteClass(null)}
+              disabled={isPromoting}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="font-bold bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={handlePromote}
+              disabled={isPromoting}
+            >
+              {isPromoting && <Loader2 className="size-4 animate-spin mr-2" />}
+              {promoteClass && promoteClass.semester >= 8 ? 'Mark as Graduated' : 'Confirm Promotion'}
             </Button>
           </DialogFooter>
         </DialogContent>
