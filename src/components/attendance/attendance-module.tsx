@@ -379,6 +379,22 @@ export function AttendanceModule() {
     return allCourses || []
   }, [isFaculty, facultyOfferings, allCourses])
 
+  // Derive available academic semester options from courses
+  const availableSemesters = useMemo(() => {
+    const sems = new Set<number>()
+    for (const c of courses) {
+      if (c.semesterOffered != null) sems.add(c.semesterOffered)
+    }
+    return Array.from(sems).sort((a, b) => a - b).map(String)
+  }, [courses])
+
+  // Set default to first available semester when data loads (faculty: no '_all' option)
+  useEffect(() => {
+    if (availableSemesters.length > 0 && selectedAcademicSemester === '_all' && isFaculty) {
+      setSelectedAcademicSemester(availableSemesters[0])
+    }
+  }, [availableSemesters, isFaculty])
+
   // Filter courses by selected academic semester
   const filteredCourses = useMemo(() => {
     if (!courses) return []
@@ -460,8 +476,8 @@ export function AttendanceModule() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_all">All Semesters</SelectItem>
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                  {isFaculty ? null : <SelectItem value="_all">All Semesters</SelectItem>}
+                  {availableSemesters.map((num) => (
                     <SelectItem key={num} value={String(num)}>
                       Semester {num}
                     </SelectItem>

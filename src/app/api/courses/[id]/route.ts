@@ -4,6 +4,11 @@ import { successResponse, errorResponse } from "@/lib/api-response";
 import { updateCourseSchema } from "@/lib/validators/course";
 import { requireAuth, requireAdmin, requireRole, handleApiError } from "@/lib/auth-utils";
 
+function parsePrerequisites(v: string | undefined | null): string[] {
+  if (!v || v === "") return [];
+  try { return JSON.parse(v); } catch { return [v]; }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -165,7 +170,7 @@ export async function PUT(
     if (data.courseType !== undefined) updateData.courseType = data.courseType;
     if (data.semesterOffered !== undefined) updateData.semesterOffered = data.semesterOffered ?? null;
     if (data.description !== undefined) updateData.description = data.description || null;
-    if (data.prerequisites !== undefined) updateData.prerequisiteIds = data.prerequisites || [];
+    if (data.prerequisites !== undefined) updateData.prerequisiteIds = parsePrerequisites(data.prerequisites);
     if (data.objectives !== undefined) updateData.objectives = data.objectives || null;
     if (data.instructorId !== undefined) updateData.instructorId = data.instructorId ?? null;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;

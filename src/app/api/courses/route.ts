@@ -6,6 +6,11 @@ import { createCourseSchema } from "@/lib/validators/course";
 import { Prisma } from "@prisma/client";
 import { requireAuth, requireAdmin, requireRole, handleApiError } from "@/lib/auth-utils";
 
+function parsePrerequisites(v: string | undefined | null): string[] {
+  if (!v || v === "") return [];
+  try { return JSON.parse(v); } catch { return [v]; }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth();
@@ -194,7 +199,7 @@ export async function POST(request: NextRequest) {
         courseType: data.courseType,
         semesterOffered: data.semesterOffered ?? null,
         description: data.description || null,
-        prerequisiteIds: (data.prerequisites || []) as string[],
+        prerequisiteIds: parsePrerequisites(data.prerequisites),
         objectives: data.objectives || null,
         instructorId: data.instructorId ?? null,
       },

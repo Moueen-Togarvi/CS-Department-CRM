@@ -419,7 +419,7 @@ export function CourseModule() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, values }: { id: string; values: UpdateCourseInput }) => {
+    mutationFn: async ({ id, values }: { id: string; values: any }) => {
       const res = await fetch(`/api/courses/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -430,8 +430,8 @@ export function CourseModule() {
       return json
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['courses'] })
-      queryClient.invalidateQueries({ queryKey: ['course-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['courses'], refetchType: 'all' })
+      queryClient.invalidateQueries({ queryKey: ['course-stats'], refetchType: 'all' })
       if (detailCourseId) queryClient.invalidateQueries({ queryKey: ['course-detail', detailCourseId] })
       toast.success('Course updated successfully')
       setFormOpen(false)
@@ -448,8 +448,8 @@ export function CourseModule() {
       return json
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['courses'] })
-      queryClient.invalidateQueries({ queryKey: ['course-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['courses'], refetchType: 'all' })
+      queryClient.invalidateQueries({ queryKey: ['course-stats'], refetchType: 'all' })
       toast.success('Course deleted successfully')
       setDeleteTarget(null)
     },
@@ -1091,7 +1091,7 @@ export function CourseModule() {
         facultyList={facultyList ?? []}
         onSubmit={(values) => {
           if (editingCourse) {
-            updateMutation.mutate({ id: editingCourse.id, values })
+            updateMutation.mutate({ id: editingCourse.id, values: values as any })
           } else {
             createMutation.mutate(values as CreateCourseInput)
           }
@@ -1124,7 +1124,7 @@ export function CourseModule() {
                   semesterOffered: c.semesterOffered,
                   description: c.description,
                   objectives: c.objectives,
-                  prerequisites: c.prerequisites,
+                  prerequisites: Array.isArray(c.prerequisites) ? JSON.stringify(c.prerequisites) : c.prerequisites,
                   isActive: c.isActive,
                   instructor: c.instructor ? { id: c.instructor.id, facultyId: c.instructor.facultyId, name: c.instructor.name } : null,
                   department: c.department,
@@ -1219,7 +1219,9 @@ function CourseFormDialog({
           courseType: editingCourse.courseType as 'THEORY' | 'LAB' | 'PROJECT' | 'SEMINAR',
           semesterOffered: editingCourse.semesterOffered,
           description: editingCourse.description ?? '',
-          prerequisites: editingCourse.prerequisites ?? '[]',
+          prerequisites: Array.isArray(editingCourse.prerequisites)
+            ? JSON.stringify(editingCourse.prerequisites)
+            : editingCourse.prerequisites ?? '[]',
           objectives: editingCourse.objectives ?? '',
           instructorId: editingCourse.instructor?.id ?? '',
         }
@@ -1250,7 +1252,9 @@ function CourseFormDialog({
           courseType: editingCourse.courseType as 'THEORY' | 'LAB' | 'PROJECT' | 'SEMINAR',
           semesterOffered: editingCourse.semesterOffered,
           description: editingCourse.description ?? '',
-          prerequisites: editingCourse.prerequisites ?? '[]',
+          prerequisites: Array.isArray(editingCourse.prerequisites)
+            ? JSON.stringify(editingCourse.prerequisites)
+            : editingCourse.prerequisites ?? '[]',
           objectives: editingCourse.objectives ?? '',
           instructorId: editingCourse.instructor?.id ?? '',
         } as any)

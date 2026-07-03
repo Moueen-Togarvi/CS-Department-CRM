@@ -17,7 +17,7 @@ export const createCourseSchema = z
     courseType: courseTypeSchema.default("THEORY"),
     semesterOffered: z.coerce.number().int().min(1).max(12).optional().nullable(),
     description: z.string().optional().default(""),
-    prerequisites: z.string().optional().default(""),
+    prerequisites: z.string().optional(),
     objectives: z.string().optional().default(""),
     instructorId: z.string().optional().nullable(),
   })

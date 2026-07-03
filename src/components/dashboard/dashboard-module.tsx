@@ -277,21 +277,16 @@ function FacultyDashboard() {
             ) : data?.todayClasses?.length > 0 ? (
               data.todayClasses.map((c: any) => (
                 <div key={c.id} className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/30 transition-colors">
-                  <div className="flex flex-col items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-2.5 py-1.5 shrink-0 min-w-[58px]">
-                    <span className="text-sm font-bold leading-tight">{c.startTime?.split(' ')[0]}</span>
-                    <span className="text-[10px] uppercase">{c.startTime?.split(' ')[1]}</span>
+                  <div className="flex flex-col items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-3 py-1.5 shrink-0 min-w-[105px]">
+                    <span className="text-sm font-bold leading-tight whitespace-nowrap">{c.startTime} - {c.endTime}</span>
                   </div>
                   <div className="grid gap-1 min-w-0 flex-1">
                     <p className="text-sm font-semibold truncate">{c.courseCode} — {c.courseName}</p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                       {c.courseSemester && <span>Sem {c.courseSemester}</span>}
-                      {c.section && <span>Sec {c.section}</span>}
+                      {c.section?.startsWith('Evening') && <span>Sec {c.section}</span>}
                       <span className="flex items-center gap-0.5"><MapPin className="h-3 w-3" /> {c.room || 'TBD'}</span>
                     </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground shrink-0 text-right">
-                    <div>Ends</div>
-                    <div className="font-medium">{c.endTime}</div>
                   </div>
                 </div>
               ))
@@ -408,22 +403,21 @@ function StudentDashboard() {
             ) : data?.todayClasses?.length > 0 ? (
               data.todayClasses.map((c: any) => (
                 <div key={c.id} className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/30 transition-colors">
-                  <div className="flex flex-col items-center justify-center rounded-lg bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400 px-2.5 py-1.5 shrink-0 min-w-[58px]">
-                    <span className="text-sm font-bold leading-tight">{c.startTime?.split(' ')[0]}</span>
-                    <span className="text-[10px] uppercase">{c.startTime?.split(' ')[1]}</span>
+                  <div className="flex flex-col items-center justify-center rounded-lg bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400 px-3 py-1.5 shrink-0 min-w-[105px]">
+                    <span className="text-sm font-bold leading-tight whitespace-nowrap">{c.startTime} - {c.endTime}</span>
                   </div>
                   <div className="grid gap-1 min-w-0 flex-1">
                     <p className="text-sm font-semibold truncate">{c.courseCode} — {c.courseName}</p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                       {c.courseSemester && <span>Sem {c.courseSemester}</span>}
-                      {c.section && <span>Sec {c.section}</span>}
+                      {c.section?.startsWith('Evening') && <span>Sec {c.section}</span>}
                       <span className="flex items-center gap-0.5"><MapPin className="h-3 w-3" /> {c.room || 'TBD'}</span>
-                      {c.faculty && <span>· {c.faculty}</span>}
                     </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground shrink-0 text-right">
-                    <div>Ends</div>
-                    <div className="font-medium">{c.endTime}</div>
+                    {c.faculty && (
+                      <p className="text-xs font-medium text-sky-600 dark:text-sky-400 flex items-center gap-1">
+                        <GraduationCap className="h-3 w-3" /> {c.faculty}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))

@@ -264,13 +264,31 @@ function CourseResultsTab() {
     return allCourses || []
   }, [isFaculty, facultyOfferings, allCourses])
 
+  // Derive available semester options from actual courses (faculty) or default to 1-8 (admin)
+  const availableSemesters = useMemo(() => {
+    if (isFaculty) {
+      const sems = new Set<number>()
+      for (const c of courses) {
+        if (c.semesterOffered != null) sems.add(c.semesterOffered)
+      }
+      return Array.from(sems).sort((a, b) => a - b).map(String)
+    }
+    return ['1', '2', '3', '4', '5', '6', '7', '8']
+  }, [isFaculty, courses])
+
+  // Set default to first available semester when data loads
+  useEffect(() => {
+    if (availableSemesters.length > 0 && !availableSemesters.includes(selectedAcademicSemester)) {
+      setSelectedAcademicSemester(availableSemesters[0])
+    }
+  }, [availableSemesters])
+
   // Filter courses by selected academic semester
   const filteredCourses = useMemo(() => {
     if (!courses) return []
-    if (isFaculty) return courses
     const targetSem = parseInt(selectedAcademicSemester, 10)
     return courses.filter((c) => c.semesterOffered === targetSem)
-  }, [courses, selectedAcademicSemester, isFaculty])
+  }, [courses, selectedAcademicSemester])
 
   // Reset course selection if it is no longer in the filtered list
   useEffect(() => {
@@ -426,15 +444,14 @@ function CourseResultsTab() {
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-3">
-            {!isFaculty && (
-            <div className="flex-1 space-y-1.5">
+        <div className="flex-1 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Semester</label>
               <Select value={selectedAcademicSemester} onValueChange={setSelectedAcademicSemester}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                  {availableSemesters.map((num) => (
                     <SelectItem key={num} value={String(num)}>
                       Semester {num}
                     </SelectItem>
@@ -442,7 +459,6 @@ function CourseResultsTab() {
                 </SelectContent>
               </Select>
             </div>
-            )}
             <div className="flex-1 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Course</label>
               <Select value={selectedCourse} onValueChange={setSelectedCourse}>
