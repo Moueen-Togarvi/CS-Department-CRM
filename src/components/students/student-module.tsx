@@ -1612,7 +1612,7 @@ export function StudentDetailPanel({ student }: { student: StudentDetail }) {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="border-b px-6 py-5 space-y-4 shrink-0 bg-muted/20">
+      <div className="border-b px-6 py-4 space-y-3 shrink-0 bg-muted/20">
         <SheetHeader>
           <SheetTitle className="sr-only">Student Details</SheetTitle>
           <SheetDescription className="sr-only">View student information, enrollments, attendance, and results</SheetDescription>
@@ -1641,7 +1641,7 @@ export function StudentDetailPanel({ student }: { student: StudentDetail }) {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="profile" className="flex-1 min-h-0">
+      <Tabs defaultValue="profile" className="flex-1 min-h-0 flex flex-col">
         <div className="px-6 pt-3 shrink-0">
           <TabsList className="w-full">
             <TabsTrigger value="profile" className="flex-1"><Users className="size-3.5 sm:mr-1.5" /><span className="hidden sm:inline">Profile</span></TabsTrigger>
@@ -1651,7 +1651,7 @@ export function StudentDetailPanel({ student }: { student: StudentDetail }) {
           </TabsList>
         </div>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="px-6 pb-6">
             <TabsContent value="profile" className="mt-4">
               <ProfileTab student={student} />
@@ -1674,7 +1674,7 @@ export function StudentDetailPanel({ student }: { student: StudentDetail }) {
 
 function ProfileTab({ student }: { student: StudentDetail }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Quick Stats */}
       <div className="grid grid-cols-3 gap-3">
         <div className="text-center p-3 rounded-lg border bg-card">
@@ -1692,7 +1692,7 @@ function ProfileTab({ student }: { student: StudentDetail }) {
       </div>
 
       {/* Details Grid */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <Section title="Contact Information">
           <InfoRow icon={<Mail className="size-4" />} label="Email" value={student.user.email} />
           <InfoRow icon={<Phone className="size-4" />} label="Phone" value={student.user.phone || 'Not provided'} />
