@@ -218,7 +218,6 @@ function CourseResultsTab() {
   const user = useAuthStore((s) => s.user)
   const isFaculty = user?.role === 'FACULTY'
   const [selectedCourse, setSelectedCourse] = useState<string>('')
-  const [selectedSemester, setSelectedSemester] = useState<string>('')
   const [selectedAcademicSemester, setSelectedAcademicSemester] = useState<string>('1')
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
   // Tracks only user modifications to marks fields
@@ -237,8 +236,6 @@ function CourseResultsTab() {
   const currentSemesterId = useMemo(() => {
     return semesters?.find((s) => s.isCurrent)?.id || semesters?.[0]?.id || ''
   }, [semesters])
-
-  // Faculty: only assigned courses
   const { data: facultyOfferings } = useQuery({
     queryKey: ['faculty-offerings', currentSemesterId],
     queryFn: async () => {
@@ -267,13 +264,6 @@ function CourseResultsTab() {
     return allCourses || []
   }, [isFaculty, facultyOfferings, allCourses])
 
-  // Default selected semester to current semester
-  useEffect(() => {
-    if (currentSemesterId && !selectedSemester) {
-      setSelectedSemester(currentSemesterId)
-    }
-  }, [currentSemesterId, selectedSemester])
-
   // Filter courses by selected academic semester
   const filteredCourses = useMemo(() => {
     if (!courses) return []
@@ -294,15 +284,15 @@ function CourseResultsTab() {
 
   // Fetch entry data
   const { data: entryData, isLoading: entryLoading } = useQuery({
-    queryKey: ['results-entry', selectedCourse, selectedSemester],
+    queryKey: ['results-entry', selectedCourse, currentSemesterId],
     queryFn: async () => {
-      const params = new URLSearchParams({ courseId: selectedCourse, semesterId: selectedSemester })
+      const params = new URLSearchParams({ courseId: selectedCourse, semesterId: currentSemesterId })
       const res = await fetch(`/api/results/entry?${params}`)
       const json = await res.json()
       if (!json.success) throw new Error(json.error)
       return json.data as { enrollments: EnrollmentEntry[]; isPublished: boolean }
     },
-    enabled: !!selectedCourse && !!selectedSemester,
+    enabled: !!selectedCourse && !!currentSemesterId,
   })
 
   const isLocked = entryData?.isPublished ?? false
@@ -379,7 +369,7 @@ function CourseResultsTab() {
       const res = await fetch('/api/results/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId: selectedCourse, semesterId: selectedSemester }),
+        body: JSON.stringify({ courseId: selectedCourse, semesterId: currentSemesterId }),
       })
       const json = await res.json()
       if (!json.success) throw new Error(json.error)
@@ -436,27 +426,7 @@ function CourseResultsTab() {
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Session</label>
-              <Select
-                value={selectedSemester}
-                onValueChange={(v) => {
-                  setSelectedSemester(v)
-                  setSelectedCourse('')
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select session" />
-                </SelectTrigger>
-                <SelectContent>
-                  {semesters?.map(s => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name} {s.isCurrent && '(Current)'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isFaculty && (
             <div className="flex-1 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Semester</label>
               <Select value={selectedAcademicSemester} onValueChange={setSelectedAcademicSemester}>
@@ -472,6 +442,7 @@ function CourseResultsTab() {
                 </SelectContent>
               </Select>
             </div>
+            )}
             <div className="flex-1 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Course</label>
               <Select value={selectedCourse} onValueChange={setSelectedCourse}>
@@ -497,7 +468,7 @@ function CourseResultsTab() {
       </Card>
 
       {/* Results Table */}
-      {selectedCourse && selectedSemester && (
+      {selectedCourse && currentSemesterId && (
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -884,8 +855,6 @@ const gradeChartConfig = {
 } as const
 
 function ReportsTab() {
-  const [selectedSemester, setSelectedSemester] = useState<string>('')
-
   // Fetch semesters
   const { data: semesters } = useQuery({
     queryKey: ['reports-semesters'],
@@ -896,26 +865,20 @@ function ReportsTab() {
     },
   })
 
-  // Default selected semester to current semester
-  useEffect(() => {
-    if (semesters && semesters.length > 0 && !selectedSemester) {
-      const current = semesters.find((s) => s.isCurrent) || semesters[0]
-      if (current) {
-        setSelectedSemester(current.id)
-      }
-    }
-  }, [semesters, selectedSemester])
+  const currentSemesterId = useMemo(() => {
+    return semesters?.find((s) => s.isCurrent)?.id || semesters?.[0]?.id || ''
+  }, [semesters])
 
   // Fetch reports
   const { data: reports, isLoading: reportsLoading } = useQuery({
-    queryKey: ['results-reports', selectedSemester],
+    queryKey: ['results-reports', currentSemesterId],
     queryFn: async () => {
-      const res = await fetch(`/api/results/reports?semesterId=${selectedSemester}`)
+      const res = await fetch(`/api/results/reports?semesterId=${currentSemesterId}`)
       const json = await res.json()
       if (!json.success) throw new Error(json.error)
       return json.data
     },
-    enabled: !!selectedSemester,
+    enabled: !!currentSemesterId,
   })
 
   // Transform grade distribution for chart
@@ -934,30 +897,7 @@ function ReportsTab() {
 
   return (
     <div className="space-y-4">
-      {/* Semester Selector */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-            <div className="flex-1 space-y-1.5 w-full">
-              <label className="text-xs font-medium text-muted-foreground">Semester</label>
-              <Select value={selectedSemester} onValueChange={setSelectedSemester}>
-                <SelectTrigger className="w-full sm:w-64">
-                  <SelectValue placeholder="Select semester" />
-                </SelectTrigger>
-                <SelectContent>
-                  {semesters?.map(s => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name} {s.isCurrent && '(Current)'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {selectedSemester && (
+      {currentSemesterId && (
         <>
           {reportsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

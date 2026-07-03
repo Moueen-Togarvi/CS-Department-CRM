@@ -330,7 +330,6 @@ export function AttendanceModule() {
   const queryClient = useQueryClient()
 
   // Filters
-  const [selectedSemester, setSelectedSemester] = useState<string>('')
   const [selectedAcademicSemester, setSelectedAcademicSemester] = useState<string>('_all')
   const [selectedCourseId, setSelectedCourseId] = useState<string>('')
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -345,9 +344,8 @@ export function AttendanceModule() {
   })
 
   const currentSemesterId = useMemo(() => {
-    if (selectedSemester) return selectedSemester
     return semesters?.find((s) => s.isCurrent)?.id || semesters?.[0]?.id || ''
-  }, [semesters, selectedSemester])
+  }, [semesters])
 
   const isFaculty = user?.role === 'FACULTY'
 
@@ -455,22 +453,7 @@ export function AttendanceModule() {
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Session</Label>
-              <Select value={selectedSemester || currentSemesterId} onValueChange={(v) => setSelectedSemester(v === '__none__' ? '' : v)}>
-                <SelectTrigger className="w-[180px] h-9">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  {semesters?.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name} {s.isCurrent && '✓'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
+            {!isFaculty && (
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-medium text-muted-foreground">Academic Semester</Label>
               <Select value={selectedAcademicSemester} onValueChange={setSelectedAcademicSemester}>
@@ -486,7 +469,9 @@ export function AttendanceModule() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>             <div className="flex flex-col gap-1.5">
+            </div>
+            )}
+            <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-medium text-muted-foreground">Course</Label>
               <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
                 <SelectTrigger className="w-[250px] h-9">

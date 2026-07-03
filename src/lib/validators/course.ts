@@ -37,7 +37,7 @@ export const updateCourseSchema = z
     instructorId: z.string().optional().nullable(),
     isActive: z.boolean().optional(),
   })
-  .strict();
+  .strip();
 
 export const enrollStudentsSchema = z.object({
   studentIds: z.array(z.string().min(1)).min(1, "Select at least one student"),

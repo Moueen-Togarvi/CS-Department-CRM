@@ -92,8 +92,13 @@ export async function GET(request: NextRequest) {
         db.timetable.findMany({
           where: { facultyId: faculty.id, day: today as any },
           orderBy: { startTime: 'asc' },
-          take: 5,
-          select: { id: true, startTime: true, endTime: true, courseId: true, room: { select: { name: true } }, course: { select: { code: true, name: true } } },
+          take: 8,
+          select: {
+            id: true, startTime: true, endTime: true, section: true,
+            room: { select: { name: true } },
+            course: { select: { code: true, name: true, semesterOffered: true } },
+            semester: { select: { name: true } },
+          },
         }),
         // Count enrollments in faculty's courses that have no Result record yet
         db.enrollment.count({
@@ -135,7 +140,10 @@ export async function GET(request: NextRequest) {
           endTime: t.endTime,
           courseCode: t.course?.code || '',
           courseName: t.course?.name || '',
+          courseSemester: t.course?.semesterOffered || null,
           room: t.room?.name || '',
+          section: t.section || '',
+          semester: t.semester?.name || '',
         })),
         pendingResults: pendingResults,
         recentAnnouncements: recentAnnouncements.map((a) => ({
@@ -181,16 +189,19 @@ export async function GET(request: NextRequest) {
         where: {
           day: today as any,
           OR: [
-            { course: { enrollments: { some: { studentId: student.id } } } },
+            { course: { enrollments: { some: { studentId: student.id, status: 'ENROLLED' } } } },
+            ...(student.section ? [{ section: student.section }] : []),
+            ...(student.currentSemester ? [{ course: { semesterOffered: student.currentSemester } }] : []),
           ],
         },
         orderBy: { startTime: 'asc' },
-        take: 5,
+        take: 8,
         select: {
-          id: true, startTime: true, endTime: true,
-          course: { select: { code: true, name: true } },
+          id: true, startTime: true, endTime: true, section: true,
+          course: { select: { code: true, name: true, semesterOffered: true } },
           room: { select: { name: true } },
           faculty: { select: { user: { select: { name: true } } } },
+          semester: { select: { name: true } },
         },
       }),
       db.announcement.findMany({
@@ -252,8 +263,11 @@ export async function GET(request: NextRequest) {
         endTime: t.endTime,
         courseCode: t.course?.code || '',
         courseName: t.course?.name || '',
+        courseSemester: t.course?.semesterOffered || null,
         room: t.room?.name || '',
         faculty: t.faculty?.user?.name || '',
+        section: t.section || '',
+        semester: t.semester?.name || '',
       })),
       recentAnnouncements: recentAnnouncements.map((a) => ({
         id: a.id, title: a.title, type: a.type, content: a.content,

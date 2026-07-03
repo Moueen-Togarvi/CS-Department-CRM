@@ -271,26 +271,27 @@ function FacultyDashboard() {
               className="ml-auto px-3 py-1.5 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 max-w-[150px] font-medium bg-background text-foreground"
             />
           </CardHeader>
-          <CardContent className="grid gap-4">
+          <CardContent className="grid gap-3">
             {isLoading ? (
-              <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}</div>
+              <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}</div>
             ) : data?.todayClasses?.length > 0 ? (
               data.todayClasses.map((c: any) => (
-                <div key={c.id} className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-                      <span className="text-sm font-bold">{c.startTime.split(' ')[0]}</span>
-                      <span className="text-[10px] uppercase font-medium">{c.startTime.split(' ')[1]}</span>
-                    </div>
-                    <div className="grid gap-1">
-                      <p className="text-sm font-semibold">{c.courseCode} — {c.courseName}</p>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <MapPin className="h-3 w-3" /> {c.room}
-                      </p>
+                <div key={c.id} className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/30 transition-colors">
+                  <div className="flex flex-col items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 px-2.5 py-1.5 shrink-0 min-w-[58px]">
+                    <span className="text-sm font-bold leading-tight">{c.startTime?.split(' ')[0]}</span>
+                    <span className="text-[10px] uppercase">{c.startTime?.split(' ')[1]}</span>
+                  </div>
+                  <div className="grid gap-1 min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate">{c.courseCode} — {c.courseName}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                      {c.courseSemester && <span>Sem {c.courseSemester}</span>}
+                      {c.section && <span>Sec {c.section}</span>}
+                      <span className="flex items-center gap-0.5"><MapPin className="h-3 w-3" /> {c.room || 'TBD'}</span>
                     </div>
                   </div>
-                  <div className="text-sm text-muted-foreground font-medium sm:text-right">
-                    Ends at {c.endTime}
+                  <div className="text-xs text-muted-foreground shrink-0 text-right">
+                    <div>Ends</div>
+                    <div className="font-medium">{c.endTime}</div>
                   </div>
                 </div>
               ))
@@ -401,26 +402,28 @@ function StudentDashboard() {
               className="ml-auto px-3 py-1.5 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 max-w-[150px] font-medium bg-background text-foreground"
             />
           </CardHeader>
-          <CardContent className="grid gap-4">
+          <CardContent className="grid gap-3">
             {isLoading ? (
-              <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}</div>
+              <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}</div>
             ) : data?.todayClasses?.length > 0 ? (
               data.todayClasses.map((c: any) => (
-                <div key={c.id} className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-4 gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-sky-50 text-sky-700">
-                      <span className="text-sm font-bold">{c.startTime.split(' ')[0]}</span>
-                      <span className="text-[10px] uppercase font-medium">{c.startTime.split(' ')[1]}</span>
-                    </div>
-                    <div className="grid gap-1">
-                      <p className="text-sm font-semibold">{c.courseCode} — {c.courseName}</p>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <MapPin className="h-3 w-3" /> {c.room} {c.faculty ? `· ${c.faculty}` : ''}
-                      </p>
+                <div key={c.id} className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/30 transition-colors">
+                  <div className="flex flex-col items-center justify-center rounded-lg bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400 px-2.5 py-1.5 shrink-0 min-w-[58px]">
+                    <span className="text-sm font-bold leading-tight">{c.startTime?.split(' ')[0]}</span>
+                    <span className="text-[10px] uppercase">{c.startTime?.split(' ')[1]}</span>
+                  </div>
+                  <div className="grid gap-1 min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate">{c.courseCode} — {c.courseName}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                      {c.courseSemester && <span>Sem {c.courseSemester}</span>}
+                      {c.section && <span>Sec {c.section}</span>}
+                      <span className="flex items-center gap-0.5"><MapPin className="h-3 w-3" /> {c.room || 'TBD'}</span>
+                      {c.faculty && <span>· {c.faculty}</span>}
                     </div>
                   </div>
-                  <div className="text-sm text-muted-foreground font-medium sm:text-right">
-                    Ends at {c.endTime}
+                  <div className="text-xs text-muted-foreground shrink-0 text-right">
+                    <div>Ends</div>
+                    <div className="font-medium">{c.endTime}</div>
                   </div>
                 </div>
               ))
@@ -436,29 +439,29 @@ function StudentDashboard() {
         <div className="flex flex-col gap-4 md:gap-8">
           <Card>
             <CardHeader>
-              <CardTitle>My Courses</CardTitle>
-              <CardDescription>Enrolled this semester</CardDescription>
+              <CardTitle>Announcements</CardTitle>
+              <CardDescription>Latest updates</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-6">
+            <CardContent className="grid gap-4">
               {isLoading ? (
-                <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}</div>
-              ) : data?.courses?.length > 0 ? (
-                data.courses.map((c: any) => (
-                  <div key={c.id} className="flex items-center gap-4">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-muted">
-                      <BookOpen className="h-4 w-4 text-muted-foreground" />
+                <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}</div>
+              ) : data?.recentAnnouncements?.length > 0 ? (
+                data.recentAnnouncements.map((a: any) => (
+                  <div key={a.id} className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-900/20">
+                      <Megaphone className="h-4 w-4 text-rose-500" />
                     </div>
-                    <div className="grid gap-1">
-                      <p className="text-sm font-medium leading-none">{c.name}</p>
-                      <p className="text-sm text-muted-foreground">{c.code}</p>
-                    </div>
-                    <div className="ml-auto font-medium text-xs whitespace-nowrap">
-                      {c.creditHours} CR
+                    <div className="grid gap-0.5 min-w-0">
+                      <p className="text-sm font-medium leading-tight truncate">{a.title}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{a.content}</p>
+                      <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                        {new Date(a.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">Not enrolled in any courses</div>
+                <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">No announcements</div>
               )}
             </CardContent>
           </Card>

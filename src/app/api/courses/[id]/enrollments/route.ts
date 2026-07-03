@@ -26,17 +26,10 @@ export async function GET(
       return errorResponse("Course not found", 404);
     }
 
-    // Get current semester
-    const currentSemester = await db.semester.findFirst({
-      where: { isCurrent: true },
-    });
-
-    const semesterId = currentSemester?.id;
-
     const enrollments = await db.enrollment.findMany({
       where: {
         courseId,
-        ...(semesterId ? { semesterId } : {}),
+        status: 'ENROLLED',
       },
       include: {
         student: {
@@ -82,9 +75,6 @@ export async function GET(
 
     return successResponse({
       enrollments: data,
-      semester: currentSemester
-        ? { id: currentSemester.id, name: currentSemester.name }
-        : null,
     });
   } catch (error) {
     return handleApiError(error, "Failed to fetch enrollments");
