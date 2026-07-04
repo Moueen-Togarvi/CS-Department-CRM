@@ -34,12 +34,8 @@ import {
   Loader2,
   X,
   Upload,
-  LayoutGrid,
-  List,
   AlertTriangle,
-  UserCheck,
   GraduationCap,
-  ArrowRight,
   User,
 } from 'lucide-react'
 
@@ -336,8 +332,6 @@ export function CourseModule() {
   const [creditFilter, setCreditFilter] = useState<string>('_all')
   const [semesterFilter, setSemesterFilter] = useState<string>('_all')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'code', desc: false }])
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
-
   useEffect(() => {
     if (isStudent && studentSemester) {
       setSemesterFilter(studentSemester)
@@ -540,18 +534,6 @@ export function CourseModule() {
         ),
       },
       {
-        accessorKey: 'instructor',
-        header: 'Instructor',
-        size: 160,
-        cell: ({ row }) => (
-          <span className="text-sm">
-            {row.original.instructor ? row.original.instructor.name : (
-              <span className="text-muted-foreground italic">Not assigned</span>
-            )}
-          </span>
-        ),
-      },
-      {
         accessorKey: 'semesterOffered',
         header: 'Semester',
         size: 100,
@@ -579,7 +561,7 @@ export function CourseModule() {
                   <Eye className="mr-2 h-4 w-4" />
                   View Details
                 </DropdownMenuItem>
-                {(user?.role === 'ADMIN' || (user?.role === 'FACULTY' && c.instructor?.id === user?.facultyId)) && (
+                {user?.role === 'ADMIN' && (
                   <>
                     <DropdownMenuItem
                       onClick={() => {
@@ -716,11 +698,6 @@ export function CourseModule() {
             onValueChange={(v) => {
               setSemesterFilter(v)
               setPage(1)
-              if (v !== '_all') {
-                setViewMode('cards')
-              } else {
-                setViewMode('table')
-              }
             }}
           >
             <SelectTrigger className="w-full sm:w-[150px]">
@@ -749,272 +726,10 @@ export function CourseModule() {
               )}
             </SelectContent>
           </Select>
-          <div className="flex items-center gap-1 border rounded-lg p-1 bg-muted/50 self-end sm:self-auto shrink-0">
-            <Button
-              variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setViewMode('table')}
-              title="Table View"
-              type="button"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'cards' ? 'secondary' : 'ghost'}
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setViewMode('cards')}
-              title="Cards View"
-              type="button"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </Card>
 
-      {/* Course List (Table or Cards) */}
-      {viewMode === 'cards' ? (
-        <div className="space-y-6">
-          {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Card key={i} className="p-3.5 space-y-3">
-                  <div className="flex justify-between">
-                    <Skeleton className="h-5.5 w-16" />
-                    <Skeleton className="h-5.5 w-12" />
-                  </div>
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                  <Separator />
-                  <div className="flex justify-between">
-                    <Skeleton className="h-5 w-16" />
-                    <Skeleton className="h-5 w-16" />
-                  </div>
-                  <Skeleton className="h-8.5 w-full" />
-                </Card>
-              ))}
-            </div>
-          ) : courseList.length === 0 ? (
-            <Card className="p-12 text-center">
-              <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <BookOpen className="h-12 w-12 opacity-30 animate-pulse" />
-                <h3 className="font-semibold text-lg">No courses found</h3>
-                <p className="text-sm">Try adjusting your filters or search query.</p>
-              </div>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {courseList.map((course) => {
-                const isUpdatingThis = updateMutation.isPending && updateMutation.variables?.id === course.id
-                const hasInstructor = !!course.instructor
-                const typeTextColor = 
-                  course.courseType === 'THEORY' ? 'text-emerald-600 dark:text-emerald-400' :
-                  course.courseType === 'LAB' ? 'text-amber-600 dark:text-amber-400' :
-                  course.courseType === 'PROJECT' ? 'text-rose-600 dark:text-rose-455' :
-                  'text-slate-900 dark:text-slate-100';
-
-                return (
-                  <Card 
-                    key={course.id} 
-                    className={cn(
-                      "group relative flex flex-col justify-between overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md border border-slate-200/85 dark:border-slate-800 border-t-[3.5px] border-t-emerald-600 bg-white dark:bg-slate-950 rounded-xl min-h-[238px]"
-                    )}
-                  >
-                    <CardContent className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
-                      {/* Top Row */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 tracking-wider text-xs bg-emerald-500/10 dark:bg-emerald-500/20 px-2.5 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1.5 shrink-0">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
-                            {course.code}
-                          </span>
-                          
-                          {/* Options dropdown menu */}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-muted/80 shrink-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Actions</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-52">
-                              <DropdownMenuItem onClick={() => setDetailCourseId(course.id)}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Details
-                              </DropdownMenuItem>
-                              {isAdmin && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuSub>
-                                    <DropdownMenuSubTrigger className="flex items-center">
-                                      <UserPlus className="mr-2 h-4 w-4" />
-                                      <span>Assign Instructor</span>
-                                    </DropdownMenuSubTrigger>
-                                    <DropdownMenuPortal>
-                                      <DropdownMenuSubContent className="max-h-56 overflow-y-auto w-56">
-                                        <DropdownMenuItem 
-                                          className="text-amber-600 dark:text-amber-400 font-medium"
-                                          onClick={() => {
-                                            updateMutation.mutate({
-                                              id: course.id,
-                                              values: { instructorId: null }
-                                            })
-                                          }}
-                                        >
-                                          ❌ Unassign / None
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        {facultyList?.map((faculty) => (
-                                          <DropdownMenuItem
-                                            key={faculty.id}
-                                            onClick={() => {
-                                              updateMutation.mutate({
-                                                id: course.id,
-                                                values: { instructorId: faculty.id }
-                                              })
-                                            }}
-                                            className="flex items-center justify-between"
-                                          >
-                                            <span className="truncate">👤 {faculty.name}</span>
-                                            <span className="text-[10px] text-muted-foreground font-mono shrink-0 ml-1">({faculty.facultyId})</span>
-                                          </DropdownMenuItem>
-                                        ))}
-                                      </DropdownMenuSubContent>
-                                    </DropdownMenuPortal>
-                                  </DropdownMenuSub>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setEditingCourse(course)
-                                      setFormOpen(true)
-                                    }}
-                                  >
-                                    <Pencil className="mr-2 h-4 w-4" />
-                                    Edit Course
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => setDeleteTarget(course)}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Delete Course
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-
-                        {/* Title and Department */}
-                        <div className="space-y-1.5">
-                          <h4 
-                            className="font-bold text-sm sm:text-base leading-snug tracking-tight text-foreground line-clamp-2 hover:text-emerald-600 transition-colors cursor-pointer" 
-                            onClick={() => setDetailCourseId(course.id)}
-                          >
-                            {course.name}
-                          </h4>
-                          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-1">
-                            <GraduationCap className="h-4 w-4 text-slate-500 dark:text-slate-400 shrink-0" />
-                            <span className="truncate">{course.department.name}</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Middle Info (Type, Credits) */}
-                      <div className="grid grid-cols-2 rounded-xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20 overflow-hidden divide-x divide-slate-200/70 dark:divide-slate-800">
-                        <div className="px-4 py-2 flex flex-col justify-center">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">Type</p>
-                          <p className={cn("font-bold text-sm mt-1.5", typeTextColor)}>
-                            {course.courseType.charAt(0) + course.courseType.slice(1).toLowerCase()}
-                          </p>
-                        </div>
-                        <div className="px-4 py-2 flex flex-col justify-center">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">Credits</p>
-                          <p className="font-bold text-emerald-700 dark:text-emerald-400 text-sm mt-1.5">
-                            {course.creditHours}
-                            {course.labCreditHours > 0 && <span className="text-xs text-muted-foreground font-semibold"> +{course.labCreditHours}L</span>}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Bottom Instructor Section */}
-                      <div 
-                        onClick={() => setDetailCourseId(course.id)}
-                        className="group/instructor bg-slate-50/60 hover:bg-slate-100/80 dark:bg-slate-900/40 dark:hover:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 rounded-xl p-3 flex items-center justify-between cursor-pointer transition-all duration-200"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-9 w-9 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-center text-slate-500 group-hover/instructor:text-primary group-hover/instructor:bg-slate-200 dark:group-hover/instructor:bg-slate-800 transition-colors shrink-0">
-                            <User className="h-4.5 w-4.5 text-slate-600 dark:text-slate-350 shrink-0" />
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">Instructor</span>
-                            <span className="font-bold text-sm text-slate-900 dark:text-slate-100 mt-1 truncate">
-                              {course.instructor?.name || 'Not Assigned'}
-                            </span>
-                            {course.instructor ? (
-                              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 truncate flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
-                                ID: {course.instructor.facultyId}
-                              </span>
-                            ) : (
-                              <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 animate-pulse"></span>
-                                Needs Assignment
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="h-6.5 w-6.5 rounded-full bg-slate-200/60 dark:bg-slate-800/80 group-hover/instructor:bg-emerald-600/10 flex items-center justify-center text-slate-600 dark:text-slate-400 group-hover/instructor:text-emerald-600 transition-all duration-200 shrink-0">
-                          {isUpdatingThis ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
-                          ) : (
-                            <ArrowRight className="h-4 w-4 group-hover/instructor:translate-x-0.5 transition-transform" />
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Pagination for Cards View */}
-          {pagination && pagination.totalPages > 1 && (
-            <Card className="flex items-center justify-between px-4 py-3">
-              <p className="text-sm text-muted-foreground">
-                Showing {(pagination.page - 1) * pagination.limit + 1}–
-                {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                {pagination.total}
-              </p>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  Previous
-                </Button>
-                <span className="px-3 text-sm font-medium">
-                  {pagination.page} / {pagination.totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.page >= pagination.totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            </Card>
-          )}
-        </div>
-      ) : (
-        /* Data Table */
+      {/* Data Table */}
         <Card>
           <div className="max-h-[600px] overflow-auto">
             <Table>
@@ -1114,7 +829,6 @@ export function CourseModule() {
             </div>
           )}
         </Card>
-      )}
 
       {/* ==================== FORM DIALOG ==================== */}
       <CourseFormDialog
@@ -1260,7 +974,6 @@ function CourseFormDialog({
             ? JSON.stringify(editingCourse.prerequisites)
             : editingCourse.prerequisites ?? '[]',
           objectives: editingCourse.objectives ?? '',
-          instructorId: editingCourse.instructor?.id ?? '',
         }
       : {
           code: '',
@@ -1273,7 +986,6 @@ function CourseFormDialog({
           description: '',
           prerequisites: '[]',
           objectives: '',
-          instructorId: '',
         }) as any,
   })
 
@@ -1293,7 +1005,6 @@ function CourseFormDialog({
             ? JSON.stringify(editingCourse.prerequisites)
             : editingCourse.prerequisites ?? '[]',
           objectives: editingCourse.objectives ?? '',
-          instructorId: editingCourse.instructor?.id ?? '',
         } as any)
       } else {
         form.reset({
@@ -1307,7 +1018,6 @@ function CourseFormDialog({
           description: '',
           prerequisites: '[]',
           objectives: '',
-          instructorId: '',
         } as any)
       }
     }
@@ -1440,36 +1150,6 @@ function CourseFormDialog({
                     </FormItem>
                   )}
                 />
-                {userRole !== 'FACULTY' && (
-                  <FormField
-                    control={form.control}
-                    name="instructorId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Instructor</FormLabel>
-                        <Select
-                          value={field.value || '_none'}
-                          onValueChange={(v) => field.onChange(v === '_none' ? null : v)}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Not assigned" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="_none">Not Assigned</SelectItem>
-                            {facultyList.map((f) => (
-                              <SelectItem key={f.id} value={f.id}>
-                                {f.name} ({f.facultyId})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
               </div>
             </div>
 
@@ -1504,6 +1184,7 @@ interface CourseDetailSheetProps {
 
 function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailSheetProps) {
   const queryClient = useQueryClient()
+  const { data: facultyList } = useFacultyList()
   const [enrollmentsData, setEnrollmentsData] = useState<{
     enrollments: CourseEnrollment[]
     semester: { id: string; name: string } | null
@@ -1511,6 +1192,15 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailS
   const [enrollmentsLoading, setEnrollmentsLoading] = useState(false)
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false)
   const [enrollCourseId, setEnrollCourseId] = useState<string | null>(null)
+
+  // Faculty assignments state
+  const [offerings, setOfferings] = useState<any[]>([])
+  const [offeringsLoading, setOfferingsLoading] = useState(false)
+  const [newFacultyId, setNewFacultyId] = useState('')
+  const [newShift, setNewShift] = useState<'Morning' | 'Evening'>('Morning')
+  const [newSection, setNewSection] = useState('A')
+  const [newSlotType, setNewSlotType] = useState('THEORY')
+  const [addingOffering, setAddingOffering] = useState(false)
 
   const fetchEnrollments = async (courseId: string) => {
     setEnrollmentsLoading(true)
@@ -1527,6 +1217,64 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailS
 
   const handleEnrollTabClick = (courseId: string) => {
     fetchEnrollments(courseId)
+  }
+
+  const fetchOfferings = async (courseId: string) => {
+    setOfferingsLoading(true)
+    try {
+      const res = await fetch(`/api/courses/${courseId}/offerings`)
+      if (res.ok) {
+        const json = await res.json()
+        setOfferings(json.data || [])
+      }
+    } finally {
+      setOfferingsLoading(false)
+    }
+  }
+
+  const handleAddOffering = async () => {
+    if (!detail || !newFacultyId) {
+      toast.error('Please select a faculty member')
+      return
+    }
+    setAddingOffering(true)
+    try {
+      const composedSection = `${newShift} ${newSection}`
+      const res = await fetch(`/api/courses/${detail.id}/offerings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ facultyId: newFacultyId, section: composedSection, slotType: newSlotType }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to assign')
+      toast.success('Faculty assigned successfully')
+      setNewFacultyId('')
+      setNewShift('Morning')
+      setNewSection('A')
+      setNewSlotType('THEORY')
+      fetchOfferings(detail.id)
+      queryClient.invalidateQueries({ queryKey: ['courses'] })
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setAddingOffering(false)
+    }
+  }
+
+  const handleRemoveOffering = async (offeringId: string) => {
+    if (!detail) return
+    try {
+      const res = await fetch(`/api/courses/${detail.id}/offerings/${offeringId}`, {
+        method: 'DELETE',
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to remove')
+      toast.success('Assignment removed')
+      fetchOfferings(detail.id)
+      queryClient.invalidateQueries({ queryKey: ['courses'] })
+    } catch (err: any) {
+      toast.error(err.message)
+    }
   }
 
   if (isLoading) {
@@ -1580,11 +1328,16 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailS
       <ScrollArea className="flex-1">
         <Tabs defaultValue="info" className="w-full" onValueChange={(v) => {
           if (v === 'enrollments' && detail) handleEnrollTabClick(detail.id)
+          if (v === 'faculty' && detail) fetchOfferings(detail.id)
         }}>
           <TabsList className="mx-6 mt-3 w-auto flex">
             <TabsTrigger value="info" className="flex-1 gap-1.5">
               <BookOpen className="h-3.5 w-3.5 hidden sm:block" />
               Info
+            </TabsTrigger>
+            <TabsTrigger value="faculty" className="flex-1 gap-1.5">
+              <GraduationCap className="h-3.5 w-3.5 hidden sm:block" />
+              Faculty
             </TabsTrigger>
             <TabsTrigger value="enrollments" className="flex-1 gap-1.5">
               <Users className="h-3.5 w-3.5 hidden sm:block" />
@@ -1693,6 +1446,133 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailS
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ===== FACULTY TAB ===== */}
+          <TabsContent value="faculty" className="p-4 mt-0">
+            {isAdmin && (
+              <div className="mb-4 rounded-lg border bg-muted/30 p-3 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Plus className="h-4 w-4" />
+                  Assign Faculty to Section
+                </div>
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="flex flex-col gap-1.5 flex-1 min-w-[180px]">
+                    <label className="text-xs text-muted-foreground">Faculty</label>
+                    <Select value={newFacultyId} onValueChange={setNewFacultyId}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Select faculty" /></SelectTrigger>
+                      <SelectContent>
+                        {(facultyList ?? []).map((f) => (
+                          <SelectItem key={f.id} value={f.id}>{f.name} ({f.facultyId})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1.5 w-[120px]">
+                    <label className="text-xs text-muted-foreground">Shift</label>
+                    <Select value={newShift} onValueChange={(v) => { setNewShift(v as 'Morning' | 'Evening'); setNewSection('A') }}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Morning">Morning</SelectItem>
+                        <SelectItem value="Evening">Evening</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1.5 w-[90px]">
+                    <label className="text-xs text-muted-foreground">Section</label>
+                    <Select value={newSection} onValueChange={setNewSection}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {(newShift === 'Morning' ? ['A'] : ['A', 'B']).map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1.5 w-[120px]">
+                    <label className="text-xs text-muted-foreground">Slot Type</label>
+                    <Select value={newSlotType} onValueChange={setNewSlotType}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="THEORY">Theory</SelectItem>
+                        <SelectItem value="LAB">Lab</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button size="sm" onClick={handleAddOffering} disabled={addingOffering} className="h-9">
+                    {addingOffering ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    Assign
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {offeringsLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
+              </div>
+            ) : offerings.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <GraduationCap className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                <p className="font-medium text-muted-foreground">No section assignments</p>
+                <p className="text-sm text-muted-foreground/70 mt-1">
+                  {isAdmin ? 'Assign faculty to different sections of this course.' : 'No faculty have been assigned to sections yet.'}
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-lg border divide-y">
+                {offerings.map((o) => {
+                  const parts = (o.section || '').split(' ')
+                  const isComposed = parts.length >= 2
+                  const shiftLabel = isComposed ? parts[0] : ''
+                  const sectionLabel = isComposed ? parts[parts.length - 1] : (o.section || '')
+                  const isEvening = shiftLabel.toLowerCase().includes('evening')
+                  return (
+                  <div key={o.id} className="flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-900/20">
+                      <GraduationCap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold truncate">{o.faculty?.user?.name || 'Unknown'}</p>
+                      <p className="text-xs text-muted-foreground">{o.faculty?.designation || ''}</p>
+                    </div>
+                    {shiftLabel && (
+                      <Badge variant="outline" className={`text-[10px] font-semibold ${isEvening ? 'text-sky-600 border-sky-300' : 'text-emerald-600 border-emerald-300'}`}>
+                        {shiftLabel}
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" className="text-xs font-semibold">Sec {sectionLabel}</Badge>
+                    <Badge variant="outline" className="text-xs">{o.slotType === 'LAB' ? 'Lab' : 'Theory'}</Badge>
+                    {o.semester?.isCurrent && (
+                      <Badge className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Current</Badge>
+                    )}
+                    {isAdmin && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-red-600 shrink-0"
+                        onClick={() => handleRemoveOffering(o.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {detail?.instructor && (
+              <div className="mt-4 rounded-lg border border-dashed p-3 flex items-center gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                  <User className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Primary Instructor (Course Owner)</p>
+                  <p className="text-sm font-medium">{detail.instructor.name} · {detail.instructor.designation}</p>
                 </div>
               </div>
             )}

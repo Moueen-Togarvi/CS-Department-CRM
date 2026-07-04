@@ -57,12 +57,13 @@ export async function GET(request: NextRequest) {
       select: { id: true, code: true, name: true, creditHours: true, courseType: true, semesterOffered: true },
     })
 
-    // Convert instructor courses into offering-like entries
+    // Convert instructor courses into offering-like entries.
+    // section=null signals "no section-based assignment" (legacy fallback → all sections)
     const instructorEntries = instructorCourses.map((c) => ({
       id: `instructor-${c.id}`,
       courseId: c.id,
       semesterId: semesterId || '',
-      section: 'A',
+      section: null as string | null,
       slotType: null,
       course: c,
       semester: semester ? { id: semester.id, name: semester.name, isCurrent: semester.isCurrent } : null,

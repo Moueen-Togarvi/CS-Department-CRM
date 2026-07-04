@@ -130,7 +130,13 @@ export async function GET(request: NextRequest) {
 
       // Merge CourseOffering results with instructor-assigned courses (dedup by courseId)
       const seenCourseIds = new Set(offerings.map((o) => o.course.id))
-      const mergedCourses = offerings.map((o) => ({
+      const mergedCourses: Array<{
+        id: string
+        courseCode: string
+        courseName: string
+        semester: string
+        section: string | null
+      }> = offerings.map((o) => ({
         id: o.id,
         courseCode: o.course.code,
         courseName: o.course.name,
@@ -145,7 +151,7 @@ export async function GET(request: NextRequest) {
             courseCode: c.code,
             courseName: c.name,
             semester: c.semesterOffered ? `Semester ${c.semesterOffered}` : '',
-            section: 'A',
+            section: null,
           })
         }
       }

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
 import { updateCourseSchema } from "@/lib/validators/course";
-import { requireAuth, requireAdmin, requireRole, handleApiError } from "@/lib/auth-utils";
+import { requireAuth, requireAdmin, requireRole, handleApiError, assertFacultyOwnsCourse } from "@/lib/auth-utils";
 
 function parsePrerequisites(v: string | undefined | null): string[] {
   if (!v || v === "") return [];
@@ -67,10 +67,9 @@ export async function GET(
     }
 
     if (session.user.role === 'FACULTY') {
-      const faculty = await db.faculty.findUnique({
-        where: { userId: session.user.id }
-      });
-      if (!faculty || course.instructorId !== faculty.id) {
+      try {
+        await assertFacultyOwnsCourse(session.user.id, id);
+      } catch {
         return errorResponse("Forbidden: You do not have access to this course", 403);
       }
     }
@@ -132,11 +131,11 @@ export async function PUT(
     const body = await request.json();
 
     if (session.user.role === "FACULTY") {
-      const faculty = await db.faculty.findUnique({ where: { userId: session.user.id } });
-      if (!faculty || course.instructorId !== faculty.id) {
+      try {
+        await assertFacultyOwnsCourse(session.user.id, id);
+      } catch {
         return errorResponse("Forbidden: You can only edit your own courses", 403);
       }
-      body.instructorId = faculty.id;
     }
 
     const parsed = updateCourseSchema.safeParse(body);
@@ -154,14 +153,6 @@ export async function PUT(
       if (!dept) return errorResponse("Department not found", 404);
     }
 
-    // If instructorId is being updated, check it exists
-    if (data.instructorId !== undefined) {
-      if (data.instructorId) {
-        const instr = await db.faculty.findUnique({ where: { id: data.instructorId } });
-        if (!instr) return errorResponse("Instructor not found", 404);
-      }
-    }
-
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.departmentId !== undefined) updateData.departmentId = data.departmentId;
@@ -172,7 +163,6 @@ export async function PUT(
     if (data.description !== undefined) updateData.description = data.description || null;
     if (data.prerequisites !== undefined) updateData.prerequisiteIds = parsePrerequisites(data.prerequisites);
     if (data.objectives !== undefined) updateData.objectives = data.objectives || null;
-    if (data.instructorId !== undefined) updateData.instructorId = data.instructorId ?? null;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
 
     const updated = await db.course.update({
@@ -208,15 +198,16 @@ export async function DELETE(
     }
 
     if (session.user.role === "FACULTY") {
-      const faculty = await db.faculty.findUnique({ where: { userId: session.user.id } });
-      if (!faculty || course.instructorId !== faculty.id) {
+      try {
+        await assertFacultyOwnsCourse(session.user.id, id);
+      } catch {
         return errorResponse("Forbidden: You can only delete your own courses", 403);
       }
     }
 
     await db.course.update({
       where: { id },
-      data: { isActive: false, instructorId: null },
+      data: { isActive: false },
     });
 
     return successResponse(null, "Course deleted successfully");

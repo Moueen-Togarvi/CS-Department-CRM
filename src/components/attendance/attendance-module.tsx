@@ -101,11 +101,13 @@ const STATUS_BG: Record<string, string> = {
 function MarkAttendancePanel({
   courseId,
   semesterId,
+  section,
   selectedDate,
   userId,
 }: {
   courseId: string
   semesterId: string
+  section?: string
   selectedDate: Date
   userId: string
 }) {
@@ -113,9 +115,11 @@ function MarkAttendancePanel({
   const dateStr = format(selectedDate, 'yyyy-MM-dd')
 
   const { data: enrollments, isLoading: isLoadingStudents } = useQuery({
-    queryKey: ['enrollments', courseId, semesterId],
+    queryKey: ['enrollments', courseId, semesterId, section],
     queryFn: async () => {
       const params = new URLSearchParams({ limit: '200' })
+      if (semesterId) params.set('semesterId', semesterId)
+      if (section) params.set('section', section)
       const res = await fetch(`/api/courses/${courseId}/enrollments?${params}`)
       const json = await res.json()
       return (json.data?.enrollments || []) as EnrolledStudent[]
@@ -332,6 +336,7 @@ export function AttendanceModule() {
   // Filters
   const [selectedAcademicSemester, setSelectedAcademicSemester] = useState<string>('_all')
   const [selectedCourseId, setSelectedCourseId] = useState<string>('')
+  const [selectedSection, setSelectedSection] = useState<string>('')
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [dateFrom, setDateFrom] = useState<Date>(subDays(new Date(), 30))
   const [dateTo, setDateTo] = useState<Date>(new Date())
@@ -368,13 +373,23 @@ export function AttendanceModule() {
 
   const courses = useMemo(() => {
     if (isFaculty) {
-      return (facultyOfferings || []).map((o: any) => ({
-        id: o.course.id,
-        code: o.course.code,
-        name: o.course.name,
-        courseType: o.course.courseType,
-        semesterOffered: o.course.semesterOffered,
-      }))
+      // Dedupe by courseId (a faculty may teach multiple sections of one course)
+      const seen = new Set<string>()
+      const out: Course[] = []
+      for (const o of facultyOfferings || []) {
+        const c = o.course
+        if (c && !seen.has(c.id)) {
+          seen.add(c.id)
+          out.push({
+            id: c.id,
+            code: c.code,
+            name: c.name,
+            courseType: c.courseType,
+            semesterOffered: c.semesterOffered,
+          })
+        }
+      }
+      return out
     }
     return allCourses || []
   }, [isFaculty, facultyOfferings, allCourses])
@@ -417,12 +432,42 @@ export function AttendanceModule() {
     }
   }, [filteredCourses, selectedCourseId])
 
-  // Course attendance summary (for Summary tab)
-  const { data: courseSummary, isLoading: isLoadingSummary } = useQuery({
-    queryKey: ['attendance-course-summary', selectedCourseId, currentSemesterId],
+  // Reset section whenever the course changes (done in onValueChange below)
+  // Fetch available sections for the selected course (+ semester).
+  // The endpoint auto-scopes to the faculty's assigned sections.
+  const { data: sectionsData } = useQuery({
+    queryKey: ['course-sections', selectedCourseId, currentSemesterId],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (currentSemesterId) params.set('semesterId', currentSemesterId)
+      const res = await fetch(`/api/courses/${selectedCourseId}/sections?${params}`)
+      const json = await res.json()
+      return (json.data?.sections || []) as string[]
+    },
+    enabled: !!selectedCourseId,
+  })
+
+  const availableSections = sectionsData || []
+
+  const handleCourseChange = (id: string) => {
+    setSelectedCourseId(id)
+    setSelectedSection('')
+  }
+
+  // Auto-select the first (only) section when a single one is available
+  useEffect(() => {
+    if (availableSections.length > 0 && !availableSections.includes(selectedSection)) {
+      setSelectedSection(availableSections[0])
+    }
+  }, [availableSections, selectedSection])
+
+  // Course attendance summary (for Summary tab)
+  const { data: courseSummary, isLoading: isLoadingSummary } = useQuery({
+    queryKey: ['attendance-course-summary', selectedCourseId, currentSemesterId, selectedSection],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (currentSemesterId) params.set('semesterId', currentSemesterId)
+      if (selectedSection) params.set('section', selectedSection)
       const res = await fetch(`/api/attendance/course/${selectedCourseId}/summary?${params}`)
       const json = await res.json()
       return json.data as AttendanceSummaryItem[]
@@ -460,7 +505,7 @@ export function AttendanceModule() {
   }
 
   // Key for remounting the mark attendance panel
-  const markPanelKey = `${selectedCourseId}-${currentSemesterId}-${format(selectedDate, 'yyyy-MM-dd')}`
+  const markPanelKey = `${selectedCourseId}-${currentSemesterId}-${selectedSection}-${format(selectedDate, 'yyyy-MM-dd')}`
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -491,7 +536,7 @@ export function AttendanceModule() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-medium text-muted-foreground">Course</Label>
-              <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
+              <Select value={selectedCourseId} onValueChange={handleCourseChange}>
                 <SelectTrigger className="w-[250px] h-9">
                   <SelectValue placeholder="Select a course" />
                 </SelectTrigger>
@@ -509,6 +554,30 @@ export function AttendanceModule() {
                 </SelectContent>
               </Select>
             </div>
+
+            {selectedCourseId && (
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Section</Label>
+                <Select value={selectedSection} onValueChange={setSelectedSection}>
+                  <SelectTrigger className="w-[160px] h-9">
+                    <SelectValue placeholder="All sections" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSections.length === 0 ? (
+                      <SelectItem value="__none__" disabled className="text-muted-foreground text-xs text-center py-2">
+                        No sections found
+                      </SelectItem>
+                    ) : (
+                      availableSections.map((sec) => (
+                        <SelectItem key={sec} value={sec}>
+                          {sec}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {activeTab === 'mark' && (
               <div className="flex flex-col gap-1.5">
@@ -560,6 +629,7 @@ export function AttendanceModule() {
               key={markPanelKey}
               courseId={selectedCourseId}
               semesterId={currentSemesterId}
+              section={selectedSection}
               selectedDate={selectedDate}
               userId={user?.id || ''}
             />

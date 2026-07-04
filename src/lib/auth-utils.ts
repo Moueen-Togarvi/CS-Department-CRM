@@ -91,6 +91,47 @@ export async function assertFacultyOwnsCourse(
 }
 
 /**
+ * Return the sections a faculty may access for a given course+semester.
+ * - string[] : restricted to these specific sections (from CourseOfferings/Timetables)
+ * - null     : no section restriction (legacy Course.instructorId fallback)
+ * Callers should verify ownership (assertFacultyOwnsCourse) beforehand.
+ */
+export async function getFacultyCourseSections(
+  userId: string,
+  courseId: string,
+  semesterId?: string
+): Promise<string[] | null> {
+  const faculty = await getFacultyForUser(userId)
+  if (!faculty) return null
+
+  const semFilter = semesterId ? { semesterId } : {}
+  const [offerings, timetables, asInstructor] = await Promise.all([
+    db.courseOffering
+      .findMany({
+        where: { facultyId: faculty.id, courseId, ...semFilter, isActive: true },
+        select: { section: true },
+      })
+      .catch(() => []),
+    db.timetable
+      .findMany({
+        where: { facultyId: faculty.id, courseId, ...semFilter },
+        select: { section: true },
+      })
+      .catch(() => []),
+    db.course.findFirst({ where: { id: courseId, instructorId: faculty.id } }),
+  ])
+
+  const sections = new Set<string>()
+  for (const o of offerings) if (o.section) sections.add(o.section)
+  for (const t of timetables) if (t.section) sections.add(t.section)
+
+  if (sections.size > 0) return Array.from(sections)
+  // Legacy fallback: direct instructor with no section-based assignment → all sections
+  if (asInstructor) return null
+  return null
+}
+
+/**
  * Get the faculty's allowed semester+section scope.
  * Returns Map<semester, string[] | null> where null = all sections for that semester.
  * Returns null for non-faculty (no restriction).

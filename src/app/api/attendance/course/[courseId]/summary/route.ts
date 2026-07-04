@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
-import { requireFacultyOrAdmin, assertFacultyOwnsCourse, handleApiError } from '@/lib/auth-utils'
+import { requireFacultyOrAdmin, assertFacultyOwnsCourse, getFacultyCourseSections, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(
   request: NextRequest,
@@ -13,17 +13,32 @@ export async function GET(
     const { courseId } = await params
     const { searchParams } = new URL(request.url)
     const semesterId = searchParams.get('semesterId') || undefined
+    const sectionParam = searchParams.get('section') || undefined
 
     // Faculty may only view attendance for their own courses
+    let facultyScope: string[] | null = null
     if (session.user.role === 'FACULTY') {
       await assertFacultyOwnsCourse(session.user.id, courseId, semesterId)
+      facultyScope = await getFacultyCourseSections(session.user.id, courseId, semesterId)
     }
 
-    // Get all students enrolled in this course for the semester
+    // Resolve the effective section to filter by
+    let effectiveSection = sectionParam
+    if (session.user.role === 'FACULTY' && facultyScope && facultyScope.length > 0) {
+      if (effectiveSection && !facultyScope.includes(effectiveSection)) {
+        return errorResponse('Forbidden: You are not assigned to this section', 403)
+      }
+      if (!effectiveSection && facultyScope.length === 1) {
+        effectiveSection = facultyScope[0]
+      }
+    }
+
+    // Get all students enrolled in this course for the semester (and section)
     const enrollments = await db.enrollment.findMany({
       where: {
         courseId,
         ...(semesterId ? { semesterId } : {}),
+        ...(effectiveSection ? { section: effectiveSection } : {}),
         status: 'ENROLLED',
       },
       select: {

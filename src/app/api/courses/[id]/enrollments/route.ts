@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
-import { requireAuth, assertFacultyOwnsCourse, handleApiError } from "@/lib/auth-utils";
+import { requireAuth, assertFacultyOwnsCourse, getFacultyCourseSections, handleApiError } from "@/lib/auth-utils";
 
 export async function GET(
   request: NextRequest,
@@ -10,6 +10,9 @@ export async function GET(
   try {
     const session = await requireAuth();
     const { id: courseId } = await params;
+    const { searchParams } = new URL(request.url);
+    const sectionParam = searchParams.get("section") || undefined;
+    const semesterParam = searchParams.get("semesterId") || undefined;
 
     // Students may not fetch course enrollments (faculty/admin only)
     if (session.user.role === "STUDENT") {
@@ -17,11 +20,27 @@ export async function GET(
     }
 
     // Faculty may only fetch enrollments for their own courses
+    let facultyScope: string[] | null = null;
     if (session.user.role === "FACULTY") {
       try {
-        await assertFacultyOwnsCourse(session.user.id, courseId);
+        await assertFacultyOwnsCourse(session.user.id, courseId, semesterParam);
       } catch {
-        // If ownership check fails, still allow for admin
+        return errorResponse("Forbidden: You are not assigned to this course", 403);
+      }
+      // Resolve the faculty's allowed sections (null = all sections, legacy fallback)
+      facultyScope = await getFacultyCourseSections(session.user.id, courseId, semesterParam);
+    }
+
+    // Resolve the effective section to filter by:
+    // - If a specific section was requested, ensure faculty is allowed to access it
+    // - Otherwise, if the faculty is restricted to a single section, auto-use it
+    let effectiveSection = sectionParam;
+    if (session.user.role === "FACULTY" && facultyScope && facultyScope.length > 0) {
+      if (effectiveSection && !facultyScope.includes(effectiveSection)) {
+        return errorResponse("Forbidden: You are not assigned to this section", 403);
+      }
+      if (!effectiveSection && facultyScope.length === 1) {
+        effectiveSection = facultyScope[0];
       }
     }
 
@@ -30,9 +49,15 @@ export async function GET(
       return errorResponse("Course not found", 404);
     }
 
+    const baseWhere = {
+      courseId,
+      ...(semesterParam ? { semesterId: semesterParam } : {}),
+      ...(effectiveSection ? { section: effectiveSection } : {}),
+    };
+
     // Try enrollments first (any status)
     let enrollments = await db.enrollment.findMany({
-      where: { courseId },
+      where: baseWhere,
       include: {
         student: {
           include: {
@@ -55,7 +80,7 @@ export async function GET(
     });
 
     // Fallback: if no enrollments exist, return all active students
-    // matching the course's semester (or all active students)
+    // matching the course's semester (or all active students), scoped to section
     if (enrollments.length === 0) {
       const students = await db.student.findMany({
         where: {
@@ -63,6 +88,7 @@ export async function GET(
           ...(course.semesterOffered
             ? { currentSemester: course.semesterOffered }
             : {}),
+          ...(effectiveSection ? { section: effectiveSection } : {}),
         },
         include: {
           user: { select: { name: true, email: true } },

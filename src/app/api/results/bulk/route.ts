@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { calculateTotalMarks, calculateGrade } from '@/lib/calculations/grade'
-import { requireFacultyOrAdmin, assertFacultyOwnsCourse, handleApiError, AuthError } from '@/lib/auth-utils'
+import { requireFacultyOrAdmin, assertFacultyOwnsCourse, getFacultyCourseSections, handleApiError, AuthError } from '@/lib/auth-utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,6 +14,9 @@ export async function POST(request: NextRequest) {
     if (!Array.isArray(resultsData) || resultsData.length === 0) {
       return errorResponse('results array is required and must not be empty')
     }
+
+    // Cache faculty section scope per (courseId, semesterId) to avoid repeated lookups
+    const scopeCache = new Map<string, string[] | null>()
 
     const processedResults: Array<Record<string, unknown>> = []
     const errors: string[] = []
@@ -38,9 +41,19 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Faculty may only grade their own courses
+        // Faculty may only grade their own courses, within their assigned sections
         if (session.user.role === 'FACULTY') {
           await assertFacultyOwnsCourse(session.user.id, enrollment.courseId, enrollment.semesterId)
+          const cacheKey = `${enrollment.courseId}|${enrollment.semesterId}`
+          let scope = scopeCache.get(cacheKey)
+          if (scope === undefined) {
+            scope = await getFacultyCourseSections(session.user.id, enrollment.courseId, enrollment.semesterId)
+            scopeCache.set(cacheKey, scope)
+          }
+          // If faculty is restricted to specific sections, the enrollment must match one
+          if (scope && scope.length > 0 && !scope.includes(enrollment.section)) {
+            throw new AuthError('You are not assigned to this section', 403)
+          }
         }
 
         // Check locked

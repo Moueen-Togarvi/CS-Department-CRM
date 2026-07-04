@@ -1,23 +1,38 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
-import { requireFacultyOrAdmin, assertFacultyOwnsCourse, handleApiError } from '@/lib/auth-utils'
+import { requireFacultyOrAdmin, assertFacultyOwnsCourse, getFacultyCourseSections, handleApiError } from '@/lib/auth-utils'
 
 export async function POST(request: NextRequest) {
   try {
     const session = await requireFacultyOrAdmin()
 
     const body = await request.json()
-    const { courseId, semesterId } = body
+    const { courseId, semesterId, section: sectionParam } = body
 
     if (!courseId || !semesterId) {
       return errorResponse('courseId and semesterId are required')
     }
 
     // Faculty may only publish their own courses
+    let facultyScope: string[] | null = null
     if (session.user.role === 'FACULTY') {
       await assertFacultyOwnsCourse(session.user.id, courseId, semesterId)
+      facultyScope = await getFacultyCourseSections(session.user.id, courseId, semesterId)
     }
+
+    // Resolve the effective section to publish
+    let effectiveSection = sectionParam
+    if (session.user.role === 'FACULTY' && facultyScope && facultyScope.length > 0) {
+      if (effectiveSection && !facultyScope.includes(effectiveSection)) {
+        return errorResponse('Forbidden: You are not assigned to this section', 403)
+      }
+      if (!effectiveSection && facultyScope.length === 1) {
+        effectiveSection = facultyScope[0]
+      }
+    }
+
+    const sectionFilter = effectiveSection ? { section: effectiveSection } : {}
 
     // Check course and semester exist
     const [course, semester] = await Promise.all([
@@ -28,9 +43,9 @@ export async function POST(request: NextRequest) {
     if (!course) return errorResponse('Course not found', 404)
     if (!semester) return errorResponse('Semester not found', 404)
 
-    // Get all enrollments for this course+semester
+    // Get all enrollments for this course+semester (and section)
     const enrollments = await db.enrollment.findMany({
-      where: { courseId, semesterId },
+      where: { courseId, semesterId, ...sectionFilter },
       select: { id: true },
     })
 

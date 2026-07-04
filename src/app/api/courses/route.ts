@@ -143,16 +143,6 @@ export async function POST(request: NextRequest) {
     const session = await requireRole(["ADMIN", "FACULTY"]);
 
     const body = await request.json();
-    
-    if (session.user.role === "FACULTY") {
-      const faculty = await db.faculty.findUnique({
-        where: { userId: session.user.id }
-      });
-      if (!faculty) {
-        return errorResponse("Faculty profile not found", 403);
-      }
-      body.instructorId = faculty.id;
-    }
 
     const parsed = createCourseSchema.safeParse(body);
 
@@ -179,16 +169,6 @@ export async function POST(request: NextRequest) {
       return errorResponse("Department not found", 404);
     }
 
-    // Check instructor exists if provided
-    if (data.instructorId) {
-      const instructor = await db.faculty.findUnique({
-        where: { id: data.instructorId },
-      });
-      if (!instructor) {
-        return errorResponse("Instructor not found", 404);
-      }
-    }
-
     const course = await db.course.create({
       data: {
         code: data.code,
@@ -201,7 +181,6 @@ export async function POST(request: NextRequest) {
         description: data.description || null,
         prerequisiteIds: parsePrerequisites(data.prerequisites),
         objectives: data.objectives || null,
-        instructorId: data.instructorId ?? null,
       },
       include: {
         instructor: {

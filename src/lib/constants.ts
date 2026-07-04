@@ -5,6 +5,7 @@ import {
   BookOpen,
   CalendarDays,
   ClipboardCheck,
+  ClipboardList,
   BarChart3,
   Megaphone,
   FolderKanban,
@@ -20,6 +21,7 @@ export type ModuleId =
   | 'students'
   | 'faculty'
   | 'courses'
+  | 'course-assignment'
   | 'timetable'
   | 'attendance'
   | 'results'
@@ -83,6 +85,14 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ['ALL'],
     section: 'ACADEMICS',
     url: '/courses',
+  },
+  {
+    id: 'course-assignment',
+    label: 'Course Assignment',
+    icon: ClipboardList,
+    roles: ['ADMIN'],
+    section: 'ACADEMICS',
+    url: '/course-assignment',
   },
   {
     id: 'timetable',

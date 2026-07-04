@@ -19,7 +19,6 @@ export const createCourseSchema = z
     description: z.string().optional().default(""),
     prerequisites: z.string().optional(),
     objectives: z.string().optional().default(""),
-    instructorId: z.string().optional().nullable(),
   })
   .strict();
 
@@ -34,7 +33,6 @@ export const updateCourseSchema = z
     description: z.string().optional(),
     prerequisites: z.string().optional(),
     objectives: z.string().optional(),
-    instructorId: z.string().optional().nullable(),
     isActive: z.boolean().optional(),
   })
   .strip();

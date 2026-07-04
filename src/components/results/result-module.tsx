@@ -219,6 +219,7 @@ function CourseResultsTab() {
   const isFaculty = user?.role === 'FACULTY'
   const [selectedCourse, setSelectedCourse] = useState<string>('')
   const [selectedAcademicSemester, setSelectedAcademicSemester] = useState<string>('1')
+  const [selectedSection, setSelectedSection] = useState<string>('')
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
   // Tracks only user modifications to marks fields
   const [dirtyEdits, setDirtyEdits] = useState<Record<string, Record<string, string | number>>>({})
@@ -303,11 +304,41 @@ function CourseResultsTab() {
     }
   }, [filteredCourses, selectedCourse])
 
+  // Reset section whenever the course changes (done in onValueChange below)
+  // Fetch available sections for the selected course (+ semester).
+  // The endpoint auto-scopes to the faculty's assigned sections.
+  const { data: sectionsData } = useQuery({
+    queryKey: ['course-sections', selectedCourse, currentSemesterId],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (currentSemesterId) params.set('semesterId', currentSemesterId)
+      const res = await fetch(`/api/courses/${selectedCourse}/sections?${params}`)
+      const json = await res.json()
+      return (json.data?.sections || []) as string[]
+    },
+    enabled: !!selectedCourse,
+  })
+
+  const availableSections = sectionsData || []
+
+  const handleCourseChange = (id: string) => {
+    setSelectedCourse(id)
+    setSelectedSection('')
+  }
+
+  // Auto-select the first (only) section when a single one is available
+  useEffect(() => {
+    if (availableSections.length > 0 && !availableSections.includes(selectedSection)) {
+      setSelectedSection(availableSections[0])
+    }
+  }, [availableSections, selectedSection])
+
   // Fetch entry data
   const { data: entryData, isLoading: entryLoading } = useQuery({
-    queryKey: ['results-entry', selectedCourse, currentSemesterId],
+    queryKey: ['results-entry', selectedCourse, currentSemesterId, selectedSection],
     queryFn: async () => {
       const params = new URLSearchParams({ courseId: selectedCourse, semesterId: currentSemesterId })
+      if (selectedSection) params.set('section', selectedSection)
       const res = await fetch(`/api/results/entry?${params}`)
       const json = await res.json()
       if (!json.success) throw new Error(json.error)
@@ -390,7 +421,7 @@ function CourseResultsTab() {
       const res = await fetch('/api/results/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId: selectedCourse, semesterId: currentSemesterId }),
+        body: JSON.stringify({ courseId: selectedCourse, semesterId: currentSemesterId, section: selectedSection || undefined }),
       })
       const json = await res.json()
       if (!json.success) throw new Error(json.error)
@@ -466,7 +497,7 @@ function CourseResultsTab() {
         )}
             <div className={isFaculty ? "flex-1 space-y-1.5" : "flex-1 space-y-1.5"}>
               <label className="text-xs font-medium text-muted-foreground">Course</label>
-              <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+              <Select value={selectedCourse} onValueChange={handleCourseChange}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select course" />
                 </SelectTrigger>
@@ -484,6 +515,29 @@ function CourseResultsTab() {
                 </SelectContent>
               </Select>
             </div>
+            {selectedCourse && (
+              <div className="flex-1 space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Section</label>
+                <Select value={selectedSection} onValueChange={setSelectedSection}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="All sections" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSections.length === 0 ? (
+                      <SelectItem value="__none__" disabled className="text-muted-foreground text-xs text-center py-2">
+                        No sections found
+                      </SelectItem>
+                    ) : (
+                      availableSections.map(sec => (
+                        <SelectItem key={sec} value={sec}>
+                          {sec}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
