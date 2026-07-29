@@ -32,6 +32,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Building2,
+  Chrome,
 } from 'lucide-react'
 
 import { PageHeader } from '@/components/shared/page-header'
@@ -110,6 +111,7 @@ import type { PaginatedResponse } from '@/types/api'
 import { CsvImportDialog } from '@/components/shared/csv-import-dialog'
 import type { ImportEntityType } from '@/components/shared/csv-import-dialog'
 import { AiInput } from '@/components/shared/ai-input'
+import { GoogleFormDialog } from './google-form-dialog'
 
 // ==================== Types ====================
 
@@ -284,6 +286,7 @@ export function StudentModule() {
   const [deactivateAlert, setDeactivateAlert] = useState<string | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
+  const [googleFormOpen, setGoogleFormOpen] = useState(false)
 
   const queryClient = useQueryClient()
 
@@ -692,6 +695,10 @@ export function StudentModule() {
                   <Plus className="size-4" />
                   <span className="hidden sm:inline">Add Student</span>
                 </Button>
+                <Button variant="outline" size="sm" onClick={() => setGoogleFormOpen(true)}>
+                  <Chrome className="size-4" />
+                  <span className="hidden sm:inline">Google Form</span>
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
                   <Upload className="size-4" />
                   <span className="hidden sm:inline">Import CSV</span>
@@ -884,6 +891,12 @@ export function StudentModule() {
           if (data.guardianPhone) form.setValue('guardianPhone', data.guardianPhone)
           if (data.phone) form.setValue('phone', data.phone)
         }}
+      />
+
+      {/* Google Form Integration */}
+      <GoogleFormDialog
+        open={googleFormOpen}
+        onOpenChange={setGoogleFormOpen}
       />
 
     </div>
