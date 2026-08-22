@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
 import { requireRole } from "@/lib/auth";
@@ -136,7 +137,6 @@ export async function PUT(
     if (data.phone !== undefined) userUpdateData.phone = data.phone || null;
     if (data.avatar !== undefined) userUpdateData.avatar = data.avatar || null;
     if (data.password !== undefined && data.password !== '') {
-      const bcrypt = require('bcryptjs');
       userUpdateData.password = await bcrypt.hash(data.password, 10);
     }
 

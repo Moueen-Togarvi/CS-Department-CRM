@@ -172,7 +172,6 @@ export function TimetableModule() {
       setViewMode('faculty')
       setSelectedFaculty(user.facultyId)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFaculty, user?.facultyId])
 
   const [selectedDate, setSelectedDate] = useState('')

@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { updateStudentSchema } from '@/lib/validators/student'
@@ -148,7 +149,6 @@ export async function PUT(
       userUpdateData.email = data.email
     }
     if (data.password !== undefined && data.password !== '') {
-      const bcrypt = require('bcryptjs')
       userUpdateData.password = await bcrypt.hash(data.password, 10)
     }
 
