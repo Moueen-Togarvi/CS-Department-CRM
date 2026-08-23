@@ -98,14 +98,14 @@ function ScheduleRow({ item, accent }: {
 
 // ==================== Stat Card Helpers ====================
 
-type StatSeries = { total: number; trend: number | null; series: StatPoint[] }
+type StatSeries = { total: number; series: StatPoint[] }
 
 const yearLabel = (date: Date) => String(date.getFullYear())
 const weekdayLabel = (date: Date) => date.toLocaleDateString('en-US', { weekday: 'short' })
 const monthLabel = (date: Date) =>
   date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 
-const EMPTY_SERIES: StatSeries = { total: 0, trend: null, series: [] }
+const EMPTY_SERIES: StatSeries = { total: 0, series: [] }
 
 function StatCard({ title, value, subtitle, icon: Icon, iconColor, isLoading }: {
   title: string; value: number | string; subtitle?: string
@@ -204,40 +204,36 @@ function AdminDashboard() {
               total={overview?.totalStudents ?? trends.students.total}
               label="Currently enrolled"
               series={trends.students.series}
-              trend={trends.students.trend}
               formatLabel={yearLabel}
               icon={Users}
-              iconClassName="size-5 text-emerald-500"
+              iconClassName="size-4 text-emerald-500"
             />
             <StatCardArea
               title="Total Faculty"
               total={overview?.totalFaculty ?? trends.faculty.total}
               label="Active members"
               series={trends.faculty.series}
-              trend={trends.faculty.trend}
               formatLabel={yearLabel}
               icon={GraduationCap}
-              iconClassName="size-5 text-sky-500"
+              iconClassName="size-4 text-sky-500"
             />
             <StatCardArea
               title="Classrooms"
               total={overview?.totalRooms ?? trends.rooms.total}
               label="Rooms in use"
               series={trends.rooms.series}
-              trend={trends.rooms.trend}
               formatLabel={weekdayLabel}
               icon={School}
-              iconClassName="size-5 text-amber-500"
+              iconClassName="size-4 text-amber-500"
             />
             <StatCardArea
               title="Announcements"
               total={overview?.totalAnnouncements ?? trends.announcements.total}
               label="Published"
               series={trends.announcements.series}
-              trend={trends.announcements.trend}
               formatLabel={monthLabel}
               icon={Megaphone}
-              iconClassName="size-5 text-rose-500"
+              iconClassName="size-4 text-rose-500"
             />
           </>
         )}

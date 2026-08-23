@@ -10,11 +10,12 @@ export interface StatCardHoverState {
 }
 
 export const statCardValueClassName =
-  "text-3xl font-semibold leading-none tracking-tight";
+  "text-2xl font-bold leading-none tracking-tight";
 
-export const statCardLabelClassName = "mt-0 text-xs";
+export const statCardLabelClassName = "mt-0 text-[11px]";
 
 export const statCardChartHeights = {
+  xs: "[--stat-card-chart-h:56px]",
   sm: "[--stat-card-chart-h:96px]",
   md: "[--stat-card-chart-h:190px]",
   lg: "[--stat-card-chart-h:420px]",
@@ -33,7 +34,7 @@ export function StatCardChart({
   return (
     <div
       className={cn(
-        "relative -mx-4 -mb-3 overflow-hidden",
+        "relative -mx-3 -mb-2 overflow-hidden",
         "[&_.relative.w-full]:aspect-auto! [&_.relative.w-full]:h-[var(--stat-card-chart-h)]!",
         statCardChartHeights[size],
         className

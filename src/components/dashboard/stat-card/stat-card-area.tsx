@@ -14,7 +14,6 @@ import {
   statCardValueClassName,
 } from './stat-card-chart'
 import { StatCardHoverBridge, type StatCardHoverState } from './stat-card-hover-bridge'
-import { TrendBadge } from './trend-badge'
 
 export type StatPoint = { date: string; value: number }
 
@@ -25,8 +24,6 @@ export interface StatCardAreaProps {
   /** Caption under the number when nothing is hovered, e.g. "Currently enrolled". */
   label: string
   series: StatPoint[]
-  /** Period-over-period change for the whole series. Omit to hide the badge. */
-  trend?: number | null
   /** Turns a point's date into the caption shown while hovering it. */
   formatLabel: (date: Date) => string
   /** Stroke and fill colour — any CSS colour or custom property. */
@@ -46,7 +43,6 @@ export function StatCardArea({
   total,
   label,
   series,
-  trend,
   formatLabel,
   color = 'var(--chart-1)',
   icon: Icon,
@@ -64,26 +60,21 @@ export function StatCardArea({
 
   const displayValue = hover.value ?? total
   const displayLabel = hover.label ?? label
-  const displayTrend = hover.trend ?? trend
 
   return (
     <Card className="w-full gap-0 py-0 shadow-sm">
-      <CardHeader className="px-4 py-3">
+      <CardHeader className="px-3 py-2.5">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <CardAction>
-          {displayTrend != null ? (
-            <TrendBadge value={displayTrend} />
-          ) : Icon ? (
-            <Icon className={iconClassName ?? 'size-5 text-muted-foreground'} />
-          ) : null}
+          {Icon ? <Icon className={iconClassName ?? 'size-4 text-muted-foreground'} /> : null}
         </CardAction>
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-3 px-4 pt-2 pb-3">
+      <CardContent className="flex flex-col gap-2 px-3 pt-0.5 pb-2">
         {isLoading ? (
           <>
-            <Skeleton className="h-8 w-20" />
-            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-7 w-16" />
+            <Skeleton className="h-3 w-24" />
           </>
         ) : (
           <ChartStatFlow
@@ -94,7 +85,7 @@ export function StatCardArea({
           />
         )}
 
-        <StatCardChart size="sm">
+        <StatCardChart size="xs">
           {series.length > 1 && (
             <AreaChart
               aspectRatio="2.5 / 1"
