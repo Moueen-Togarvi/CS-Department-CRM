@@ -1,4 +1,6 @@
 import { NextRequest } from 'next/server'
+import { parseBody } from '@/lib/validators/request'
+import { createTimetableSlotSchema } from '@/lib/validators/timetable'
 import { db } from '@/lib/db'
 import { parsePaginationParams, skipTake } from '@/lib/pagination'
 import { paginatedResponse, successResponse, errorResponse } from '@/lib/api-response'
@@ -212,17 +214,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await requireAdmin()
-    const body = await request.json()
-    const { courseId, facultyId, semesterId, roomId, section, day, startTime, endTime, slotType } = body
 
-    if (!courseId || !facultyId || !semesterId || !roomId || !day || !startTime || !endTime) {
-      return errorResponse('Missing required fields: courseId, facultyId, semesterId, roomId, day, startTime, endTime', 400)
-    }
-
-    const validDays: DayOfWeek[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
-    if (!validDays.includes(day)) {
-      return errorResponse('Invalid day. Must be MONDAY-SATURDAY', 400)
-    }
+    // Times were previously unchecked strings — a malformed one made the
+    // overlap maths silently wrong instead of rejecting the request.
+    const parsed = await parseBody(request, createTimetableSlotSchema)
+    if (!parsed.ok) return parsed.response
+    const { courseId, facultyId, semesterId, roomId, section, day, startTime, endTime, slotType } =
+      parsed.data
 
     // Check room conflict (same room + day + overlapping time)
     const roomConflicts = await db.timetable.findMany({

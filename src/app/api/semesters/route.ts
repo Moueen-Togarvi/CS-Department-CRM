@@ -1,9 +1,11 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireAuth, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth()
     const { searchParams } = new URL(request.url)
     const currentOnly = searchParams.get('current') === 'true'
 
@@ -29,7 +31,6 @@ export async function GET(request: NextRequest) {
 
     return successResponse(semesters)
   } catch (error) {
-    console.error('GET /api/semesters error:', error)
-    return errorResponse('Failed to fetch semesters', 500)
+    return handleApiError(error, 'Failed to fetch semesters')
   }
 }

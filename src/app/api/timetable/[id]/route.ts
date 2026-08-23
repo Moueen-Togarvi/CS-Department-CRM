@@ -1,4 +1,6 @@
 import { NextRequest } from 'next/server'
+import { parseBody } from '@/lib/validators/request'
+import { updateTimetableSlotSchema } from '@/lib/validators/timetable'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { DayOfWeek } from '@prisma/client'
@@ -28,8 +30,10 @@ export async function PUT(
       return errorResponse('Timetable slot not found', 404)
     }
 
-    const body = await request.json()
-    const { courseId, facultyId, semesterId, roomId, section, day, startTime, endTime, slotType } = body
+    const parsed = await parseBody(request, updateTimetableSlotSchema)
+    if (!parsed.ok) return parsed.response
+    const { courseId, facultyId, semesterId, roomId, section, day, startTime, endTime, slotType } =
+      parsed.data
 
     const updateData: any = {}
     if (courseId) updateData.courseId = courseId

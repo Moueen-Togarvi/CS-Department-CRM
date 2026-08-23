@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth, handleApiError } from '@/lib/auth-utils'
+import { ALLOWED_MIME_TYPES, isAllowedMimeType } from '@/lib/upload-safety'
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,13 +18,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File too large (max 25 MB)' }, { status: 413 })
     }
 
+    // The browser supplies this, so it is untrusted — but rejecting anything
+    // outside the allowlist keeps HTML/SVG (and their scripts) out of storage.
+    const mimeType = file.type || 'application/octet-stream'
+    if (!isAllowedMimeType(mimeType)) {
+      return NextResponse.json(
+        {
+          error: `Unsupported file type: ${mimeType}. Allowed: ${[...ALLOWED_MIME_TYPES].join(', ')}`,
+        },
+        { status: 415 }
+      )
+    }
+
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
     const upload = await db.upload.create({
       data: {
         filename: file.name,
-        mimeType: file.type || 'application/octet-stream',
+        mimeType,
         size: file.size,
         data: buffer,
       },

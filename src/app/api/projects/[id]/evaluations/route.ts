@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
 import { EvaluationType } from '@prisma/client'
 
@@ -8,6 +9,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireFacultyOrAdmin()
     const { id } = await params
     const body = await request.json()
     const { evaluationType, criteriaScores, totalScore, comments, evaluatorId } = body
@@ -69,7 +71,6 @@ export async function POST(
       201
     )
   } catch (error) {
-    console.error('Submit evaluation error:', error)
-    return errorResponse('Error submitting evaluation', 500)
+    return handleApiError(error, 'Error submitting evaluation')
   }
 }

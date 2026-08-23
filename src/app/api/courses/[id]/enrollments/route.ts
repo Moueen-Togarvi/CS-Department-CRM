@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
-import { requireAuth, assertFacultyOwnsCourse, getFacultyCourseSections, handleApiError } from "@/lib/auth-utils";
+import { requireAuth, assertFacultyOwnsCourse, resolveSectionScope, handleApiError } from "@/lib/auth-utils";
 
 export async function GET(
   request: NextRequest,
@@ -20,29 +20,17 @@ export async function GET(
     }
 
     // Faculty may only fetch enrollments for their own courses
-    let facultyScope: string[] | null = null;
     if (session.user.role === "FACULTY") {
       try {
         await assertFacultyOwnsCourse(session.user.id, courseId, semesterParam);
       } catch {
         return errorResponse("Forbidden: You are not assigned to this course", 403);
       }
-      // Resolve the faculty's allowed sections (null = all sections, legacy fallback)
-      facultyScope = await getFacultyCourseSections(session.user.id, courseId, semesterParam);
     }
 
-    // Resolve the effective section to filter by:
-    // - If a specific section was requested, ensure faculty is allowed to access it
-    // - Otherwise, if the faculty is restricted to a single section, auto-use it
-    let effectiveSection = sectionParam;
-    if (session.user.role === "FACULTY" && facultyScope && facultyScope.length > 0) {
-      if (effectiveSection && !facultyScope.includes(effectiveSection)) {
-        return errorResponse("Forbidden: You are not assigned to this section", 403);
-      }
-      if (!effectiveSection && facultyScope.length === 1) {
-        effectiveSection = facultyScope[0];
-      }
-    }
+    // Section access: refuses unassigned sections and, when none is requested,
+    // narrows to the faculty's own sections instead of the whole course.
+    const scope = await resolveSectionScope(session, courseId, semesterParam, sectionParam);
 
     const course = await db.course.findUnique({ where: { id: courseId } });
     if (!course) {
@@ -52,7 +40,7 @@ export async function GET(
     const baseWhere = {
       courseId,
       ...(semesterParam ? { semesterId: semesterParam } : {}),
-      ...(effectiveSection ? { section: effectiveSection } : {}),
+      ...scope.where,
     };
 
     // Try enrollments first (any status)
@@ -88,7 +76,7 @@ export async function GET(
           ...(course.semesterOffered
             ? { currentSemester: course.semesterOffered }
             : {}),
-          ...(effectiveSection ? { section: effectiveSection } : {}),
+          ...scope.where,
         },
         include: {
           user: { select: { name: true, email: true } },

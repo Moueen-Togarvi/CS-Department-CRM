@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin, AuthError, handleApiError } from '@/lib/auth-utils'
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin()
     const { createLLM } = (await import('z-ai-web-dev-sdk')) as any
     const llm = createLLM()
 
@@ -67,6 +69,9 @@ Use null for fields that cannot be determined. Return valid JSON only, no markdo
       confidence: parsed.confidence || 0.5,
     })
   } catch (error) {
+    // This route falls back to an empty 200/500 payload; auth failures
+    // must not be swallowed into that.
+    if (error instanceof AuthError) return handleApiError(error)
     console.error('POST /api/ai/parse-csv error:', error)
     return NextResponse.json(
       { success: false, error: 'AI service unavailable' },

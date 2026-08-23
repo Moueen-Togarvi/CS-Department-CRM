@@ -1,5 +1,10 @@
 # Dependencies
 /node_modules
+# npm is the package manager here; a second lockfile only drifts
+bun.lock
+bun.lockb
+pnpm-lock.yaml
+yarn.lock
 /.pnp
 .pnp.js
 
@@ -50,3 +55,13 @@ Thumbs.db
 # Generated Downloads
 /download/*
 !/download/README.md
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Runtime user uploads — served from the database, not from git
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# Test coverage output
+/coverage

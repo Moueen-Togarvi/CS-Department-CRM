@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireAuth, requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
 
 // GET /api/projects/[id]/members - list members
@@ -8,6 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAuth()
     const { id } = await params
     const members = await db.projectMember.findMany({
       where: { projectId: id },
@@ -24,8 +26,7 @@ export async function GET(
     })
     return successResponse(members)
   } catch (error) {
-    console.error('Members list error:', error)
-    return errorResponse('Error loading members', 500)
+    return handleApiError(error, 'Error loading members')
   }
 }
 
@@ -35,6 +36,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireFacultyOrAdmin()
     const { id } = await params
     const body = await request.json()
     const { studentId, role = 'MEMBER' } = body
@@ -93,7 +95,6 @@ export async function POST(
 
     return successResponse(member, 'Member added', 201)
   } catch (error) {
-    console.error('Add member error:', error)
-    return errorResponse('Error adding member', 500)
+    return handleApiError(error, 'Error adding member')
   }
 }

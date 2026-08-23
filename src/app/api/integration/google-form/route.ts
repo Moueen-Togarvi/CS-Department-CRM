@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import { timingSafeEqual } from 'crypto'
 
-// We will use a secret token to secure the endpoint from unauthorized calls
-const SECRET_TOKEN = process.env.GOOGLE_FORM_SECRET_TOKEN || 'CS_CRM_Form_Secret_2026!'
+/** Constant-time compare so the token can't be guessed byte-by-byte. */
+function timingSafeMatch(a: string, b: string): boolean {
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) return false
+  return timingSafeEqual(bufA, bufB)
+}
+
+// Shared-secret webhook: it is called by Google Apps Script, not a browser, so
+// there is no session to check. The secret must come from the environment —
+// a hardcoded fallback would be public the moment the repo is shared.
+const SECRET_TOKEN = process.env.GOOGLE_FORM_SECRET_TOKEN
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,7 +38,14 @@ export async function POST(request: NextRequest) {
     } = body
 
     // 1. Authenticate Request
-    if (secret !== SECRET_TOKEN) {
+    if (!SECRET_TOKEN) {
+      console.error('GOOGLE_FORM_SECRET_TOKEN is not set — refusing the request')
+      return NextResponse.json(
+        { success: false, error: 'Integration is not configured' },
+        { status: 503 }
+      )
+    }
+    if (typeof secret !== 'string' || !timingSafeMatch(secret, SECRET_TOKEN)) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized: Invalid secret token' },
         { status: 401 }

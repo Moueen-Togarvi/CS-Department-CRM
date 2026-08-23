@@ -50,8 +50,9 @@ export async function POST(request: NextRequest) {
             scope = await getFacultyCourseSections(session.user.id, enrollment.courseId, enrollment.semesterId)
             scopeCache.set(cacheKey, scope)
           }
-          // If faculty is restricted to specific sections, the enrollment must match one
-          if (scope && scope.length > 0 && !scope.includes(enrollment.section)) {
+          // `null` = legacy instructor-of-record (unrestricted). An empty list
+          // means no assignment at all, which must deny rather than allow.
+          if (scope !== null && !scope.includes(enrollment.section)) {
             throw new AuthError('You are not assigned to this section', 403)
           }
         }

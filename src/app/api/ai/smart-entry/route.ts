@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireFacultyOrAdmin, AuthError, handleApiError } from '@/lib/auth-utils'
 
 export async function POST(request: NextRequest) {
   try {
+    await requireFacultyOrAdmin()
     // @ts-ignore
     const { createLLM } = await import('z-ai-web-dev-sdk')
     const llm = createLLM()
@@ -96,6 +98,9 @@ Rules:
       confidence: parsed.confidence || 0.5,
     })
   } catch (error) {
+    // This route falls back to an empty 200/500 payload; auth failures
+    // must not be swallowed into that.
+    if (error instanceof AuthError) return handleApiError(error)
     console.error('POST /api/ai/smart-entry error:', error)
     return NextResponse.json(
       { success: false, error: 'AI service unavailable' },

@@ -20,15 +20,14 @@ export async function GET(
     const semesterId = searchParams.get('semesterId') || undefined
     const semFilter = semesterId ? { semesterId } : {}
 
-    // Faculty section scope (null = all sections allowed)
-    let scope: string[] | null = null
+    // Faculty are limited to their assigned sections. `null` is the legacy
+    // instructor-of-record case and falls through to every section; an empty
+    // list means no assignment, and must return nothing rather than everything.
     if (session.user.role === 'FACULTY') {
-      scope = await getFacultyCourseSections(session.user.id, courseId, semesterId)
-      // If restricted to specific sections, return those directly
-      if (scope && scope.length > 0) {
-        return successResponse({ sections: scope })
+      const scope = await getFacultyCourseSections(session.user.id, courseId, semesterId)
+      if (scope !== null) {
+        return successResponse({ sections: scope.sort() })
       }
-      // scope === null → legacy instructor fallback or no offerings: fall through to all
     }
 
     const [enrollmentSections, offeringSections, timetableSections] = await Promise.all([

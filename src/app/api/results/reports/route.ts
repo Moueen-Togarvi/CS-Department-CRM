@@ -1,8 +1,10 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(request: Request) {
   try {
+    await requireFacultyOrAdmin()
     const { searchParams } = new URL(request.url)
     const semesterId = searchParams.get('semesterId') || undefined
 
@@ -164,7 +166,6 @@ export async function GET(request: Request) {
       topPerformers,
     })
   } catch (error) {
-    console.error('GET /api/results/reports error:', error)
-    return errorResponse('Failed to fetch reports')
+    return handleApiError(error, 'Failed to fetch reports')
   }
 }

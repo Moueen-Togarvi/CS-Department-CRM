@@ -1,23 +1,30 @@
 import { db } from '@/lib/db'
 import { successResponse } from '@/lib/api-response'
-import { NextRequest } from 'next/server'
+import { AuthError, handleApiError, requireAuth } from '@/lib/auth-utils'
 
-export async function GET(request: NextRequest) {
+/**
+ * Quick stats for the signed-in user.
+ *
+ * Identity comes from the session, never from the query string — these are
+ * private academic records (GPA, attendance), so `?role=&id=` would let anyone
+ * read anyone else's.
+ */
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const role = searchParams.get('role') || ''
-    const id = searchParams.get('id') || ''
+    const session = await requireAuth()
+    const { role, id } = session.user
 
-    if (role === 'STUDENT' && id) {
+    if (role === 'STUDENT') {
       return getStudentQuickStats(id)
     }
 
-    if (role === 'FACULTY' && id) {
+    if (role === 'FACULTY') {
       return getFacultyQuickStats(id)
     }
 
-    return successResponse({}, 'Missing role or id parameter', 400)
+    return successResponse({})
   } catch (error) {
+    if (error instanceof AuthError) return handleApiError(error)
     console.error('Quick stats error:', error)
     return successResponse(
       { error: 'Failed to load quick stats' },

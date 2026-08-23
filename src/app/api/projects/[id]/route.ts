@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireAuth, requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
 
 export async function GET(
@@ -7,6 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAuth()
     const { id } = await params
     const project = await db.project.findUnique({
       where: { id },
@@ -57,8 +59,7 @@ export async function GET(
       _memberCount: project.members.length,
     })
   } catch (error) {
-    console.error('Project detail error:', error)
-    return errorResponse('Error loading project', 500)
+    return handleApiError(error, 'Error loading project')
   }
 }
 
@@ -67,6 +68,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireFacultyOrAdmin()
     const { id } = await params
     const body = await request.json()
     const { title, description, supervisorId, coSupervisorId, domain, methodology } = body
@@ -94,8 +96,7 @@ export async function PUT(
 
     return successResponse({ ...project, supervisorName: project.supervisor.user.name })
   } catch (error) {
-    console.error('Update project error:', error)
-    return errorResponse('Error updating project', 500)
+    return handleApiError(error, 'Error updating project')
   }
 }
 
@@ -104,6 +105,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireFacultyOrAdmin()
     const { id } = await params
     const existing = await db.project.findUnique({ where: { id } })
     if (!existing) {
@@ -113,7 +115,6 @@ export async function DELETE(
     await db.project.delete({ where: { id } })
     return successResponse(null, 'Project deleted')
   } catch (error) {
-    console.error('Delete project error:', error)
-    return errorResponse('Error deleting project', 500)
+    return handleApiError(error, 'Error deleting project')
   }
 }

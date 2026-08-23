@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
 import { ProjectStatus } from '@prisma/client'
 
@@ -18,6 +19,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireFacultyOrAdmin()
     const { id } = await params
     const body = await request.json()
     const { status } = body
@@ -62,7 +64,6 @@ export async function PATCH(
       supervisorName: updated.supervisor.user.name,
     })
   } catch (error) {
-    console.error('Update status error:', error)
-    return errorResponse('Error updating project status', 500)
+    return handleApiError(error, 'Error updating project status')
   }
 }

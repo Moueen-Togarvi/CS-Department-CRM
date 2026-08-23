@@ -1,43 +1,19 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse } from '@/lib/api-response'
+import { requireAdmin, AuthError, handleApiError } from '@/lib/auth-utils'
+import {
+  type AttendanceCounts,
+  attendancePercentage,
+  bucketLabel,
+  bucketStart,
+  type Granularity,
+  isGranularity,
+} from '@/lib/calculations/attendance-periods'
 
-export type Granularity = 'daily' | 'weekly' | 'monthly'
-
-const GRANULARITIES: Granularity[] = ['daily', 'weekly', 'monthly']
 const UNASSIGNED_SEMESTER = 0
 
-// All bucketing is done in UTC so the result never shifts with the server timezone.
-const dayFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
-const weekdayFmt = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
-const monthFmt = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
-
-function bucketStart(date: Date, granularity: Granularity): Date {
-  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
-  if (granularity === 'monthly') {
-    d.setUTCDate(1)
-    return d
-  }
-  if (granularity === 'weekly') {
-    const day = d.getUTCDay() // 0 = Sunday
-    d.setUTCDate(d.getUTCDate() - (day === 0 ? 6 : day - 1)) // back to Monday
-  }
-  return d
-}
-
-function bucketLabel(start: Date, granularity: Granularity): string {
-  if (granularity === 'monthly') return monthFmt.format(start)
-  if (granularity === 'daily') return weekdayFmt.format(start)
-  const end = new Date(start)
-  end.setUTCDate(end.getUTCDate() + 6)
-  return `${dayFmt.format(start)} – ${dayFmt.format(end)}`
-}
-
-type Counts = { present: number; total: number }
-
-function percentage({ present, total }: Counts): number {
-  return total > 0 ? Math.round((present / total) * 100) : 0
-}
+type Counts = AttendanceCounts
 
 function semesterName(semester: number): string {
   return semester === UNASSIGNED_SEMESTER ? 'Unassigned' : `Semester ${semester}`
@@ -45,11 +21,11 @@ function semesterName(semester: number): string {
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin()
     const { searchParams } = new URL(request.url)
 
-    const requested = searchParams.get('granularity') as Granularity | null
-    const granularity: Granularity =
-      requested && GRANULARITIES.includes(requested) ? requested : 'weekly'
+    const requested = searchParams.get('granularity')
+    const granularity: Granularity = isGranularity(requested) ? requested : 'weekly'
 
     const semesterParam = searchParams.get('semester')
     const semesterFilter =
@@ -131,12 +107,12 @@ export async function GET(request: NextRequest) {
       return {
         semester,
         name: semesterName(semester),
-        percentage: counts ? percentage(counts) : 0,
+        percentage: counts ? attendancePercentage(counts) : 0,
         present: counts?.present ?? 0,
         total: counts?.total ?? 0,
         // null means "no classes held", which the tooltip shows instead of 0%.
         hasClasses: counts !== null && counts.total > 0,
-        previous: previousCounts ? percentage(previousCounts) : null,
+        previous: previousCounts ? attendancePercentage(previousCounts) : null,
       }
     })
 
@@ -148,6 +124,9 @@ export async function GET(request: NextRequest) {
       data,
     })
   } catch (error) {
+    // This route falls back to an empty 200/500 payload; auth failures
+    // must not be swallowed into that.
+    if (error instanceof AuthError) return handleApiError(error)
     console.error('Attendance trend error:', error)
     return successResponse(
       {

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
 
 export async function PUT(
@@ -7,6 +8,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string; milestoneId: string }> }
 ) {
   try {
+    await requireFacultyOrAdmin()
     const { id, milestoneId } = await params
     const body = await request.json()
     const { status, completedDate, feedback } = body
@@ -35,7 +37,6 @@ export async function PUT(
 
     return successResponse(updated)
   } catch (error) {
-    console.error('Update milestone error:', error)
-    return errorResponse('Error updating milestone', 500)
+    return handleApiError(error, 'Error updating milestone')
   }
 }

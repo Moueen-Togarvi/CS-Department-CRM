@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin, handleApiError } from '@/lib/auth-utils'
 import { parseCsv, getDefaultDepartmentId } from '@/lib/csv-parser'
 import bcrypt from 'bcryptjs'
 
@@ -10,6 +11,8 @@ interface ImportError {
 
 export async function POST(request: NextRequest) {
   try {
+    // Bulk record creation — admins only.
+    await requireAdmin()
     const body = await request.json()
     const csvText: string = body.csvText
 
@@ -133,11 +136,7 @@ export async function POST(request: NextRequest) {
 
     return Response.json({ success: true, imported, errors })
   } catch (error) {
-    console.error('POST /api/import/students error:', error)
-    return Response.json(
-      { success: false, error: 'Import failed' },
-      { status: 500 }
-    )
+    return handleApiError(error, 'Import failed')
   }
 }
 

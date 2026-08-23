@@ -3,20 +3,14 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { errorResponse } from "@/lib/api-response";
 import type { Session } from "next-auth";
+import { AuthError } from "@/lib/auth-error";
 
 /**
  * Authorization utilities (request-less; session is read from cookies).
  * Use these in Route Handlers for cleaner, uniform auth + ownership checks.
  */
 
-export class AuthError extends Error {
-  statusCode: number;
-  constructor(message: string, statusCode: number = 400) {
-    super(message);
-    this.name = "AuthError";
-    this.statusCode = statusCode;
-  }
-}
+export { AuthError } from "@/lib/auth-error";
 
 export async function getSession(): Promise<Session | null> {
   return getServerSession(authOptions);
@@ -126,9 +120,65 @@ export async function getFacultyCourseSections(
   for (const t of timetables) if (t.section) sections.add(t.section)
 
   if (sections.size > 0) return Array.from(sections)
-  // Legacy fallback: direct instructor with no section-based assignment → all sections
+  // Legacy fallback: instructor-of-record with no section-based assignment.
+  // `null` means unrestricted; an empty array means assigned to nothing.
   if (asInstructor) return null
-  return null
+  return []
+}
+
+/** What a caller is allowed to see, plus the Prisma filter that enforces it. */
+export interface SectionScope {
+  /** The single section in play, when there is exactly one. */
+  section?: string
+  /** Spread into a Prisma `where` to constrain the `section` column. */
+  where: Record<string, unknown>
+}
+
+/**
+ * Resolve which section(s) a request may touch for a course.
+ *
+ * Admins and instructors-of-record are unrestricted. A faculty member with
+ * section-based assignments is limited to those sections — including when no
+ * section is requested, which previously fell through to *every* section of
+ * the course. Faculty with no assignment at all are refused rather than
+ * silently granted everything.
+ *
+ * Callers should have already established course ownership.
+ */
+export async function resolveSectionScope(
+  session: Session,
+  courseId: string,
+  semesterId: string | undefined,
+  requestedSection: string | undefined
+): Promise<SectionScope> {
+  const unrestricted = (): SectionScope =>
+    requestedSection
+      ? { section: requestedSection, where: { section: requestedSection } }
+      : { where: {} }
+
+  if (session.user.role !== "FACULTY") return unrestricted()
+
+  const allowed = await getFacultyCourseSections(session.user.id, courseId, semesterId)
+  if (allowed === null) return unrestricted() // legacy instructor-of-record
+
+  if (allowed.length === 0) {
+    throw new AuthError(
+      "Forbidden: You are not assigned to any section of this course",
+      403
+    )
+  }
+
+  if (requestedSection) {
+    if (!allowed.includes(requestedSection)) {
+      throw new AuthError("Forbidden: You are not assigned to this section", 403)
+    }
+    return { section: requestedSection, where: { section: requestedSection } }
+  }
+
+  return {
+    section: allowed.length === 1 ? allowed[0] : undefined,
+    where: { section: { in: allowed } },
+  }
 }
 
 /**

@@ -1,8 +1,10 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireAuth, handleApiError } from '@/lib/auth-utils'
 
 export async function GET() {
   try {
+    await requireAuth()
     const [total, byStatus, byDomain] = await Promise.all([
       db.project.count(),
       db.project.groupBy({ by: ['status'], _count: { status: true } }),
@@ -29,7 +31,6 @@ export async function GET() {
       byDomain: domainMap,
     })
   } catch (error) {
-    console.error('Project stats error:', error)
-    return errorResponse('Error loading project stats', 500)
+    return handleApiError(error, 'Error loading project stats')
   }
 }

@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
+import { requireAuth, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth()
     const [total, activeCourses, byTypeRaw] = await Promise.all([
       db.course.count({ where: { isActive: true } }),
       db.course.count({
@@ -36,7 +38,6 @@ export async function GET(request: NextRequest) {
       activeEnrollments,
     });
   } catch (error) {
-    console.error("GET /api/courses/stats error:", error);
-    return errorResponse("Failed to fetch course stats", 500);
+    return handleApiError(error, 'Failed to fetch course stats')
   }
 }

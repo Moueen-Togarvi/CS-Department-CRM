@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireAdmin, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
 
 const FYP_PROJECTS = [
@@ -111,6 +112,7 @@ const FYP_PROJECTS = [
 
 export async function POST(_request: NextRequest) {
   try {
+    await requireAdmin()
     // Check if projects already exist
     const existingCount = await db.project.count()
     if (existingCount > 0) {
@@ -202,7 +204,6 @@ export async function POST(_request: NextRequest) {
 
     return successResponse({ created: createdProjects }, `${createdProjects} FYP projects seeded`)
   } catch (error) {
-    console.error('FYP seed error:', error)
-    return errorResponse('Error seeding FYP data', 500)
+    return handleApiError(error, 'Error seeding FYP data')
   }
 }

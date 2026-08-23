@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import type { JWT } from "next-auth/jwt";
 import { getServerSession } from "next-auth";
 import { NextRequest } from "next/server";
+import { AuthError } from "@/lib/auth-error";
 
 // Extend NextAuth types
 declare module "next-auth" {
@@ -30,6 +31,26 @@ declare module "next-auth/jwt" {
     role: string;
     semester?: number | null;
   }
+}
+
+/**
+ * Session JWTs are signed with this. The previous hardcoded fallback shipped in
+ * the repo, so anyone with the source could forge an admin session on a deploy
+ * that forgot to set the variable. Development still gets a fallback; production
+ * refuses to run without a real secret.
+ */
+function resolveAuthSecret(): string {
+  const secret = process.env.NEXTAUTH_SECRET
+  if (secret) return secret
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "NEXTAUTH_SECRET is not set. Refusing to sign sessions with a public fallback secret."
+    )
+  }
+  console.warn(
+    "[auth] NEXTAUTH_SECRET is not set — using an insecure development-only secret."
+  )
+  return "dev-only-insecure-secret";
 }
 
 export const authOptions: NextAuthOptions = {
@@ -118,7 +139,7 @@ export const authOptions: NextAuthOptions = {
     signIn: "/",
     error: "/",
   },
-  secret: process.env.NEXTAUTH_SECRET || "cs-department-secret-key-change-in-production",
+  secret: resolveAuthSecret(),
 };
 
 /**
@@ -136,7 +157,7 @@ export async function requireAuth(request: NextRequest) {
   const session = await getAuthSession(request);
 
   if (!session?.user?.id) {
-    throw new Error("Unauthorized: Please log in to continue");
+    throw new AuthError("Unauthorized: Please log in to continue", 401);
   }
 
   return session;
@@ -154,8 +175,9 @@ export async function requireRole(
   const allowedRoles = Array.isArray(roles) ? roles : [roles];
 
   if (!allowedRoles.includes(session.user.role)) {
-    throw new Error(
-      `Forbidden: Required role(s): ${allowedRoles.join(", ")}`
+    throw new AuthError(
+      `Forbidden: Required role(s): ${allowedRoles.join(", ")}`,
+      403
     );
   }
 

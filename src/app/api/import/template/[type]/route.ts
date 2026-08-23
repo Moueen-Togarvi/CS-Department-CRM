@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { handleApiError, requireAdmin } from '@/lib/auth-utils'
 
 const TEMPLATES: Record<string, string> = {
   students:
@@ -13,6 +14,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ type: string }> }
 ) {
+  try {
+    await requireAdmin()
+  } catch (error) {
+    return handleApiError(error, 'Failed to fetch template')
+  }
+
   const { type } = await params
   const template = TEMPLATES[type]
 

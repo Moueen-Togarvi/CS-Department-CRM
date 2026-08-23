@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
-import { requireFacultyOrAdmin, assertFacultyOwnsCourse, getFacultyCourseSections, handleApiError } from '@/lib/auth-utils'
+import { requireFacultyOrAdmin, assertFacultyOwnsCourse, resolveSectionScope, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,29 +17,21 @@ export async function GET(request: NextRequest) {
     }
 
     // Faculty may only access entry data for their own courses
-    let facultyScope: string[] | null = null
     if (session.user.role === 'FACULTY') {
       await assertFacultyOwnsCourse(session.user.id, courseId, semesterId)
-      facultyScope = await getFacultyCourseSections(session.user.id, courseId, semesterId)
     }
 
-    // Resolve the effective section to filter by
-    let effectiveSection = sectionParam
-    if (session.user.role === 'FACULTY' && facultyScope && facultyScope.length > 0) {
-      if (effectiveSection && !facultyScope.includes(effectiveSection)) {
-        return errorResponse('Forbidden: You are not assigned to this section', 403)
-      }
-      if (!effectiveSection && facultyScope.length === 1) {
-        effectiveSection = facultyScope[0]
-      }
-    }
+    // Section access: refuses unassigned sections and, when none is requested,
+    // narrows to the faculty's own sections instead of the whole course.
+    const scope = await resolveSectionScope(session, courseId, semesterId, sectionParam)
+    const effectiveSection = scope.section
 
     const course = await db.course.findUnique({ where: { id: courseId } })
     if (!course) {
       return errorResponse('Course not found', 404)
     }
 
-    const sectionFilter = effectiveSection ? { section: effectiveSection } : {}
+    const sectionFilter = scope.where
 
     // Query enrollments for this course + semester + section (any status)
     let enrollments = await db.enrollment.findMany({

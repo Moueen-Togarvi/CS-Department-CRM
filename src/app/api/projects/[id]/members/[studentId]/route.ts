@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
 
 export async function DELETE(
@@ -7,6 +8,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; studentId: string }> }
 ) {
   try {
+    await requireFacultyOrAdmin()
     const { id, studentId } = await params
 
     const member = await db.projectMember.findFirst({
@@ -20,7 +22,6 @@ export async function DELETE(
     await db.projectMember.delete({ where: { id: member.id } })
     return successResponse(null, 'Member removed')
   } catch (error) {
-    console.error('Remove member error:', error)
-    return errorResponse('Error removing member', 500)
+    return handleApiError(error, 'Error removing member')
   }
 }

@@ -1,11 +1,13 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
-import { requireRole } from '@/lib/auth'
+import { requireAuth, requireRole } from '@/lib/auth'
+import { handleApiError } from '@/lib/auth-utils'
 import { createRoomSchema } from '@/lib/validators/room'
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth(request)
     const rooms = await db.room.findMany({
       select: {
         id: true,
@@ -23,8 +25,7 @@ export async function GET(request: NextRequest) {
 
     return successResponse(rooms)
   } catch (error) {
-    console.error('GET /api/rooms error:', error)
-    return errorResponse('Failed to fetch rooms', 500)
+    return handleApiError(error, 'Failed to fetch rooms')
   }
 }
 

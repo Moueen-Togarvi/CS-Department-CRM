@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { requireAuth, requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
 
 // GET - list milestones
@@ -8,6 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAuth()
     const { id } = await params
     const milestones = await db.projectMilestone.findMany({
       where: { projectId: id },
@@ -15,8 +17,7 @@ export async function GET(
     })
     return successResponse(milestones)
   } catch (error) {
-    console.error('Milestones list error:', error)
-    return errorResponse('Error loading milestones', 500)
+    return handleApiError(error, 'Error loading milestones')
   }
 }
 
@@ -26,6 +27,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireFacultyOrAdmin()
     const { id } = await params
     const body = await request.json()
     const { title, description, dueDate } = body
@@ -51,7 +53,6 @@ export async function POST(
 
     return successResponse(milestone, 'Milestone added', 201)
   } catch (error) {
-    console.error('Add milestone error:', error)
-    return errorResponse('Error adding milestone', 500)
+    return handleApiError(error, 'Error adding milestone')
   }
 }
