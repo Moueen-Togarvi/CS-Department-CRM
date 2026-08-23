@@ -25,21 +25,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from '@/components/ui/chart'
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-} from 'recharts'
 import { PageHeader } from '@/components/shared/page-header'
+import { AttendanceTrendChart } from '@/components/dashboard/attendance-trend-chart'
+import { StatCardArea, type StatPoint } from '@/components/dashboard/stat-card/stat-card-area'
 import { useAuthStore } from '@/stores/auth-store'
 
 // ==================== Helpers ====================
@@ -108,6 +96,17 @@ function ScheduleRow({ item, accent }: {
 
 // ==================== Stat Card ====================
 
+// ==================== Stat Card Helpers ====================
+
+type StatSeries = { total: number; trend: number | null; series: StatPoint[] }
+
+const yearLabel = (date: Date) => String(date.getFullYear())
+const weekdayLabel = (date: Date) => date.toLocaleDateString('en-US', { weekday: 'short' })
+const monthLabel = (date: Date) =>
+  date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+
+const EMPTY_SERIES: StatSeries = { total: 0, trend: null, series: [] }
+
 function StatCard({ title, value, subtitle, icon: Icon, iconColor, isLoading }: {
   title: string; value: number | string; subtitle?: string
   icon: React.ElementType; iconColor?: string; isLoading?: boolean
@@ -168,14 +167,21 @@ function AdminDashboard() {
     },
   })
 
-  const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
-    queryKey: ['dashboard-attendance-trend'],
+  const { data: statTrends } = useQuery({
+    queryKey: ['dashboard-stat-trends'],
     queryFn: async () => {
-      const res = await fetch('/api/dashboard/charts/attendance-trend')
+      const res = await fetch('/api/dashboard/stat-trends')
       const json = await res.json()
-      return json.data || []
+      return json.success ? json.data : null
     },
   })
+
+  const trends: Record<'students' | 'faculty' | 'rooms' | 'announcements', StatSeries> = {
+    students: statTrends?.students ?? EMPTY_SERIES,
+    faculty: statTrends?.faculty ?? EMPTY_SERIES,
+    rooms: statTrends?.rooms ?? EMPTY_SERIES,
+    announcements: statTrends?.announcements ?? EMPTY_SERIES,
+  }
 
   const { data: recentAnnouncements } = useQuery({
     queryKey: ['dashboard-recent-announcements'],
@@ -193,43 +199,52 @@ function AdminDashboard() {
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
         {isLoading ? <StatCardsSkeleton /> : (
           <>
-            <StatCard title="Total Students" value={overview?.totalStudents ?? 0} subtitle="Currently enrolled" icon={Users} iconColor="text-emerald-500" />
-            <StatCard title="Total Faculty" value={overview?.totalFaculty ?? 0} subtitle="Active members" icon={GraduationCap} iconColor="text-sky-500" />
-            <StatCard title="Classrooms" value={overview?.totalRooms ?? 0} subtitle="Rooms & labs" icon={School} iconColor="text-amber-500" />
-            <StatCard title="Announcements" value={overview?.totalAnnouncements ?? 0} subtitle="Published" icon={Megaphone} iconColor="text-rose-500" />
+            <StatCardArea
+              title="Total Students"
+              total={overview?.totalStudents ?? trends.students.total}
+              label="Currently enrolled"
+              series={trends.students.series}
+              trend={trends.students.trend}
+              formatLabel={yearLabel}
+              icon={Users}
+              iconClassName="size-5 text-emerald-500"
+            />
+            <StatCardArea
+              title="Total Faculty"
+              total={overview?.totalFaculty ?? trends.faculty.total}
+              label="Active members"
+              series={trends.faculty.series}
+              trend={trends.faculty.trend}
+              formatLabel={yearLabel}
+              icon={GraduationCap}
+              iconClassName="size-5 text-sky-500"
+            />
+            <StatCardArea
+              title="Classrooms"
+              total={overview?.totalRooms ?? trends.rooms.total}
+              label="Rooms in use"
+              series={trends.rooms.series}
+              trend={trends.rooms.trend}
+              formatLabel={weekdayLabel}
+              icon={School}
+              iconClassName="size-5 text-amber-500"
+            />
+            <StatCardArea
+              title="Announcements"
+              total={overview?.totalAnnouncements ?? trends.announcements.total}
+              label="Published"
+              series={trends.announcements.series}
+              trend={trends.announcements.trend}
+              formatLabel={monthLabel}
+              icon={Megaphone}
+              iconClassName="size-5 text-rose-500"
+            />
           </>
         )}
       </div>
 
       <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
-          <CardHeader className="flex flex-row items-center">
-            <div className="grid gap-2">
-              <CardTitle>Attendance Trend</CardTitle>
-              <CardDescription>Average attendance rate per week.</CardDescription>
-            </div>
-            <Button variant="outline" size="sm" className="ml-auto gap-1 hidden sm:flex">
-              View Report <ArrowUpRight className="h-4 w-4" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {attendanceLoading ? (
-              <Skeleton className="h-[300px] w-full rounded-lg" />
-            ) : attendanceData && attendanceData.length > 0 ? (
-              <ChartContainer config={{ percentage: { label: 'Attendance %', color: 'var(--color-emerald-500)' } }} className="h-[300px] w-full">
-                <LineChart data={attendanceData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="week" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
-                  <YAxis domain={[0, 100]} tickLine={false} axisLine={false} tickMargin={8} fontSize={12} tickFormatter={(v: number) => `${v}%`} />
-                  <ChartTooltip content={<ChartTooltipContent formatter={(value: any) => [`${value}%`, 'Attendance']} />} />
-                  <Line type="monotone" dataKey="percentage" stroke="var(--color-percentage)" strokeWidth={3} dot={{ r: 4, fill: 'var(--color-percentage)' }} activeDot={{ r: 6 }} />
-                </LineChart>
-              </ChartContainer>
-            ) : (
-              <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">No attendance data available</div>
-            )}
-          </CardContent>
-        </Card>
+        <AttendanceTrendChart />
 
         <Card>
           <CardHeader>

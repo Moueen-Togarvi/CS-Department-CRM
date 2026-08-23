@@ -48,6 +48,13 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
+  // Vendored shadcn registry charts (@bklit) — they read containerRef during
+  // render by design to portal axis labels into the chart container.
+  files: ["src/components/charts/**"],
+  rules: {
+    "react-hooks/refs": "off",
+  },
+}, {
   ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "scripts/**"]
 }];
 

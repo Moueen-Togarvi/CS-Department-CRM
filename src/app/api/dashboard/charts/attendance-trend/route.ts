@@ -1,93 +1,164 @@
+import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse } from '@/lib/api-response'
-import { NextRequest } from 'next/server'
+
+export type Granularity = 'daily' | 'weekly' | 'monthly'
+
+const GRANULARITIES: Granularity[] = ['daily', 'weekly', 'monthly']
+const UNASSIGNED_SEMESTER = 0
+
+// All bucketing is done in UTC so the result never shifts with the server timezone.
+const dayFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+const weekdayFmt = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+const monthFmt = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+
+function bucketStart(date: Date, granularity: Granularity): Date {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
+  if (granularity === 'monthly') {
+    d.setUTCDate(1)
+    return d
+  }
+  if (granularity === 'weekly') {
+    const day = d.getUTCDay() // 0 = Sunday
+    d.setUTCDate(d.getUTCDate() - (day === 0 ? 6 : day - 1)) // back to Monday
+  }
+  return d
+}
+
+function bucketLabel(start: Date, granularity: Granularity): string {
+  if (granularity === 'monthly') return monthFmt.format(start)
+  if (granularity === 'daily') return weekdayFmt.format(start)
+  const end = new Date(start)
+  end.setUTCDate(end.getUTCDate() + 6)
+  return `${dayFmt.format(start)} – ${dayFmt.format(end)}`
+}
+
+type Counts = { present: number; total: number }
+
+function percentage({ present, total }: Counts): number {
+  return total > 0 ? Math.round((present / total) * 100) : 0
+}
+
+function semesterName(semester: number): string {
+  return semester === UNASSIGNED_SEMESTER ? 'Unassigned' : `Semester ${semester}`
+}
 
 export async function GET(request: NextRequest) {
   try {
-    // Get current semester
-    const currentSemester = await db.semester.findFirst({
-      where: { isCurrent: true },
-    })
+    const { searchParams } = new URL(request.url)
 
-    // Get attendance records — prefer current semester, fall back to all
-    const attendanceWhere = currentSemester
-      ? { semesterId: currentSemester.id }
-      : {}
-    let attendanceRecords = await db.attendance.findMany({
-      where: attendanceWhere,
-      select: { date: true, status: true },
+    const requested = searchParams.get('granularity') as Granularity | null
+    const granularity: Granularity =
+      requested && GRANULARITIES.includes(requested) ? requested : 'weekly'
+
+    const semesterParam = searchParams.get('semester')
+    const semesterFilter =
+      semesterParam && semesterParam !== 'all' ? Number(semesterParam) : null
+
+    const currentSemester = await db.semester.findFirst({ where: { isCurrent: true } })
+
+    // Faculty attendance rows carry no student, so they can't belong to a class.
+    const baseWhere = { studentId: { not: null } }
+    const select = {
+      date: true,
+      status: true,
+      // The course's own semester, not the student's current one — a student's
+      // `currentSemester` moves on promotion and would re-bucket old records.
+      course: { select: { semesterOffered: true } },
+    } as const
+
+    let records = await db.attendance.findMany({
+      where: currentSemester ? { ...baseWhere, semesterId: currentSemester.id } : baseWhere,
+      select,
       orderBy: { date: 'asc' },
     })
 
-    // If current semester yielded nothing, try ALL records
-    if (attendanceRecords.length === 0) {
-      attendanceRecords = await db.attendance.findMany({
-        select: { date: true, status: true },
-        orderBy: { date: 'asc' },
-      })
+    // If the current term has nothing recorded yet, fall back to all history.
+    if (records.length === 0 && currentSemester) {
+      records = await db.attendance.findMany({ where: baseWhere, select, orderBy: { date: 'asc' } })
     }
 
-    if (attendanceRecords.length === 0) {
-      return successResponse([])
+    const empty = {
+      granularity,
+      semesters: [] as number[],
+      period: null,
+      previousPeriod: null,
+      data: [] as unknown[],
     }
 
-    // Group by week
-    const weekMap = new Map<string, { present: number; total: number }>()
+    if (records.length === 0) {
+      return successResponse(empty)
+    }
 
-    for (const record of attendanceRecords) {
-      const date = new Date(record.date)
-      // Calculate ISO week number
-      const weekStart = getWeekStart(date)
-      const weekKey = `Week ${getWeekNumber(date)}`
+    // Bucket by period, then by semester within each period.
+    const buckets = new Map<number, { start: Date; bySemester: Map<number, Counts> }>()
+    const semesters = new Set<number>()
 
-      const existing = weekMap.get(weekKey) || { present: 0, total: 0 }
-      existing.total++
-      if (record.status === 'PRESENT' || record.status === 'LATE') {
-        existing.present++
+    for (const record of records) {
+      const semester = record.course?.semesterOffered ?? UNASSIGNED_SEMESTER
+      semesters.add(semester)
+
+      const start = bucketStart(new Date(record.date), granularity)
+      const key = start.getTime()
+
+      let bucket = buckets.get(key)
+      if (!bucket) {
+        bucket = { start, bySemester: new Map() }
+        buckets.set(key, bucket)
       }
-      weekMap.set(weekKey, existing)
+
+      const counts = bucket.bySemester.get(semester) ?? { present: 0, total: 0 }
+      counts.total++
+      if (record.status === 'PRESENT' || record.status === 'LATE') counts.present++
+      bucket.bySemester.set(semester, counts)
     }
 
-    // Convert to array sorted by week
-    const entries = Array.from(weekMap.entries()).sort((a, b) => {
-      const numA = parseInt(a[0].replace('Week ', ''))
-      const numB = parseInt(b[0].replace('Week ', ''))
-      return numA - numB
+    const ordered = Array.from(buckets.values()).sort(
+      (a, b) => a.start.getTime() - b.start.getTime()
+    )
+
+    // One bar per semester, for the most recent period at this granularity.
+    const latest = ordered[ordered.length - 1]
+    const previous = ordered.length > 1 ? ordered[ordered.length - 2] : null
+
+    const semesterList = Array.from(semesters)
+      .sort((a, b) => a - b)
+      .filter((semester) => semesterFilter === null || semester === semesterFilter)
+
+    const data = semesterList.map((semester) => {
+      const counts = latest.bySemester.get(semester) ?? null
+      const previousCounts = previous?.bySemester.get(semester) ?? null
+      return {
+        semester,
+        name: semesterName(semester),
+        percentage: counts ? percentage(counts) : 0,
+        present: counts?.present ?? 0,
+        total: counts?.total ?? 0,
+        // null means "no classes held", which the tooltip shows instead of 0%.
+        hasClasses: counts !== null && counts.total > 0,
+        previous: previousCounts ? percentage(previousCounts) : null,
+      }
     })
 
-    const data = entries.map(([week, counts]) => ({
-      week,
-      percentage: Math.round((counts.present / counts.total) * 100),
-    }))
-
-    return successResponse(data)
+    return successResponse({
+      granularity,
+      semesters: Array.from(semesters).sort((a, b) => a - b),
+      period: { label: bucketLabel(latest.start, granularity) },
+      previousPeriod: previous ? { label: bucketLabel(previous.start, granularity) } : null,
+      data,
+    })
   } catch (error) {
     console.error('Attendance trend error:', error)
     return successResponse(
-      [],
+      {
+        granularity: 'weekly' as Granularity,
+        semesters: [] as number[],
+        period: null,
+        previousPeriod: null,
+        data: [] as unknown[],
+      },
       'Error loading attendance trend',
       500
     )
   }
-}
-
-function getWeekNumber(date: Date): number {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  // Monday as first day of week
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  const weekStart = new Date(d.setDate(diff))
-  const oneJan = new Date(d.getFullYear(), 0, 1)
-  const days = Math.floor((weekStart.getTime() - oneJan.getTime()) / 86400000)
-  return Math.ceil((days + oneJan.getDay() + 1) / 7)
-}
-
-function getWeekStart(date: Date): Date {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  d.setHours(0, 0, 0, 0)
-  return d
 }

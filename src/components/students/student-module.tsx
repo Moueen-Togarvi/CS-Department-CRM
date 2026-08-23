@@ -889,7 +889,6 @@ export function StudentModule() {
           if (data.program) form.setValue('program', data.program)
           if (data.guardianName) form.setValue('guardianName', data.guardianName)
           if (data.guardianPhone) form.setValue('guardianPhone', data.guardianPhone)
-          if (data.phone) form.setValue('phone', data.phone)
         }}
       />
 
@@ -957,13 +956,6 @@ function StudentFormDialog({
                   <FormItem>
                     <FormLabel>Full Name *</FormLabel>
                     <FormControl><Input placeholder="John Doe" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="phone" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
-                    <FormControl><Input placeholder="+92 300 1234567" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -1308,13 +1300,6 @@ function StudentFormSheet({
                     <FormItem>
                       <FormLabel>Full Name *</FormLabel>
                       <FormControl><Input placeholder="John Doe" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="phone" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
-                      <FormControl><Input placeholder="+92 300 1234567" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -1710,8 +1695,8 @@ function ProfileTab({ student }: { student: StudentDetail }) {
       <div className="space-y-3">
         <Section title="Contact Information">
           <InfoRow icon={<Mail className="size-4" />} label="Email" value={student.user.email} />
-          <InfoRow icon={<Phone className="size-4" />} label="Phone" value={student.user.phone || 'Not provided'} />
-          {student.mobileNumber && <InfoRow icon={<Phone className="size-4" />} label="Student Mobile" value={student.mobileNumber} />}
+          <InfoRow icon={<Phone className="size-4" />} label="Student Mobile" value={student.mobileNumber || 'Not provided'} />
+          {student.user.phone && <InfoRow icon={<Phone className="size-4" />} label="Phone" value={student.user.phone} />}
           <InfoRow icon={<MapPin className="size-4" />} label="Address" value={student.address || 'Not provided'} />
         </Section>
 
