@@ -34,7 +34,7 @@ export async function GET(
         enrollments: {
           include: {
             course: {
-              select: { id: true, code: true, name: true, creditHours: true },
+              select: { id: true, code: true, name: true, creditHours: true, semesterOffered: true },
             },
             semester: {
               select: { id: true, name: true, type: true, year: true },
@@ -45,7 +45,7 @@ export async function GET(
         results: {
           include: {
             course: {
-              select: { id: true, code: true, name: true, creditHours: true },
+              select: { id: true, code: true, name: true, creditHours: true, semesterOffered: true },
             },
             semester: {
               select: { id: true, name: true, type: true, year: true },

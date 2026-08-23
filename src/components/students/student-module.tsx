@@ -196,7 +196,7 @@ export interface StudentDetail {
     section: string
     status: string
     enrollmentDate: string
-    course: { id: string; code: string; name: string; creditHours: number }
+    course: { id: string; code: string; name: string; creditHours: number; semesterOffered: number | null }
     semester: { id: string; name: string; type: string; year: number }
   }[]
   results: {
@@ -213,7 +213,7 @@ export interface StudentDetail {
     gradePoint: number | null
     isLocked: boolean
     remarks: string | null
-    course: { id: string; code: string; name: string; creditHours: number }
+    course: { id: string; code: string; name: string; creditHours: number; semesterOffered: number | null }
     semester: { id: string; name: string; type: string; year: number }
   }[]
   attendanceSummary: {
@@ -1752,8 +1752,9 @@ function EnrollmentsTab({ enrollments }: { enrollments: StudentDetail['enrollmen
                 </div>
               </TableCell>
               <TableCell>
-                <p className="text-sm">{e.semester.name}</p>
-                <p className="text-xs text-muted-foreground">{e.semester.year}</p>
+                <p className="text-sm">
+                  {e.course.semesterOffered ? `Semester ${e.course.semesterOffered}` : '—'}
+                </p>
               </TableCell>
               <TableCell className="text-center">{e.course.creditHours}</TableCell>
               <TableCell className="text-center">{e.section}</TableCell>
@@ -1870,7 +1871,9 @@ function ResultsTab({ results }: { results: StudentDetail['results'] }) {
                 </span>
               </TableCell>
               <TableCell>
-                <p className="text-sm">{r.semester.name}</p>
+                <p className="text-sm">
+                  {r.course.semesterOffered ? `Semester ${r.course.semesterOffered}` : '—'}
+                </p>
               </TableCell>
             </TableRow>
           ))}

@@ -1493,7 +1493,6 @@ function FacultyDetailSheet({ detail, isLoading, onEdit, isAdmin }: FacultyDetai
                         </Badge>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <span>Semester: {p.semester.name}</span>
                         {p.members.length > 0 && (
                           <span>
                             Team: {p.members.map((m) => m.student.user.name).join(', ')}

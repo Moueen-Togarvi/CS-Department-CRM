@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { cn } from '@/lib/utils'
 
 import { PageHeader } from '@/components/shared/page-header'
@@ -272,6 +273,8 @@ export function CourseAssignmentModule() {
   const courses = data?.courses || []
   const faculty = data?.faculty || []
 
+  const [pendingRemoval, setPendingRemoval] = useState<Assignment | null>(null)
+
   // Remove mutation
   const removeMutation = useMutation({
     mutationFn: async ({ courseId, offeringId }: { courseId: string; offeringId: string }) => {
@@ -284,9 +287,13 @@ export function CourseAssignmentModule() {
     },
     onSuccess: () => {
       toast.success('Assignment removed')
+      setPendingRemoval(null)
       queryClient.invalidateQueries({ queryKey: ['course-assignment'] })
     },
-    onError: (err: Error) => toast.error(err.message || 'Failed to remove assignment'),
+    onError: (err: Error) => {
+      setPendingRemoval(null)
+      toast.error(err.message || 'Failed to remove assignment')
+    },
   })
 
   // Filtering
@@ -525,7 +532,7 @@ export function CourseAssignmentModule() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="text-xs font-semibold">
-                            {a.semester?.name || 'N/A'}
+                            {a.course.semesterOffered ? `Semester ${a.course.semesterOffered}` : 'N/A'}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -540,9 +547,7 @@ export function CourseAssignmentModule() {
                             variant="ghost"
                             className="h-8 w-8 text-muted-foreground hover:text-red-600"
                             disabled={removeMutation.isPending}
-                            onClick={() =>
-                              removeMutation.mutate({ courseId: a.courseId, offeringId: a.id })
-                            }
+                            onClick={() => setPendingRemoval(a)}
                           >
                             <Trash2 className="size-3.5" />
                           </Button>
@@ -597,6 +602,24 @@ export function CourseAssignmentModule() {
         courses={courses}
         faculty={faculty}
         preselectedCourseId={preselectedCourseId}
+      />
+
+      <ConfirmDialog
+        open={pendingRemoval !== null}
+        onOpenChange={(open) => !open && setPendingRemoval(null)}
+        title="Remove this assignment?"
+        description={
+          pendingRemoval
+            ? `${pendingRemoval.faculty?.user?.name || 'This faculty member'} will no longer be assigned to ${pendingRemoval.course.code} (${pendingRemoval.section} · ${pendingRemoval.slotType === 'LAB' ? 'Lab' : 'Theory'}). Attendance and results they have already recorded are kept.`
+            : ''
+        }
+        confirmLabel="Remove"
+        pendingLabel="Removing..."
+        isPending={removeMutation.isPending}
+        onConfirm={() =>
+          pendingRemoval &&
+          removeMutation.mutate({ courseId: pendingRemoval.courseId, offeringId: pendingRemoval.id })
+        }
       />
     </div>
   )

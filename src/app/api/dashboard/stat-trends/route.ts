@@ -3,7 +3,7 @@ import { successResponse } from '@/lib/api-response'
 import { handleApiError, requireAdmin } from '@/lib/auth-utils'
 
 type Point = { date: string; value: number }
-type Series = { total: number; trend: number | null; series: Point[] }
+type Series = { total: number; series: Point[] }
 
 const WEEK_ORDER = [
   'MONDAY',
@@ -19,15 +19,6 @@ function stamp(year: number, month = 1, day = 1): string {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T00:00:00`
 }
 
-/** Percentage change between the last two points — null when it can't be computed. */
-function trendOf(series: Point[]): number | null {
-  if (series.length < 2) return null
-  const current = series[series.length - 1].value
-  const previous = series[series.length - 2].value
-  if (previous === 0) return null
-  return Math.round(((current - previous) / previous) * 1000) / 10
-}
-
 function runningTotal(counts: Map<number, number>): Point[] {
   let cumulative = 0
   return [...counts.entries()]
@@ -39,7 +30,7 @@ function runningTotal(counts: Map<number, number>): Point[] {
 }
 
 function finalise(series: Point[], total: number): Series {
-  return { total, trend: trendOf(series), series }
+  return { total, series }
 }
 
 export async function GET() {

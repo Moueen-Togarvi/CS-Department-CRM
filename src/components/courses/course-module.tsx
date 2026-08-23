@@ -40,6 +40,7 @@ import {
 } from 'lucide-react'
 
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -1201,6 +1202,8 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailS
   const [newSection, setNewSection] = useState('A')
   const [newSlotType, setNewSlotType] = useState('THEORY')
   const [addingOffering, setAddingOffering] = useState(false)
+  const [pendingOffering, setPendingOffering] = useState<any | null>(null)
+  const [removingOffering, setRemovingOffering] = useState(false)
 
   const fetchEnrollments = async (courseId: string) => {
     setEnrollmentsLoading(true)
@@ -1261,10 +1264,11 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailS
     }
   }
 
-  const handleRemoveOffering = async (offeringId: string) => {
-    if (!detail) return
+  const handleRemoveOffering = async () => {
+    if (!(detail && pendingOffering)) return
+    setRemovingOffering(true)
     try {
-      const res = await fetch(`/api/courses/${detail.id}/offerings/${offeringId}`, {
+      const res = await fetch(`/api/courses/${detail.id}/offerings/${pendingOffering.id}`, {
         method: 'DELETE',
       })
       const json = await res.json()
@@ -1274,6 +1278,9 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailS
       queryClient.invalidateQueries({ queryKey: ['courses'] })
     } catch (err: any) {
       toast.error(err.message)
+    } finally {
+      setRemovingOffering(false)
+      setPendingOffering(null)
     }
   }
 
@@ -1554,7 +1561,7 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailS
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8 text-muted-foreground hover:text-red-600 shrink-0"
-                        onClick={() => handleRemoveOffering(o.id)}
+                        onClick={() => setPendingOffering(o)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -1583,9 +1590,9 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailS
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-semibold">Enrolled Students</h3>
-                {enrollmentsData?.semester && (
+                {detail?.semesterOffered != null && (
                   <p className="text-xs text-muted-foreground">
-                    Semester: {enrollmentsData.semester.name}
+                    Semester {detail.semesterOffered}
                   </p>
                 )}
               </div>
@@ -1770,6 +1777,21 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailS
         }}
         isSubmitting={false}
       />
+
+      <ConfirmDialog
+        open={pendingOffering !== null}
+        onOpenChange={(open) => !open && setPendingOffering(null)}
+        title="Remove this assignment?"
+        description={
+          pendingOffering
+            ? `${pendingOffering.faculty?.user?.name || 'This faculty member'} will no longer be assigned to Sec ${pendingOffering.section} (${pendingOffering.slotType === 'LAB' ? 'Lab' : 'Theory'}). Attendance and results they have already recorded are kept.`
+            : ''
+        }
+        confirmLabel="Remove"
+        pendingLabel="Removing..."
+        isPending={removingOffering}
+        onConfirm={handleRemoveOffering}
+      />
     </>
   )
 }
@@ -1852,7 +1874,6 @@ function EnrollmentDialog({
   }, [semesters])
 
   const currentSemesterId = currentSemester?.id || ''
-  const currentSemesterName = currentSemester?.name || ''
 
   // Set semester when dialog opens
   useEffect(() => {
@@ -1959,7 +1980,9 @@ function EnrollmentDialog({
             <label className="text-sm font-medium">Semester *</label>
             {currentSemesterId ? (
               <div className="flex items-center gap-2 rounded-lg border p-2.5 bg-muted/30">
-                <span className="text-sm font-medium">{currentSemesterName}</span>
+                <span className="text-sm font-medium">
+                  {semesterOffered != null ? `Semester ${semesterOffered}` : 'Current semester'}
+                </span>
                 <Badge variant="outline" className="text-xs">Current</Badge>
               </div>
             ) : (

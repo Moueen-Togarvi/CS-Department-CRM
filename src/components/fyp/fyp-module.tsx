@@ -80,6 +80,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 
 // Types
 interface ProjectMember {
@@ -160,6 +161,7 @@ interface StudentOption {
 interface SemesterOption {
   id: string
   name: string
+  isCurrent: boolean
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -306,6 +308,8 @@ export function FYPModule() {
     queryFn: () => fetch('/api/semesters').then((r) => r.json()),
   })
   const semesterList: SemesterOption[] = semestersData?.data || []
+  const activeSemesterId =
+    semesterList.find((s) => s.isCurrent)?.id || semesterList[0]?.id || ''
 
   const projects: Project[] = data?.data || []
   const pagination = data?.pagination
@@ -398,10 +402,13 @@ export function FYPModule() {
     },
   })
 
+  const [pendingMember, setPendingMember] = useState<{ studentId: string; name: string } | null>(null)
+
   const removeMemberMutation = useMutation({
     mutationFn: ({ projectId, studentId }: { projectId: string; studentId: string }) =>
       fetch(`/api/projects/${projectId}/members/${studentId}`, { method: 'DELETE' }).then((r) => r.json()),
     onSuccess: (res) => {
+      setPendingMember(null)
       if (res.success) {
         toast.success('Member removed')
         queryClient.invalidateQueries({ queryKey: ['project-detail'] })
@@ -409,6 +416,10 @@ export function FYPModule() {
       } else {
         toast.error(res.error || 'Failed to remove member')
       }
+    },
+    onError: () => {
+      setPendingMember(null)
+      toast.error('Failed to remove member')
     },
   })
 
@@ -481,12 +492,17 @@ export function FYPModule() {
   }
 
   function handleCreate() {
-    if (!form.title || !form.description || !form.semesterId || !form.supervisorId) {
-      toast.error('Title, description, semester, and supervisor are required')
+    if (!form.title || !form.description || !form.supervisorId) {
+      toast.error('Title, description, and supervisor are required')
+      return
+    }
+    if (!activeSemesterId) {
+      toast.error('No active semester found. Please set a current semester first.')
       return
     }
     createMutation.mutate({
       ...form,
+      semesterId: activeSemesterId,
       coSupervisorId: form.coSupervisorId || undefined,
       domain: form.domain || undefined,
       methodology: form.methodology || undefined,
@@ -748,7 +764,6 @@ export function FYPModule() {
                   )}
                 </div>
                 <SheetTitle className="text-xl">{detail.title}</SheetTitle>
-                <SheetDescription>{detail.semester?.name || ''}</SheetDescription>
               </SheetHeader>
 
               {/* Project Info */}
@@ -828,9 +843,9 @@ export function FYPModule() {
                               size="icon"
                               className="size-7 text-red-500 hover:text-red-600"
                               onClick={() =>
-                                removeMemberMutation.mutate({
-                                  projectId: detail.id,
+                                setPendingMember({
                                   studentId: member.student.id,
+                                  name: member.student.user.name,
                                 })
                               }
                               disabled={removeMemberMutation.isPending}
@@ -1026,18 +1041,7 @@ export function FYPModule() {
               <Label htmlFor="proj-desc">Description *</Label>
               <Textarea id="proj-desc" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Project description..." rows={3} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <Label>Semester *</Label>
-                <Select value={form.semesterId} onValueChange={(v) => setForm({ ...form, semesterId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select semester" /></SelectTrigger>
-                  <SelectContent>
-                    {semesterList.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="grid gap-3">
               <div className="grid gap-2">
                 <Label>Supervisor *</Label>
                 <Select value={form.supervisorId} onValueChange={(v) => setForm({ ...form, supervisorId: v })}>
@@ -1298,6 +1302,28 @@ export function FYPModule() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ConfirmDialog
+        open={pendingMember !== null}
+        onOpenChange={(open) => !open && setPendingMember(null)}
+        title="Remove this member?"
+        description={
+          pendingMember
+            ? `${pendingMember.name} will be removed from this project's team.`
+            : ''
+        }
+        confirmLabel="Remove"
+        pendingLabel="Removing..."
+        isPending={removeMemberMutation.isPending}
+        onConfirm={() =>
+          detail &&
+          pendingMember &&
+          removeMemberMutation.mutate({
+            projectId: detail.id,
+            studentId: pendingMember.studentId,
+          })
+        }
+      />
     </div>
   )
 }

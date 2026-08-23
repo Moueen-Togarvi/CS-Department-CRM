@@ -34,12 +34,13 @@ export async function GET(
         course: true,
         semester: true,
       },
-      orderBy: [{ semester: { startDate: 'asc' } }, { course: { code: 'asc' } }],
+      orderBy: [{ course: { semesterOffered: 'asc' } }, { course: { code: 'asc' } }],
     })
 
-    // Group results by semester
-    const semesterMap = new Map<string, {
-      semesterId: string
+    // Group by the course's programme semester (1-8). Academic terms like
+    // "Spring 2025" aren't used anywhere in this system.
+    const semesterMap = new Map<number, {
+      semesterNumber: number
       semesterName: string
       courses: Array<{
         code: string
@@ -54,15 +55,16 @@ export async function GET(
     }>()
 
     for (const r of results) {
-      const semId = r.semesterId
-      if (!semesterMap.has(semId)) {
-        semesterMap.set(semId, {
-          semesterId: semId,
-          semesterName: r.semester.name,
+      // 0 buckets any course with no semester set, and sorts before Semester 1.
+      const semNumber = r.course.semesterOffered ?? 0
+      if (!semesterMap.has(semNumber)) {
+        semesterMap.set(semNumber, {
+          semesterNumber: semNumber,
+          semesterName: semNumber > 0 ? `Semester ${semNumber}` : 'Unassigned',
           courses: [],
         })
       }
-      semesterMap.get(semId)!.courses.push({
+      semesterMap.get(semNumber)!.courses.push({
         code: r.course.code,
         name: r.course.name,
         creditHours: r.course.creditHours,
@@ -91,7 +93,11 @@ export async function GET(
     }> = []
     let allCoursesForCumulative: Array<{ gradePoint: number | null; creditHours: number; labCreditHours: number }> = []
 
-    for (const [, semData] of semesterMap) {
+    const orderedSemesters = [...semesterMap.values()].sort(
+      (a, b) => a.semesterNumber - b.semesterNumber
+    )
+
+    for (const semData of orderedSemesters) {
       const semCourses = semData.courses
       const gpaInputs = semCourses.map((c) => ({
         gradePoint: c.gradePoint,
