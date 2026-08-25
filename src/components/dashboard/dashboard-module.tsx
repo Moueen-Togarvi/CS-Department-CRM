@@ -62,7 +62,11 @@ function ScheduleRow({ item, accent }: {
     : 'bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400'
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border px-3 py-2.5 hover:bg-muted/30 transition-colors">
+    // min-w-0 is required here: this row is a CSS Grid item (parent is
+    // `grid gap-2`), and grid items default to min-width:auto — without this
+    // the row grows to fit its badges instead of shrinking to the card, and
+    // spills past the card edge instead of letting the title truncate.
+    <div className="flex min-w-0 items-center gap-3 rounded-lg border px-3 py-2.5 hover:bg-muted/30 transition-colors">
       <div className={`flex items-center justify-center rounded-md ${badge} px-2.5 py-1 shrink-0`}>
         <span className="text-xs font-bold whitespace-nowrap tabular-nums">{item.startTime}–{item.endTime}</span>
       </div>

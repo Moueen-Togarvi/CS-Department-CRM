@@ -68,3 +68,8 @@ Thumbs.db
 
 # Local database dumps — never commit
 /backups/
+
+# Never run `next build` while `next dev` is live — they share this
+# directory's manifests, and a build overwrite corrupts the running dev
+# server's route table (see: NextAuth 404s, 2026-08-25). Verify build
+# correctness in a separate worktree/checkout instead.

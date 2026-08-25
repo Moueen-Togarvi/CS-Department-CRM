@@ -80,11 +80,24 @@ export async function GET(request: NextRequest) {
       }
 
 
-      const [offerings, todayClasses, pendingResults, recentAnnouncements] = await Promise.all([
+      const [offerings, timetableSlots, todayClasses, pendingResults, recentAnnouncements] = await Promise.all([
         db.courseOffering.findMany({
           where: { facultyId: faculty.id },
           take: 10,
           include: {
+            course: { select: { id: true, code: true, name: true, semesterOffered: true } },
+            semester: { select: { id: true, name: true } },
+          },
+        }),
+        // A course can be taught via a Timetable slot with no CourseOffering
+        // row (e.g. scheduled directly from the Timetable page) — both count
+        // as ownership everywhere else (assertFacultyOwnsCourse), so both must
+        // count here too, or a faculty with only a Timetable slot sees "0".
+        db.timetable.findMany({
+          where: { facultyId: faculty.id },
+          select: {
+            courseId: true,
+            section: true,
             course: { select: { id: true, code: true, name: true, semesterOffered: true } },
             semester: { select: { id: true, name: true } },
           },
@@ -104,8 +117,13 @@ export async function GET(request: NextRequest) {
         db.enrollment.count({
           where: {
             status: 'ENROLLED',
-            course: { offerings: { some: { facultyId: faculty.id } } },
             result: null,
+            course: {
+              OR: [
+                { offerings: { some: { facultyId: faculty.id } } },
+                { timetables: { some: { facultyId: faculty.id } } },
+              ],
+            },
           },
         }),
         db.announcement.findMany({
@@ -132,6 +150,18 @@ export async function GET(request: NextRequest) {
         semester: o.semester.name,
         section: o.section,
       }))
+      const offeredCourseIds = new Set(offerings.map((o) => o.course.id))
+      for (const t of timetableSlots) {
+        if (offeredCourseIds.has(t.courseId)) continue // already counted via its offering
+        offeredCourseIds.add(t.courseId)
+        mergedCourses.push({
+          id: `tt-${t.courseId}`,
+          courseCode: t.course.code,
+          courseName: t.course.name,
+          semester: t.semester.name,
+          section: t.section,
+        })
+      }
       return successResponse({
         role: 'FACULTY',
         courseCount: mergedCourses.length,
