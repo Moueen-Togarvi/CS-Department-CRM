@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { requireAdmin, handleApiError } from '@/lib/auth-utils'
+import { getOrCreateCurrentSemester } from '@/lib/semester'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,13 +42,13 @@ export async function POST(request: NextRequest) {
         data: { status: 'GRADUATED' },
       })
       return successResponse(
-        { promoted: 0, graduated: graduated.count, newEnrollments: 0, academicTermMissing: false },
+        { promoted: 0, graduated: graduated.count, newEnrollments: 0 },
         `${graduated.count} student(s) marked as graduated`
       )
     }
 
     // ---- Promote to next semester ----
-    const currentTerm = await db.semester.findFirst({ where: { isCurrent: true } })
+    const currentTerm = await getOrCreateCurrentSemester()
 
     const result = await db.$transaction(async (tx) => {
       // Grab cohort ids before bumping (updateMany returns only a count).
@@ -100,19 +101,9 @@ export async function POST(request: NextRequest) {
       return { promoted: studentIds.length, newEnrollments }
     })
 
-    const academicTermMissing = !currentTerm
-    const message = academicTermMissing
-      ? `${result.promoted} student(s) promoted (no active academic term set — course enrollments skipped)`
-      : `${result.promoted} student(s) promoted, ${result.newEnrollments} new enrollment(s) created`
-
     return successResponse(
-      {
-        promoted: result.promoted,
-        graduated: 0,
-        newEnrollments: result.newEnrollments,
-        academicTermMissing,
-      },
-      message
+      { promoted: result.promoted, graduated: 0, newEnrollments: result.newEnrollments },
+      `${result.promoted} student(s) promoted, ${result.newEnrollments} new enrollment(s) created`
     )
   } catch (error) {
     return handleApiError(error, 'Failed to promote students')

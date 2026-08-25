@@ -4,6 +4,7 @@ import { successResponse, errorResponse } from '@/lib/api-response'
 import { parseBody } from '@/lib/validators/request'
 import { createOfferingSchema } from '@/lib/validators/offering'
 import { requireAdmin, requireAuth, handleApiError } from '@/lib/auth-utils'
+import { getOrCreateCurrentSemester } from '@/lib/semester'
 
 export async function GET(
   request: NextRequest,
@@ -53,14 +54,7 @@ export async function POST(
       return errorResponse('Course not found', 404)
     }
 
-    let finalSemesterId = semesterId
-    if (!finalSemesterId) {
-      const currentSem = await db.semester.findFirst({ where: { isCurrent: true } })
-      if (!currentSem) {
-        return errorResponse('No active semester found. Please set a current semester first.', 400)
-      }
-      finalSemesterId = currentSem.id
-    }
+    const finalSemesterId = semesterId || (await getOrCreateCurrentSemester()).id
 
     const existing = await db.courseOffering.findUnique({
       where: {
