@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { updateOwnProfileSchema } from '@/lib/validators/user'
 import { requireAuth, handleApiError } from '@/lib/auth-utils'
 import bcrypt from 'bcryptjs'
 
@@ -45,8 +47,13 @@ export async function PUT(request: NextRequest) {
       return errorResponse('Students are not allowed to update their profile', 403)
     }
 
-    const body = await request.json()
-    const { name, phone, avatar, address, mobileNumber, oldPassword, newPassword, confirmPassword } = body
+    const parsed = await parseBody(request, updateOwnProfileSchema)
+
+    if (!parsed.ok) return parsed.response
+
+    const parsedBody = parsed.data
+    const { name, phone, avatar, address, mobileNumber, oldPassword, newPassword, confirmPassword } =
+      parsedBody
 
     const userUpdate: Record<string, unknown> = {}
     if (name !== undefined) userUpdate.name = name

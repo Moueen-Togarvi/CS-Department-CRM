@@ -1,5 +1,7 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { createEvaluationSchema } from '@/lib/validators/project'
 import { requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
 import { EvaluationType } from '@prisma/client'
@@ -11,8 +13,9 @@ export async function POST(
   try {
     await requireFacultyOrAdmin()
     const { id } = await params
-    const body = await request.json()
-    const { evaluationType, criteriaScores, totalScore, comments, evaluatorId } = body
+    const parsed = await parseBody(request, createEvaluationSchema)
+    if (!parsed.ok) return parsed.response
+    const { evaluationType, criteriaScores, totalScore, comments, evaluatorId } = parsed.data
 
     if (!evaluationType || !evaluatorId) {
       return errorResponse('Evaluation type and evaluator are required')

@@ -55,7 +55,7 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "react-hooks/refs": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "scripts/**"]
+  ignores: ["node_modules/**", ".next/**", "coverage/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "scripts/**"]
 }];
 
 export default eslintConfig;

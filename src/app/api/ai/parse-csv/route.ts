@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { parseBody } from '@/lib/validators/request'
+import { parseCsvSchema } from '@/lib/validators/ai'
 import { requireAdmin, AuthError, handleApiError } from '@/lib/auth-utils'
 
 export async function POST(request: NextRequest) {
   try {
     await requireAdmin()
+    // Validate before loading the LLM SDK, so a malformed request costs nothing.
+    const input = await parseBody(request, parseCsvSchema)
+    if (!input.ok) return input.response
+    const { csvText, entityType } = input.data
+
     const { createLLM } = (await import('z-ai-web-dev-sdk')) as any
     const llm = createLLM()
-
-    const body = await request.json()
-    const { csvText, entityType } = body
 
     if (!csvText || !entityType) {
       return NextResponse.json(

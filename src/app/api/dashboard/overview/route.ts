@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       }
 
 
-      const [offerings, instructorCourses, todayClasses, pendingResults, recentAnnouncements] = await Promise.all([
+      const [offerings, todayClasses, pendingResults, recentAnnouncements] = await Promise.all([
         db.courseOffering.findMany({
           where: { facultyId: faculty.id },
           take: 10,
@@ -88,10 +88,6 @@ export async function GET(request: NextRequest) {
             course: { select: { id: true, code: true, name: true, semesterOffered: true } },
             semester: { select: { id: true, name: true } },
           },
-        }),
-        db.course.findMany({
-          where: { instructorId: faculty.id, isActive: true },
-          select: { id: true, code: true, name: true, semesterOffered: true },
         }),
         db.timetable.findMany({
           where: { facultyId: faculty.id, day: today as any },
@@ -108,12 +104,7 @@ export async function GET(request: NextRequest) {
         db.enrollment.count({
           where: {
             status: 'ENROLLED',
-            course: {
-              OR: [
-                { instructorId: faculty.id },
-                { offerings: { some: { facultyId: faculty.id } } },
-              ],
-            },
+            course: { offerings: { some: { facultyId: faculty.id } } },
             result: null,
           },
         }),
@@ -128,8 +119,6 @@ export async function GET(request: NextRequest) {
         }),
       ])
 
-      // Merge CourseOffering results with instructor-assigned courses (dedup by courseId)
-      const seenCourseIds = new Set(offerings.map((o) => o.course.id))
       const mergedCourses: Array<{
         id: string
         courseCode: string
@@ -143,19 +132,6 @@ export async function GET(request: NextRequest) {
         semester: o.semester.name,
         section: o.section,
       }))
-      for (const c of instructorCourses) {
-        if (!seenCourseIds.has(c.id)) {
-          seenCourseIds.add(c.id)
-          mergedCourses.push({
-            id: `instructor-${c.id}`,
-            courseCode: c.code,
-            courseName: c.name,
-            semester: c.semesterOffered ? `Semester ${c.semesterOffered}` : '',
-            section: null,
-          })
-        }
-      }
-
       return successResponse({
         role: 'FACULTY',
         courseCount: mergedCourses.length,

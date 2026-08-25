@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+import { formatDate } from '@/lib/utils'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus,
@@ -195,14 +196,6 @@ function getInitials(name: string) {
     .toUpperCase()
 }
 
-function formatDate(date: string | null) {
-  if (!date) return '—'
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
 
 export function FYPModule() {
   const queryClient = useQueryClient()

@@ -271,7 +271,6 @@ model Faculty {
   user            User          @relation(fields: [userId], references: [id])
   department      Department    @relation(fields: [departmentId], references: [id])
   headOfDepartment Department?  @relation("DeptHead")
-  courses         Course[]      @relation("FacultyCourses")
   timetables      Timetable[]
   attendance      Attendance[]
   supervisedProjects Project[]  @relation("Supervisor")
@@ -303,8 +302,6 @@ model Course {
   updatedAt        DateTime   @updatedAt
 
   department  Department  @relation(fields: [departmentId], references: [id])
-  instructorId String?
-  instructor  Faculty?    @relation("FacultyCourses", fields: [instructorId], references: [id])
   enrollments Enrollment[]
   timetables  Timetable[]
   attendance  Attendance[]
@@ -314,7 +311,6 @@ model Course {
   targetAnnouncements Announcement[] @relation("AnnouncementCourse")
 
   @@index([departmentId])
-  @@index([instructorId])
   @@index([semesterOffered])
 }
 

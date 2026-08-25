@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse, paginatedResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { createResultSchema } from '@/lib/validators/result'
 import { parsePaginationParams, skipTake } from '@/lib/pagination'
 import { requireAuth, requireFacultyOrAdmin, assertFacultyOwnsCourse, getStudentForUser, handleApiError } from '@/lib/auth-utils'
 
@@ -94,7 +96,8 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireFacultyOrAdmin()
 
-    const body = await request.json()
+    const parsed = await parseBody(request, createResultSchema)
+    if (!parsed.ok) return parsed.response
     const {
       enrollmentId,
       assignmentMarks,
@@ -103,7 +106,7 @@ export async function POST(request: NextRequest) {
       finalMarks,
       labMarks,
       projectMarks,
-    } = body
+    } = parsed.data
 
     if (!enrollmentId) {
       return errorResponse('enrollmentId is required')

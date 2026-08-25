@@ -1,0 +1,90 @@
+[
+  {
+    "id": "cmt4p2lna002ibo36hjniwrkg",
+    "code": "CS101",
+    "instructorId": "cmt4p2ayg000mbo36v4b3181m",
+    "instructor": {
+      "facultyId": "F-004",
+      "user": {
+        "name": "Dr. Fatima Noor"
+      }
+    }
+  },
+  {
+    "id": "cmt4p2m1k002kbo36i1kk1ug2",
+    "code": "CS201",
+    "instructorId": "cmt4p2a5z000gbo36w9ushhqp",
+    "instructor": {
+      "facultyId": "F-002",
+      "user": {
+        "name": "Dr. Ahmed Hassan"
+      }
+    }
+  },
+  {
+    "id": "cmt4p2m96002mbo367ffku9fx",
+    "code": "CS202",
+    "instructorId": "cmt4p2aja000jbo36kos5wq7j",
+    "instructor": {
+      "facultyId": "F-003",
+      "user": {
+        "name": "Mr. Ali Raza"
+      }
+    }
+  },
+  {
+    "id": "cmt4p2mfp002obo366z3umh1h",
+    "code": "CS301",
+    "instructorId": "cmt4p2a5z000gbo36w9ushhqp",
+    "instructor": {
+      "facultyId": "F-002",
+      "user": {
+        "name": "Dr. Ahmed Hassan"
+      }
+    }
+  },
+  {
+    "id": "cmt4p2mnf002qbo36j8l1o04v",
+    "code": "CS303",
+    "instructorId": "cmt4p2aja000jbo36kos5wq7j",
+    "instructor": {
+      "facultyId": "F-003",
+      "user": {
+        "name": "Mr. Ali Raza"
+      }
+    }
+  },
+  {
+    "id": "cmt4p2mu1002sbo36ic9jy3kl",
+    "code": "CS401",
+    "instructorId": "cmt4p29j9000dbo36qz8ll5vm",
+    "instructor": {
+      "facultyId": "F-001",
+      "user": {
+        "name": "Dr. Sarah Khan"
+      }
+    }
+  },
+  {
+    "id": "cmt4p2n1m002ubo36vcoq3q1j",
+    "code": "CS402",
+    "instructorId": "cmt4p29j9000dbo36qz8ll5vm",
+    "instructor": {
+      "facultyId": "F-001",
+      "user": {
+        "name": "Dr. Sarah Khan"
+      }
+    }
+  },
+  {
+    "id": "cmt4p2n84002wbo366e4k2xnn",
+    "code": "CS491",
+    "instructorId": "cmt4p29j9000dbo36qz8ll5vm",
+    "instructor": {
+      "facultyId": "F-001",
+      "user": {
+        "name": "Dr. Sarah Khan"
+      }
+    }
+  }
+]

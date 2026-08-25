@@ -1,13 +1,13 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
-import { requireAuth, requireRole } from '@/lib/auth'
+import { requireAuth, requireRole } from "@/lib/auth-utils";
 import { handleApiError } from '@/lib/auth-utils'
 import { createRoomSchema } from '@/lib/validators/room'
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request)
+    await requireAuth()
     const rooms = await db.room.findMany({
       select: {
         id: true,
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(request, 'ADMIN')
+    await requireRole('ADMIN')
 
     const body = await request.json()
     const parsed = createRoomSchema.safeParse(body)

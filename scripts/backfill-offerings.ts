@@ -37,36 +37,6 @@ async function main() {
     }
   }
 
-  // Also create offerings from Course.instructorId for the current semester
-  const current = await prisma.semester.findFirst({ where: { isCurrent: true } });
-  if (current) {
-    const instructedCourses = await prisma.course.findMany({
-      where: { instructorId: { not: null } },
-      select: { id: true, instructorId: true },
-    });
-    for (const c of instructedCourses) {
-      if (!c.instructorId) continue;
-      const key = `${c.id}|${current.id}|A|THEORY`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      try {
-        await prisma.courseOffering.create({
-          data: {
-            courseId: c.id,
-            facultyId: c.instructorId,
-            semesterId: current.id,
-            section: "A",
-            slotType: "THEORY",
-            isActive: true,
-          },
-        });
-        created++;
-      } catch (e) {
-        // ignore
-      }
-    }
-  }
-
   console.log(`✓ Backfilled ${created} course offerings`);
 }
 

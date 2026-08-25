@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { formatDate } from '@/lib/utils'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus,
@@ -105,14 +106,6 @@ const AUDIENCE_LABELS: Record<string, string> = {
 const ANNOUNCEMENT_TYPES = ['ALL', 'URGENT', 'EVENT', 'SEMINAR', 'NOTICE', 'GENERAL']
 const AUDIENCE_OPTIONS = ['ALL', 'STUDENTS', 'FACULTY', 'STAFF']
 
-function formatDate(date: string | null) {
-  if (!date) return '—'
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
 
 function truncate(str: string, len: number) {
   if (str.length <= len) return str

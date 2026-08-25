@@ -6,7 +6,6 @@ import { handleApiError, requireFacultyOrAdmin, getFacultyCourseSections } from 
 /**
  * Returns the distinct sections available for a course (+ optional semester).
  * - Faculty: scoped to the sections they are assigned (via CourseOfferings/Timetables);
- *   if they are only a legacy Course.instructorId (no section-based assignment), all sections are returned.
  * - Admin: all distinct sections that have enrollments, offerings, or timetable slots.
  */
 export async function GET(
@@ -20,9 +19,8 @@ export async function GET(
     const semesterId = searchParams.get('semesterId') || undefined
     const semFilter = semesterId ? { semesterId } : {}
 
-    // Faculty are limited to their assigned sections. `null` is the legacy
-    // instructor-of-record case and falls through to every section; an empty
-    // list means no assignment, and must return nothing rather than everything.
+    // Faculty are limited to their assigned sections. An empty list means no
+    // assignment, and must return nothing rather than everything.
     if (session.user.role === 'FACULTY') {
       const scope = await getFacultyCourseSections(session.user.id, courseId, semesterId)
       if (scope !== null) {

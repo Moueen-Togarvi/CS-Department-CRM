@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+import { useDepartments, type DepartmentOption } from '@/hooks/use-departments'
+import { InfoItem, Section } from '@/components/shared/detail-layout'
 import {
   useQuery,
   useMutation,
@@ -207,12 +209,6 @@ interface ApiOk<T> {
   message?: string
 }
 
-interface DepartmentOption {
-  id: string
-  name: string
-  code: string
-}
-
 // ==================== HELPER: Designation Color ====================
 
 function designationColor(d: string) {
@@ -239,19 +235,6 @@ function statusColor(available: boolean) {
 }
 
 // ==================== DEPARTMENTS QUERY ====================
-
-function useDepartments() {
-  return useQuery<DepartmentOption[]>({
-    queryKey: ['departments-list'],
-    queryFn: async () => {
-      const res = await fetch('/api/departments')
-      if (!res.ok) throw new Error('Failed to fetch departments')
-      const json: { success: boolean; data: DepartmentOption[] } = await res.json()
-      return json.data
-    },
-    staleTime: 5 * 60 * 1000,
-  })
-}
 
 // ==================== MAIN COMPONENT ====================
 
@@ -1512,35 +1495,6 @@ function FacultyDetailSheet({ detail, isLoading, onEdit, isAdmin }: FacultyDetai
 }
 
 // ==================== SMALL HELPERS ====================
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
-      <h4 className="text-sm font-semibold tracking-tight text-foreground/90 border-b border-border/40 pb-2 mb-3">{title}</h4>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
-    </div>
-  )
-}
-
-function InfoItem({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: React.ReactNode
-}) {
-  return (
-    <div className="flex items-center gap-3 text-sm p-1">
-      <div className="text-muted-foreground bg-muted/60 p-2 rounded-lg shrink-0">{icon}</div>
-      <div className="flex-1 min-w-0">
-        <p className="text-muted-foreground text-xs font-medium">{label}</p>
-        <div className="font-semibold text-foreground/90 truncate mt-0.5">{value}</div>
-      </div>
-    </div>
-  )
-}
 
 function EmptyState({
   icon,

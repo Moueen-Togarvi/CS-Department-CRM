@@ -1,14 +1,17 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { publishResultsSchema } from '@/lib/validators/result'
 import { requireFacultyOrAdmin, assertFacultyOwnsCourse, resolveSectionScope, handleApiError } from '@/lib/auth-utils'
 
 export async function POST(request: NextRequest) {
   try {
     const session = await requireFacultyOrAdmin()
 
-    const body = await request.json()
-    const { courseId, semesterId, section: sectionParam } = body
+    const parsed = await parseBody(request, publishResultsSchema)
+    if (!parsed.ok) return parsed.response
+    const { courseId, semesterId, section: sectionParam } = parsed.data
 
     if (!courseId || !semesterId) {
       return errorResponse('courseId and semesterId are required')

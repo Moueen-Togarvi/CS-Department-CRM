@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { parseBody } from '@/lib/validators/request'
+import { classRoomAssignmentSchema } from '@/lib/validators/class-room'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { db } from '@/lib/db'
@@ -71,7 +73,9 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     await requireAdmin()
-    const { semester, section, room, roomId, floor } = await req.json()
+    const parsed = await parseBody(req, classRoomAssignmentSchema)
+    if (!parsed.ok) return parsed.response
+    const { semester, section, room, roomId, floor } = parsed.data
     if (!semester || !section) {
       return NextResponse.json({ success: false, error: 'Missing semester or section' }, { status: 400 })
     }

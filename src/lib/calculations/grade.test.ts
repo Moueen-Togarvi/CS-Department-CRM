@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { calculateGPA, calculateGrade, calculateTotalMarks, getGradeLabel } from './grade'
+import {
+  calculateGPA,
+  calculateGrade,
+  calculateTotalMarks,
+  formatGrade,
+  getGradeLabel,
+} from './grade'
 
 describe('calculateGrade', () => {
   it('maps each band to its grade point', () => {
@@ -78,5 +84,37 @@ describe('getGradeLabel', () => {
   it('resolves a label, falling back to the raw grade', () => {
     expect(getGradeLabel('A')).toBe('Excellent')
     expect(getGradeLabel('ZZ' as never)).toBe('ZZ')
+  })
+})
+
+describe('formatGrade', () => {
+  // Four copies of this used to disagree: two rendered B_PLUS as the literal
+  // "B-PLUS" and a third as "B +". Only this mapping is correct.
+  it('renders enum values as real grade symbols', () => {
+    expect(formatGrade('B_PLUS')).toBe('B+')
+    expect(formatGrade('A_MINUS')).toBe('A-')
+    expect(formatGrade('C_MINUS')).toBe('C-')
+    expect(formatGrade('D_PLUS')).toBe('D+')
+  })
+
+  it('passes plain grades through', () => {
+    expect(formatGrade('A')).toBe('A')
+    expect(formatGrade('F')).toBe('F')
+  })
+
+  it('never leaks the PLUS/MINUS suffix', () => {
+    for (const g of ['A_MINUS', 'B_PLUS', 'B_MINUS', 'C_PLUS', 'C_MINUS', 'D_PLUS']) {
+      expect(formatGrade(g)).not.toMatch(/PLUS|MINUS|_/)
+    }
+  })
+
+  it('handles empty input', () => {
+    expect(formatGrade(null)).toBe('—')
+    expect(formatGrade(undefined)).toBe('—')
+    expect(formatGrade('')).toBe('—')
+  })
+
+  it('returns an unknown grade unchanged rather than blank', () => {
+    expect(formatGrade('X_UNKNOWN')).toBe('X_UNKNOWN')
   })
 })

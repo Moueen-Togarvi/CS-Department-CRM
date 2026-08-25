@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
-import { requireRole } from "@/lib/auth";
+import { requireRole } from "@/lib/auth-utils";
 import { updateFacultySchema } from "@/lib/validators/faculty";
 
 export async function GET(
@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireRole(request, ["ADMIN", "FACULTY"]);
+    await requireRole(["ADMIN", "FACULTY"]);
     const { id } = await params;
 
     const faculty = await db.faculty.findUnique({
@@ -35,14 +35,19 @@ export async function GET(
             code: true,
           },
         },
-        courses: {
+        offerings: {
+          where: { isActive: true },
           select: {
-            id: true,
-            code: true,
-            name: true,
-            creditHours: true,
-            courseType: true,
-            isActive: true,
+            course: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                creditHours: true,
+                courseType: true,
+                isActive: true,
+              },
+            },
           },
         },
         timetables: {
@@ -86,7 +91,12 @@ export async function GET(
       return errorResponse("Faculty not found", 404);
     }
 
-    return successResponse(faculty);
+    // Courses now come from offerings; deduplicate so a course taught across
+    // several sections is listed once, and keep the field name the UI expects.
+    const { offerings, ...rest } = faculty;
+    const courses = [...new Map(offerings.map((o) => [o.course.id, o.course])).values()];
+
+    return successResponse({ ...rest, courses });
   } catch (error: unknown) {
     if (error instanceof Error) {
       if (error.message.includes("Unauthorized")) return errorResponse(error.message, 401);
@@ -102,7 +112,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireRole(request, ["ADMIN", "FACULTY"]);
+    await requireRole(["ADMIN", "FACULTY"]);
     const { id } = await params;
 
     const faculty = await db.faculty.findUnique({ where: { id } });
@@ -197,7 +207,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireRole(request, "ADMIN");
+    await requireRole("ADMIN");
     const { id } = await params;
 
     const faculty = await db.faculty.findUnique({

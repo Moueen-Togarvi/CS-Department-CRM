@@ -2,13 +2,13 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { parsePaginationParams, skipTake } from "@/lib/pagination";
 import { paginatedResponse, errorResponse, successResponse } from "@/lib/api-response";
-import { requireRole, requireAuth } from "@/lib/auth";
+import { requireRole, requireAuth } from "@/lib/auth-utils";
 import { createFacultySchema } from "@/lib/validators/faculty";
 import bcrypt from "bcryptjs";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request);
+    await requireAuth();
 
     const params = parsePaginationParams(request.nextUrl.searchParams);
     const { skip, take } = skipTake(params.page!, params.limit!);
@@ -73,18 +73,18 @@ export async function GET(request: NextRequest) {
               code: true,
             },
           },
-          courses: {
-            select: { id: true },
+          offerings: {
+            select: { courseId: true },
           },
         },
       }),
       db.faculty.count({ where }),
     ]);
 
-    const data = faculty.map((f) => ({
+    // One course taught across several sections is still one course.
+    const data = faculty.map(({ offerings, ...f }) => ({
       ...f,
-      courseCount: f.courses.length,
-      courses: undefined,
+      courseCount: new Set(offerings.map((o) => o.courseId)).size,
     }));
 
     return paginatedResponse(data, total, params.page!, params.limit!);
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireRole(request, "ADMIN");
+    await requireRole("ADMIN");
 
     const body = await request.json();
     const parsed = createFacultySchema.safeParse(body);

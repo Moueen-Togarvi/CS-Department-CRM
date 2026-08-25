@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { createOfferingSchema } from '@/lib/validators/offering'
 import { requireAdmin, requireAuth, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(
@@ -42,13 +44,9 @@ export async function POST(
   try {
     await requireAdmin()
     const { id: courseId } = await params
-    const body = await request.json()
-
-    const { facultyId, section, semesterId, slotType } = body
-
-    if (!facultyId || !section) {
-      return errorResponse('facultyId and section are required', 400)
-    }
+    const parsed = await parseBody(request, createOfferingSchema)
+    if (!parsed.ok) return parsed.response
+    const { facultyId, section, semesterId, slotType } = parsed.data
 
     const course = await db.course.findUnique({ where: { id: courseId } })
     if (!course) {

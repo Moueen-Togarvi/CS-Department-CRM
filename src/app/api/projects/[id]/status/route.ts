@@ -1,5 +1,7 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { updateProjectStatusSchema } from '@/lib/validators/project'
 import { requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
 import { ProjectStatus } from '@prisma/client'
@@ -21,8 +23,9 @@ export async function PATCH(
   try {
     await requireFacultyOrAdmin()
     const { id } = await params
-    const body = await request.json()
-    const { status } = body
+    const parsed = await parseBody(request, updateProjectStatusSchema)
+    if (!parsed.ok) return parsed.response
+    const { status } = parsed.data
 
     if (!status || !Object.values(ProjectStatus).includes(status)) {
       return errorResponse('Invalid status')

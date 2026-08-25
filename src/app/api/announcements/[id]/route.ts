@@ -1,5 +1,7 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { updateAnnouncementSchema } from '@/lib/validators/announcement'
 import { NextRequest } from 'next/server'
 import { requireAuth, requireRole, handleApiError } from '@/lib/auth-utils'
 
@@ -38,7 +40,8 @@ export async function PUT(
   try {
     await requireRole('ADMIN')
     const { id } = await params
-    const body = await request.json()
+    const parsed = await parseBody(request, updateAnnouncementSchema)
+    if (!parsed.ok) return parsed.response
     const {
       title,
       content,
@@ -52,7 +55,7 @@ export async function PUT(
       eventLocation,
       isPublished,
       expiresAt,
-    } = body
+    } = parsed.data
 
     const existing = await db.announcement.findUnique({ where: { id } })
     if (!existing) {

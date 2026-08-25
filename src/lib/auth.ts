@@ -4,8 +4,14 @@ import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import type { JWT } from "next-auth/jwt";
 import { getServerSession } from "next-auth";
-import { NextRequest } from "next/server";
 import { AuthError } from "@/lib/auth-error";
+import {
+  clientIp,
+  LOGIN_RATE_LIMIT,
+  loginRateLimitKey,
+  rateLimit,
+  resetRateLimit,
+} from "@/lib/rate-limit";
 
 // Extend NextAuth types
 declare module "next-auth" {
@@ -61,9 +67,17 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email and password are required");
+        }
+
+        // Throttle before the database lookup. Without this an attacker gets
+        // unlimited password guesses against any known email address.
+        const ip = clientIp(new Headers((req?.headers ?? {}) as Record<string, string>));
+        const rateKey = loginRateLimitKey(ip, credentials.email);
+        if (!rateLimit(rateKey, LOGIN_RATE_LIMIT).allowed) {
+          throw new Error("Too many sign-in attempts. Please try again later.");
         }
 
         const user = await db.user.findUnique({
@@ -87,6 +101,9 @@ export const authOptions: NextAuthOptions = {
         if (!isPasswordValid) {
           throw new Error("Invalid email or password");
         }
+
+        // Successful sign-in — don't hold earlier typos against this user.
+        resetRateLimit(rateKey);
 
         // Update last login
         await db.user.update({
@@ -142,44 +159,5 @@ export const authOptions: NextAuthOptions = {
   secret: resolveAuthSecret(),
 };
 
-/**
- * Get the current authenticated session from a server request
- */
-export async function getAuthSession(request?: NextRequest) {
-  // getServerSession works with cookies automatically
-  return getServerSession(authOptions);
-}
 
-/**
- * Require authentication - throws error if not logged in
- */
-export async function requireAuth(request: NextRequest) {
-  const session = await getAuthSession(request);
 
-  if (!session?.user?.id) {
-    throw new AuthError("Unauthorized: Please log in to continue", 401);
-  }
-
-  return session;
-}
-
-/**
- * Require specific role(s) - throws error if user doesn't have required role
- */
-export async function requireRole(
-  request: NextRequest,
-  roles: string | string[]
-) {
-  const session = await requireAuth(request);
-
-  const allowedRoles = Array.isArray(roles) ? roles : [roles];
-
-  if (!allowedRoles.includes(session.user.role)) {
-    throw new AuthError(
-      `Forbidden: Required role(s): ${allowedRoles.join(", ")}`,
-      403
-    );
-  }
-
-  return session;
-}

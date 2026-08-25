@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import { googleFormStudentSchema } from '@/lib/validators/google-form'
 import { timingSafeEqual } from 'crypto'
 
 /** Constant-time compare so the token can't be guessed byte-by-byte. */
@@ -19,23 +20,7 @@ const SECRET_TOKEN = process.env.GOOGLE_FORM_SECRET_TOKEN
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const {
-      secret,
-      name,
-      email,
-      studentId,
-      program,
-      currentSemester,
-      enrollmentYear,
-      session,
-      batch,
-      mobileNumber,
-      address,
-      cnic,
-      fatherName,
-      fatherPhone,
-      departmentCode,
-    } = body
+    const { secret } = body ?? {}
 
     // 1. Authenticate Request
     if (!SECRET_TOKEN) {
@@ -51,6 +36,32 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
+
+    // Shape is only validated once the caller has proved they hold the secret.
+    const parsed = googleFormStudentSchema.safeParse(body)
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0]
+      return NextResponse.json(
+        { success: false, error: `${issue.path.join('.')}: ${issue.message}` },
+        { status: 400 }
+      )
+    }
+    const {
+      name,
+      email,
+      studentId,
+      program,
+      currentSemester,
+      enrollmentYear,
+      session,
+      batch,
+      mobileNumber,
+      address,
+      cnic,
+      fatherName,
+      fatherPhone,
+      departmentCode,
+    } = parsed.data
 
     // 2. Validate Required Fields
     if (!name || !email || !studentId) {

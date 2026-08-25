@@ -1,5 +1,7 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { updateDocumentSchema } from '@/lib/validators/document'
 import { NextRequest } from 'next/server'
 import { requireAuth, requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 
@@ -39,8 +41,10 @@ export async function PUT(
   try {
     await requireFacultyOrAdmin()
     const { id } = await params
-    const body = await request.json()
-    const { title, description, category, courseId, semesterNumber, facultyId, fileUrl, fileType, fileSize } = body
+    const parsed = await parseBody(request, updateDocumentSchema)
+    if (!parsed.ok) return parsed.response
+    const { title, description, category, courseId, semesterNumber, facultyId, fileUrl, fileType, fileSize } =
+      parsed.data
 
     const existing = await db.document.findUnique({ where: { id } })
     if (!existing) {

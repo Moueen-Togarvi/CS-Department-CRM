@@ -1,11 +1,11 @@
 import { db } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth-utils";
 import { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request);
+    await requireAuth();
 
     const departments = await db.department.findMany({
       select: { id: true, name: true, code: true },

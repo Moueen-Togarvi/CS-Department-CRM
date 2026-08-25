@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin, handleApiError } from '@/lib/auth-utils'
+import { parseBody } from '@/lib/validators/request'
+import { csvImportSchema } from '@/lib/validators/import'
 import { parseCsv, getDefaultDepartmentId } from '@/lib/csv-parser'
 import bcrypt from 'bcryptjs'
 
@@ -13,15 +15,9 @@ export async function POST(request: NextRequest) {
   try {
     // Bulk record creation — admins only.
     await requireAdmin()
-    const body = await request.json()
-    const csvText: string = body.csvText
-
-    if (!csvText || typeof csvText !== 'string') {
-      return Response.json(
-        { success: false, error: 'CSV text is required' },
-        { status: 400 }
-      )
-    }
+    const parsed = await parseBody(request, csvImportSchema)
+    if (!parsed.ok) return parsed.response
+    const { csvText } = parsed.data
 
     const { rows } = parseCsv(csvText)
 

@@ -1,5 +1,7 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { createMilestoneSchema } from '@/lib/validators/project'
 import { requireAuth, requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
 
@@ -29,8 +31,9 @@ export async function POST(
   try {
     await requireFacultyOrAdmin()
     const { id } = await params
-    const body = await request.json()
-    const { title, description, dueDate } = body
+    const parsed = await parseBody(request, createMilestoneSchema)
+    if (!parsed.ok) return parsed.response
+    const { title, description, dueDate } = parsed.data
 
     if (!title || !dueDate) {
       return errorResponse('Title and due date are required')

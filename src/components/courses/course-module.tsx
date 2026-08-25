@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+import { useDepartments, type DepartmentOption } from '@/hooks/use-departments'
+import { InfoItem, Section } from '@/components/shared/detail-layout'
+import { formatGrade } from '@/lib/calculations/grade'
 import {
   useQuery,
   useMutation,
@@ -127,12 +130,6 @@ import {
 
 // ==================== TYPES ====================
 
-interface CourseInstructor {
-  id: string
-  facultyId: string
-  name: string
-}
-
 interface CourseListItem {
   id: string
   code: string
@@ -145,7 +142,6 @@ interface CourseListItem {
   objectives: string | null
   prerequisites: string | string[]
   isActive: boolean
-  instructor: CourseInstructor | null
   department: { id: string; name: string; code: string }
   enrollmentCount: number
   createdAt: string
@@ -167,7 +163,6 @@ interface CourseEnrollment {
 }
 
 interface CourseDetail extends Omit<CourseListItem, 'enrollmentCount'> {
-  instructor: CourseInstructor & { designation: string; email: string; phone: string | null } | null
   enrollments: CourseEnrollment[]
   documents: {
     id: string
@@ -207,12 +202,6 @@ interface ApiOk<T> {
   success: boolean
   data: T
   message?: string
-}
-
-interface DepartmentOption {
-  id: string
-  name: string
-  code: string
 }
 
 interface FacultyOption {
@@ -262,25 +251,7 @@ function gradeColor(grade: string | null) {
   return 'bg-secondary text-secondary-foreground'
 }
 
-function formatGrade(grade: string | null) {
-  if (!grade) return '—'
-  return grade.replace(/_/g, '-')
-}
-
 // ==================== QUERIES ====================
-
-function useDepartments() {
-  return useQuery<DepartmentOption[]>({
-    queryKey: ['departments-list'],
-    queryFn: async () => {
-      const res = await fetch('/api/departments')
-      if (!res.ok) throw new Error('Failed to fetch departments')
-      const json: { success: boolean; data: DepartmentOption[] } = await res.json()
-      return json.data
-    },
-    staleTime: 5 * 60 * 1000,
-  })
-}
 
 function useFacultyList() {
   return useQuery<FacultyOption[]>({
@@ -878,7 +849,6 @@ export function CourseModule() {
                   objectives: c.objectives,
                   prerequisites: Array.isArray(c.prerequisites) ? JSON.stringify(c.prerequisites) : c.prerequisites,
                   isActive: c.isActive,
-                  instructor: c.instructor ? { id: c.instructor.id, facultyId: c.instructor.facultyId, name: c.instructor.name } : null,
                   department: c.department,
                   enrollmentCount: c.enrollments.length,
                   createdAt: c.createdAt,
@@ -887,7 +857,7 @@ export function CourseModule() {
                 setDetailCourseId(null)
               }
             }}
-            isAdmin={isAdmin || (isFaculty && detailData?.data?.instructor?.id === user?.facultyId)}
+            isAdmin={isAdmin}
 
           />
         </SheetContent>
@@ -1360,16 +1330,6 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailS
           <TabsContent value="info" className="p-6 space-y-5 mt-0">
             <Section title="Academic Information">
               <InfoItem
-                icon={<Users className="h-4 w-4" />}
-                label="Instructor"
-                value={detail.instructor ? (
-                  <div>
-                    <p className="font-semibold text-foreground/90">{detail.instructor.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{detail.instructor.designation}</p>
-                  </div>
-                ) : '—'}
-              />
-              <InfoItem
                 icon={<BookOpen className="h-4 w-4" />}
                 label="Semester Offered"
                 value={detail.semesterOffered ? `Semester ${detail.semesterOffered}` : 'Any Semester'}
@@ -1572,17 +1532,6 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailS
               </div>
             )}
 
-            {detail?.instructor && (
-              <div className="mt-4 rounded-lg border border-dashed p-3 flex items-center gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
-                  <User className="h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Primary Instructor (Course Owner)</p>
-                  <p className="text-sm font-medium">{detail.instructor.name} · {detail.instructor.designation}</p>
-                </div>
-              </div>
-            )}
           </TabsContent>
 
           {/* ===== ENROLLMENTS TAB ===== */}
@@ -1798,35 +1747,6 @@ function CourseDetailSheet({ detail, isLoading, onEdit, isAdmin }: CourseDetailS
 
 
 // ==================== SMALL HELPERS ====================
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
-      <h4 className="text-sm font-semibold tracking-tight text-foreground/90 border-b border-border/40 pb-2 mb-3">{title}</h4>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
-    </div>
-  )
-}
-
-function InfoItem({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: React.ReactNode
-}) {
-  return (
-    <div className="flex items-center gap-3 text-sm p-1">
-      <div className="text-muted-foreground bg-muted/60 p-2 rounded-lg shrink-0">{icon}</div>
-      <div className="flex-1 min-w-0">
-        <p className="text-muted-foreground text-xs font-medium">{label}</p>
-        <div className="font-semibold text-foreground/90 truncate mt-0.5">{value}</div>
-      </div>
-    </div>
-  )
-}
 
 interface EnrollmentDialogProps {
   open: boolean

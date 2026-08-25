@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { getCompatibleSections } from '@/lib/calculations/timetable'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { DayOfWeek } from '@prisma/client'
@@ -6,68 +7,6 @@ import { requireAuth } from '@/lib/auth-utils'
 
 const DAYS_ORDER: DayOfWeek[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00']
-
-function getCompatibleSections(studentSection: string | null, studentSession: string | null): string[] {
-  if (!studentSection) return []
-  
-  const sections = [studentSection]
-  const sectionLower = studentSection.toLowerCase().trim()
-  
-  // If section is "Morning A" or "Morning B", also include "Morning" and the letter ("A"/"B")
-  if (sectionLower.startsWith('morning ')) {
-    sections.push('Morning')
-    const letter = studentSection.substring(8).trim() // e.g. "A" or "B"
-    if (letter) {
-      sections.push(letter)
-      sections.push(letter.toUpperCase())
-      sections.push(letter.toLowerCase())
-    }
-  }
-  // If section is "Evening A" or "Evening B", also include "Evening" and the letter ("A"/"B")
-  else if (sectionLower.startsWith('evening ')) {
-    sections.push('Evening')
-    const letter = studentSection.substring(8).trim()
-    if (letter) {
-      sections.push(letter)
-      sections.push(letter.toUpperCase())
-      sections.push(letter.toLowerCase())
-    }
-  }
-  // If section is just "A" or "B"
-  else if (sectionLower === 'a' || sectionLower === 'b') {
-    sections.push(studentSection)
-    sections.push(studentSection.toUpperCase())
-    sections.push(studentSection.toLowerCase())
-    // If we have shift information
-    if (studentSession) {
-      const shiftName = studentSession.charAt(0).toUpperCase() + studentSession.slice(1).toLowerCase() // e.g. "Morning"
-      sections.push(shiftName)
-      sections.push(shiftName.toLowerCase())
-      sections.push(`${shiftName} ${studentSection.toUpperCase()}`) // e.g. "Morning A"
-      sections.push(`${shiftName} ${studentSection.toLowerCase()}`) // e.g. "Morning a"
-    }
-  }
-  // If section is "Morning" or "Evening"
-  else if (sectionLower === 'morning') {
-    sections.push('Morning')
-    sections.push('morning')
-    sections.push('Morning A')
-    sections.push('Morning B')
-    sections.push('A')
-    sections.push('B')
-  }
-  else if (sectionLower === 'evening') {
-    sections.push('Evening')
-    sections.push('evening')
-    sections.push('Evening A')
-    sections.push('Evening B')
-    sections.push('A')
-    sections.push('B')
-  }
-
-  // Deduplicate and filter out empty strings
-  return Array.from(new Set(sections.filter(Boolean)))
-}
 
 export async function GET(request: NextRequest) {
   try {

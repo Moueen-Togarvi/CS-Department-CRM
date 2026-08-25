@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { InfoItem, Section } from '@/components/shared/detail-layout'
+import { formatGrade } from '@/lib/calculations/grade'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, type UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -1885,15 +1887,6 @@ function ResultsTab({ results }: { results: StudentDetail['results'] }) {
 
 // ==================== Utility Components ====================
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
-      <h4 className="text-sm font-semibold tracking-tight text-foreground/90 border-b border-border/40 pb-2 mb-3">{title}</h4>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
-    </div>
-  )
-}
-
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3 text-sm p-1">
@@ -1917,6 +1910,3 @@ function EmptyTab({ message }: { message: string }) {
   )
 }
 
-function formatGrade(grade: string): string {
-  return grade.replace(/_/g, '-')
-}

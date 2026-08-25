@@ -1,5 +1,7 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { updateProjectSchema } from '@/lib/validators/project'
 import { requireAuth, requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
 
@@ -70,8 +72,9 @@ export async function PUT(
   try {
     await requireFacultyOrAdmin()
     const { id } = await params
-    const body = await request.json()
-    const { title, description, supervisorId, coSupervisorId, domain, methodology } = body
+    const parsed = await parseBody(request, updateProjectSchema)
+    if (!parsed.ok) return parsed.response
+    const { title, description, supervisorId, coSupervisorId, domain, methodology } = parsed.data
 
     const existing = await db.project.findUnique({ where: { id } })
     if (!existing) {

@@ -1,5 +1,7 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse, paginatedResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { createAnnouncementSchema } from '@/lib/validators/announcement'
 import { parsePaginationParams, skipTake } from '@/lib/pagination'
 import { NextRequest } from 'next/server'
 import { AnnouncementType } from '@prisma/client'
@@ -94,21 +96,22 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireRole('ADMIN')
-    const body = await request.json()
+    const parsed = await parseBody(request, createAnnouncementSchema)
+    if (!parsed.ok) return parsed.response
     const {
       title,
       content,
-      type = 'GENERAL',
-      priority = 0,
-      targetAudience = 'ALL',
+      type,
+      priority,
+      targetAudience,
       targetCourseId,
       targetSemester,
       targetSection,
       eventDate,
       eventLocation,
-      isPublished = true,
+      isPublished,
       expiresAt,
-    } = body
+    } = parsed.data
 
     if (!title || !content) {
       return errorResponse('Title and content are required')

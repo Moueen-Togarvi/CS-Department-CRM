@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
-import { requireRole } from '@/lib/auth'
+import { requireRole } from "@/lib/auth-utils";
 import { updateRoomSchema } from '@/lib/validators/room'
 
 export async function PUT(
@@ -10,7 +10,7 @@ export async function PUT(
 ) {
   const { id } = await props.params
   try {
-    await requireRole(request, 'ADMIN')
+    await requireRole('ADMIN')
 
     const body = await request.json()
     const parsed = updateRoomSchema.safeParse(body)
@@ -77,7 +77,7 @@ export async function DELETE(
   props: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireRole(request, 'ADMIN')
+    await requireRole('ADMIN')
     const { id } = await props.params
 
     const existingRoom = await db.room.findUnique({

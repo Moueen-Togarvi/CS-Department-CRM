@@ -354,7 +354,7 @@ export function AttendanceModule() {
 
   const isFaculty = user?.role === 'FACULTY'
 
-  // Faculty: courses from offerings (includes instructor-assigned fallback)
+  // Faculty: courses from their CourseOfferings
   const { data: facultyOfferings } = useQuery({
     queryKey: ['faculty-offerings', currentSemesterId],
     queryFn: () =>

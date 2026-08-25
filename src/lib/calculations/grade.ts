@@ -67,3 +67,28 @@ export function getGradeLabel(grade: GradeScale): string {
   const entry = GRADE_SCALE.find(g => g.grade === grade)
   return entry?.label || grade
 }
+/**
+ * Render a GradeScale enum value for display: `B_PLUS` -> `B+`.
+ *
+ * Four copies of this used to live in the UI and they disagreed — two rendered
+ * `B_PLUS` as the literal `B-PLUS`, and a third as `B +`.
+ */
+export function formatGrade(grade: string | null | undefined): string {
+  if (!grade) return '—'
+  const map: Record<string, string> = {
+    A: 'A',
+    A_MINUS: 'A-',
+    B_PLUS: 'B+',
+    B: 'B',
+    B_MINUS: 'B-',
+    C_PLUS: 'C+',
+    C: 'C',
+    C_MINUS: 'C-',
+    D_PLUS: 'D+',
+    D: 'D',
+    F: 'F',
+    I: 'I',
+    W: 'W',
+  }
+  return map[grade] ?? grade
+}

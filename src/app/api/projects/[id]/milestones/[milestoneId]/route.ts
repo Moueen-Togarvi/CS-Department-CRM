@@ -1,5 +1,7 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { updateMilestoneSchema } from '@/lib/validators/project'
 import { requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
 
@@ -10,8 +12,9 @@ export async function PUT(
   try {
     await requireFacultyOrAdmin()
     const { id, milestoneId } = await params
-    const body = await request.json()
-    const { status, completedDate, feedback } = body
+    const parsed = await parseBody(request, updateMilestoneSchema)
+    if (!parsed.ok) return parsed.response
+    const { status, completedDate, feedback } = parsed.data
 
     const milestone = await db.projectMilestone.findFirst({
       where: { id: milestoneId, projectId: id },

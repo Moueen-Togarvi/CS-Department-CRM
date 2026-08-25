@@ -1,15 +1,11 @@
 import { NextRequest } from "next/server";
+import { parsePrerequisites } from '@/lib/calculations/course'
 import { db } from "@/lib/db";
 import { parsePaginationParams, skipTake } from "@/lib/pagination";
 import { paginatedResponse, errorResponse, successResponse } from "@/lib/api-response";
 import { createCourseSchema } from "@/lib/validators/course";
 import { Prisma } from "@prisma/client";
 import { requireAuth, requireAdmin, requireRole, handleApiError } from "@/lib/auth-utils";
-
-function parsePrerequisites(v: string | undefined | null): string[] {
-  if (!v || v === "") return [];
-  try { return JSON.parse(v); } catch { return [v]; }
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,12 +35,7 @@ export async function GET(request: NextRequest) {
           where: { facultyId: faculty.id, isActive: true },
           select: { courseId: true },
         })
-        const offeringCourseIds = offerings.map((o) => o.courseId)
-        // Also include courses where faculty is the direct instructorId
-        where.OR = [
-          { id: { in: offeringCourseIds } },
-          { instructorId: faculty.id },
-        ]
+        where.id = { in: offerings.map((o) => o.courseId) }
       }
     } else if (session.user.role === 'STUDENT') {
       const student = await db.student.findUnique({
@@ -91,9 +82,6 @@ export async function GET(request: NextRequest) {
       db.course.findMany({
         where,
         include: {
-          instructor: {
-            select: { id: true, facultyId: true, user: { select: { name: true } } },
-          },
           department: {
             select: { id: true, name: true, code: true },
           },
@@ -120,13 +108,6 @@ export async function GET(request: NextRequest) {
       objectives: c.objectives,
       prerequisites: c.prerequisiteIds,
       isActive: c.isActive,
-      instructor: c.instructor
-        ? {
-            id: c.instructor.id,
-            facultyId: c.instructor.facultyId,
-            name: c.instructor.user.name,
-          }
-        : null,
       department: c.department,
       enrollmentCount: c._count.enrollments,
       createdAt: c.createdAt,
@@ -183,9 +164,6 @@ export async function POST(request: NextRequest) {
         objectives: data.objectives || null,
       },
       include: {
-        instructor: {
-          select: { id: true, facultyId: true, user: { select: { name: true } } },
-        },
         department: {
           select: { id: true, name: true, code: true },
         },

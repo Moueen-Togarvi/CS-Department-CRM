@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { formatGrade } from '@/lib/calculations/grade'
 import { successResponse } from '@/lib/api-response'
 import { requireAdmin, AuthError, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
@@ -57,9 +58,3 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function formatGrade(grade: string): string {
-  return grade
-    .replace('_', ' ')
-    .replace(/PLUS/g, '+')
-    .replace(/MINUS/g, '−')
-}

@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { parseBody } from '@/lib/validators/request'
+import { loginSchema } from '@/lib/validators/login'
 import { db } from '@/lib/db'
 import { hash, compare } from 'bcryptjs'
+import {
+  clientIp,
+  LOGIN_RATE_LIMIT,
+  loginRateLimitKey,
+  rateLimit,
+  resetRateLimit,
+} from '@/lib/rate-limit'
 
 // GET /api/auth/login — check session
 export async function GET() {
@@ -12,13 +21,18 @@ export async function GET() {
 // POST /api/auth/login — authenticate user
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { email, password } = body
+    const parsed = await parseBody(req, loginSchema)
+    if (!parsed.ok) return parsed.response
+    const { email, password } = parsed.data
 
-    if (!email || !password) {
+    // Throttle before touching the database, so guessing costs an attacker
+    // nothing less than a full window regardless of whether the account exists.
+    const key = loginRateLimitKey(clientIp(req.headers), email)
+    const limit = rateLimit(key, LOGIN_RATE_LIMIT)
+    if (!limit.allowed) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
-        { status: 400 }
+        { error: 'Too many sign-in attempts. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } }
       )
     }
 
@@ -51,6 +65,9 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       )
     }
+
+    // Successful sign-in — don't hold earlier typos against this user.
+    resetRateLimit(key)
 
     // Update last login
     await db.user.update({

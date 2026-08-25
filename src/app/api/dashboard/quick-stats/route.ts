@@ -134,7 +134,7 @@ async function getFacultyQuickStats(userId: string) {
     specialization: faculty.specialization,
     officeRoom: faculty.officeRoom,
     totalCourses: await db.course.count({
-      where: { instructorId: faculty.id },
+      where: { offerings: { some: { facultyId: faculty.id } } },
     }),
     supervisedProjects: await db.project.count({
       where: { supervisorId: faculty.id },
@@ -153,12 +153,19 @@ async function getFacultyQuickStats(userId: string) {
   // Current semester courses and student counts
   const [currentCourses, totalStudents] = await Promise.all([
     db.course.count({
-      where: { instructorId: faculty.id },
+      where: { offerings: { some: { facultyId: faculty.id, semesterId: currentSemester.id } } },
     }),
     db.enrollment.groupBy({
       by: ['courseId'],
       where: {
-        courseId: { in: (await db.course.findMany({ where: { instructorId: faculty.id }, select: { id: true } })).map((c) => c.id) },
+        courseId: {
+          in: (
+            await db.courseOffering.findMany({
+              where: { facultyId: faculty.id, semesterId: currentSemester.id },
+              select: { courseId: true },
+            })
+          ).map((o) => o.courseId),
+        },
         semesterId: currentSemester.id,
       },
       _count: { id: true },

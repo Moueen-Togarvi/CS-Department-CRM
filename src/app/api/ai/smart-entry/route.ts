@@ -1,22 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { parseBody } from '@/lib/validators/request'
+import { smartEntrySchema } from '@/lib/validators/ai'
 import { requireFacultyOrAdmin, AuthError, handleApiError } from '@/lib/auth-utils'
 
 export async function POST(request: NextRequest) {
   try {
     await requireFacultyOrAdmin()
-    // @ts-ignore
+
+    // Validate before loading the LLM SDK, so a malformed request costs nothing.
+    const input = await parseBody(request, smartEntrySchema)
+    if (!input.ok) return input.response
+    const { text, entityType } = input.data
+
+    // @ts-ignore — the SDK ships no type declarations
     const { createLLM } = await import('z-ai-web-dev-sdk')
     const llm = createLLM()
-
-    const body = await request.json()
-    const { text, entityType } = body
-
-    if (!text || !entityType) {
-      return NextResponse.json(
-        { success: false, error: 'text and entityType are required' },
-        { status: 400 }
-      )
-    }
 
     const fieldDescriptions: Record<string, string> = {
       student: `{

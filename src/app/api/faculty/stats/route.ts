@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth-utils";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request);
+    await requireAuth();
 
     const [total, byDesignationRaw] = await Promise.all([
       db.faculty.count({

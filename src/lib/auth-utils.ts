@@ -54,7 +54,9 @@ export async function getStudentForUser(userId: string) {
 
 /**
  * Ensure the logged-in faculty owns the given course+semester.
- * Ownership = a CourseOffering (Phase 1), a Timetable slot, OR Course.instructorId.
+ *
+ * Ownership means a CourseOffering or a Timetable slot — the two records that
+ * actually say which sections someone teaches.
  */
 export async function assertFacultyOwnsCourse(
   userId: string,
@@ -66,7 +68,7 @@ export async function assertFacultyOwnsCourse(
     throw new AuthError("Faculty profile not found", 403);
   }
 
-  const [offering, timetableSlot, asInstructor] = await Promise.all([
+  const [offering, timetableSlot] = await Promise.all([
     db.courseOffering
       .findFirst({
         where: { facultyId: faculty.id, courseId, ...(semesterId ? { semesterId } : {}) },
@@ -75,10 +77,9 @@ export async function assertFacultyOwnsCourse(
     db.timetable.findFirst({
       where: { facultyId: faculty.id, courseId, ...(semesterId ? { semesterId } : {}) },
     }),
-    db.course.findFirst({ where: { id: courseId, instructorId: faculty.id } }),
   ]);
 
-  if (!offering && !timetableSlot && !asInstructor) {
+  if (!offering && !timetableSlot) {
     throw new AuthError("You are not assigned to this course", 403);
   }
   return faculty;
@@ -86,20 +87,19 @@ export async function assertFacultyOwnsCourse(
 
 /**
  * Return the sections a faculty may access for a given course+semester.
- * - string[] : restricted to these specific sections (from CourseOfferings/Timetables)
- * - null     : no section restriction (legacy Course.instructorId fallback)
+ * An empty array means they are assigned to nothing, so callers must deny.
  * Callers should verify ownership (assertFacultyOwnsCourse) beforehand.
  */
 export async function getFacultyCourseSections(
   userId: string,
   courseId: string,
   semesterId?: string
-): Promise<string[] | null> {
+): Promise<string[]> {
   const faculty = await getFacultyForUser(userId)
-  if (!faculty) return null
+  if (!faculty) return []
 
   const semFilter = semesterId ? { semesterId } : {}
-  const [offerings, timetables, asInstructor] = await Promise.all([
+  const [offerings, timetables] = await Promise.all([
     db.courseOffering
       .findMany({
         where: { facultyId: faculty.id, courseId, ...semFilter, isActive: true },
@@ -112,18 +112,14 @@ export async function getFacultyCourseSections(
         select: { section: true },
       })
       .catch(() => []),
-    db.course.findFirst({ where: { id: courseId, instructorId: faculty.id } }),
   ])
 
   const sections = new Set<string>()
   for (const o of offerings) if (o.section) sections.add(o.section)
   for (const t of timetables) if (t.section) sections.add(t.section)
 
-  if (sections.size > 0) return Array.from(sections)
-  // Legacy fallback: instructor-of-record with no section-based assignment.
-  // `null` means unrestricted; an empty array means assigned to nothing.
-  if (asInstructor) return null
-  return []
+  // An empty array means assigned to nothing, and callers must deny.
+  return Array.from(sections)
 }
 
 /** What a caller is allowed to see, plus the Prisma filter that enforces it. */
@@ -137,11 +133,10 @@ export interface SectionScope {
 /**
  * Resolve which section(s) a request may touch for a course.
  *
- * Admins and instructors-of-record are unrestricted. A faculty member with
- * section-based assignments is limited to those sections — including when no
- * section is requested, which previously fell through to *every* section of
- * the course. Faculty with no assignment at all are refused rather than
- * silently granted everything.
+ * Admins are unrestricted. A faculty member is limited to the sections they
+ * hold an offering or timetable slot for — including when no section is
+ * requested, which previously fell through to *every* section of the course.
+ * Faculty with no assignment are refused rather than granted everything.
  *
  * Callers should have already established course ownership.
  */
@@ -159,8 +154,6 @@ export async function resolveSectionScope(
   if (session.user.role !== "FACULTY") return unrestricted()
 
   const allowed = await getFacultyCourseSections(session.user.id, courseId, semesterId)
-  if (allowed === null) return unrestricted() // legacy instructor-of-record
-
   if (allowed.length === 0) {
     throw new AuthError(
       "Forbidden: You are not assigned to any section of this course",
@@ -188,8 +181,6 @@ export async function resolveSectionScope(
  * Returns empty Map for faculty with no assignments.
  *
  * Section values come from CourseOffering.section and Timetable.section.
- * If faculty is a Course.instructorId but has no CourseOffering/Timetable,
- * the semester gets null (all sections) as a fallback.
  */
 export async function getFacultySectionScope(
   session: Session
@@ -199,7 +190,7 @@ export async function getFacultySectionScope(
   const faculty = await getFacultyForUser(session.user.id);
   if (!faculty) return new Map();
 
-  const [offerings, timetableSlots, instructorCourses] = await Promise.all([
+  const [offerings, timetableSlots] = await Promise.all([
     db.courseOffering.findMany({
       where: { facultyId: faculty.id, isActive: true },
       include: { course: { select: { semesterOffered: true } } },
@@ -207,10 +198,6 @@ export async function getFacultySectionScope(
     db.timetable.findMany({
       where: { facultyId: faculty.id },
       include: { course: { select: { semesterOffered: true } } },
-    }),
-    db.course.findMany({
-      where: { instructorId: faculty.id, isActive: true },
-      select: { semesterOffered: true },
     }),
   ]);
 
@@ -233,12 +220,6 @@ export async function getFacultySectionScope(
   }
   for (const [sem, secs] of sectionMap) {
     scope.set(sem, Array.from(secs));
-  }
-
-  for (const c of instructorCourses) {
-    if (c.semesterOffered != null && !scope.has(c.semesterOffered)) {
-      scope.set(c.semesterOffered, null);
-    }
   }
 
   return scope;

@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { bulkResultsSchema } from '@/lib/validators/result'
 import { calculateTotalMarks, calculateGrade } from '@/lib/calculations/grade'
 import { requireFacultyOrAdmin, assertFacultyOwnsCourse, getFacultyCourseSections, handleApiError, AuthError } from '@/lib/auth-utils'
 
@@ -8,15 +10,35 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireFacultyOrAdmin()
 
-    const body = await request.json()
-    const { results: resultsData } = body
+    const parsed = await parseBody(request, bulkResultsSchema)
+    if (!parsed.ok) return parsed.response
+    const { results: resultsData } = parsed.data
 
-    if (!Array.isArray(resultsData) || resultsData.length === 0) {
-      return errorResponse('results array is required and must not be empty')
+    const enrollmentIds: string[] = []
+    for (const item of resultsData) {
+      if (item?.enrollmentId) enrollmentIds.push(item.enrollmentId)
     }
 
-    // Cache faculty section scope per (courseId, semesterId) to avoid repeated lookups
-    const scopeCache = new Map<string, string[] | null>()
+    // Batch the reads. Previously every row cost an enrollment lookup, an
+    // ownership check (three queries of its own) and a result lookup, so a
+    // 200-row upload made well over a thousand round-trips.
+    const [enrollments, existingResults] = await Promise.all([
+      db.enrollment.findMany({
+        where: { id: { in: enrollmentIds } },
+        include: { student: true, course: true, semester: true },
+      }),
+      db.result.findMany({
+        where: { enrollmentId: { in: enrollmentIds } },
+        select: { enrollmentId: true, isLocked: true },
+      }),
+    ])
+
+    const enrollmentById = new Map(enrollments.map((e) => [e.id, e]))
+    const lockedByEnrollment = new Map(existingResults.map((r) => [r.enrollmentId, r.isLocked]))
+
+    // Ownership and section scope are per (course, semester), not per row.
+    const scopeCache = new Map<string, string[]>()
+    const ownershipCache = new Map<string, Promise<unknown>>()
 
     const processedResults: Array<Record<string, unknown>> = []
     const errors: string[] = []
@@ -30,11 +52,7 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        // Check enrollment
-        const enrollment = await db.enrollment.findUnique({
-          where: { id: enrollmentId },
-          include: { student: true, course: true, semester: true },
-        })
+        const enrollment = enrollmentById.get(enrollmentId)
 
         if (!enrollment) {
           errors.push(`Enrollment ${enrollmentId} not found`)
@@ -43,26 +61,28 @@ export async function POST(request: NextRequest) {
 
         // Faculty may only grade their own courses, within their assigned sections
         if (session.user.role === 'FACULTY') {
-          await assertFacultyOwnsCourse(session.user.id, enrollment.courseId, enrollment.semesterId)
           const cacheKey = `${enrollment.courseId}|${enrollment.semesterId}`
+
+          let ownership = ownershipCache.get(cacheKey)
+          if (ownership === undefined) {
+            ownership = assertFacultyOwnsCourse(session.user.id, enrollment.courseId, enrollment.semesterId)
+            ownershipCache.set(cacheKey, ownership)
+          }
+          await ownership
+
           let scope = scopeCache.get(cacheKey)
           if (scope === undefined) {
             scope = await getFacultyCourseSections(session.user.id, enrollment.courseId, enrollment.semesterId)
             scopeCache.set(cacheKey, scope)
           }
-          // `null` = legacy instructor-of-record (unrestricted). An empty list
-          // means no assignment at all, which must deny rather than allow.
-          if (scope !== null && !scope.includes(enrollment.section)) {
+          // An empty list means no assignment at all, which must deny.
+          if (!scope.includes(enrollment.section)) {
             throw new AuthError('You are not assigned to this section', 403)
           }
         }
 
         // Check locked
-        const existingResult = await db.result.findUnique({
-          where: { enrollmentId },
-        })
-
-        if (existingResult?.isLocked) {
+        if (lockedByEnrollment.get(enrollmentId)) {
           errors.push(`Results for enrollment ${enrollmentId} are locked`)
           continue
         }
@@ -71,7 +91,9 @@ export async function POST(request: NextRequest) {
         const totalMarks = calculateTotalMarks(
           assignmentMarks, quizMarks, midtermMarks, finalMarks, labMarks, projectMarks
         )
-        const percentage = totalMarks / 100 * 100
+        // Component marks are recorded out of 100 in total, so the sum is
+        // already the percentage. Kept explicit rather than implied.
+        const percentage = totalMarks
         const gradeInfo = calculateGrade(percentage)
 
         const result = await db.result.upsert({

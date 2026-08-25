@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
+import { formatGrade } from '@/lib/calculations/grade'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   BarChart3,
@@ -94,15 +95,6 @@ interface EnrollmentEntry {
 
 // ============ HELPERS ============
 
-function formatGrade(grade: string | null | undefined): string {
-  if (!grade) return '-'
-  const map: Record<string, string> = {
-    A: 'A', A_MINUS: 'A-', B_PLUS: 'B+', B: 'B', B_MINUS: 'B-',
-    C_PLUS: 'C+', C: 'C', C_MINUS: 'C-', D_PLUS: 'D+', D: 'D',
-    F: 'F', I: 'I', W: 'W',
-  }
-  return map[grade] || grade
-}
 
 function getGradeColor(grade: string | null | undefined): string {
   if (!grade) return 'bg-muted text-muted-foreground'

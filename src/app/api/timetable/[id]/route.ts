@@ -1,22 +1,11 @@
 import { NextRequest } from 'next/server'
+import { timeOverlaps } from '@/lib/calculations/timetable'
 import { parseBody } from '@/lib/validators/request'
 import { updateTimetableSlotSchema } from '@/lib/validators/timetable'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { DayOfWeek } from '@prisma/client'
 import { requireAdmin, handleApiError } from '@/lib/auth-utils'
-
-function timeOverlaps(startA: string, endA: string, startB: string, endB: string): boolean {
-  const toMin = (t: string) => {
-    const [h, m] = t.split(':').map(Number)
-    return h * 60 + (m || 0)
-  }
-  const aStart = toMin(startA)
-  const aEnd = toMin(endA)
-  const bStart = toMin(startB)
-  const bEnd = toMin(endB)
-  return aStart < bEnd && bStart < aEnd
-}
 
 export async function PUT(
   request: NextRequest,

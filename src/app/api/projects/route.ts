@@ -1,5 +1,7 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse, paginatedResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { createProjectSchema } from '@/lib/validators/project'
 import { parsePaginationParams, skipTake } from '@/lib/pagination'
 import { NextRequest } from 'next/server'
 import { ProjectStatus } from '@prisma/client'
@@ -79,7 +81,8 @@ export async function POST(request: NextRequest) {
   try {
     await requireFacultyOrAdmin()
 
-    const body = await request.json()
+    const parsed = await parseBody(request, createProjectSchema)
+    if (!parsed.ok) return parsed.response
     const {
       title,
       description,
@@ -88,7 +91,7 @@ export async function POST(request: NextRequest) {
       coSupervisorId,
       domain,
       methodology,
-    } = body
+    } = parsed.data
 
     if (!title || !description || !semesterId || !supervisorId) {
       return errorResponse('Title, description, semester, and supervisor are required')

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Prisma Client is imported by the type checker and the build, so it has
+      # to exist before either runs. No database connection is needed for this.
+      - run: npx prisma generate
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        # A real secret is required in production; CI only needs the build to
+        # get past the start-up guard in src/lib/auth.ts.
+        env:
+          NEXTAUTH_SECRET: ci-build-only-not-a-real-secret
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
+          DIRECT_URL: postgresql://user:pass@localhost:5432/db
+        run: npx next build

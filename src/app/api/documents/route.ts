@@ -1,5 +1,7 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse, paginatedResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { createDocumentSchema } from '@/lib/validators/document'
 import { parsePaginationParams, skipTake } from '@/lib/pagination'
 import { NextRequest } from 'next/server'
 import { DocumentCategory } from '@prisma/client'
@@ -66,18 +68,19 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireFacultyOrAdmin()
-    const body = await request.json()
+    const parsed = await parseBody(request, createDocumentSchema)
+    if (!parsed.ok) return parsed.response
     const {
       title,
       description,
-      category = 'OTHER',
+      category,
       courseId,
       semesterNumber,
       facultyId,
       fileUrl,
       fileType,
       fileSize,
-    } = body
+    } = parsed.data
 
     if (!title || !fileUrl || !courseId || !semesterNumber) {
       return errorResponse('Title, file URL, course, and semester are required')

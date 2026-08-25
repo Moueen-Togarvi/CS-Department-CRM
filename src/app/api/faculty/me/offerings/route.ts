@@ -43,35 +43,6 @@ export async function GET(request: NextRequest) {
       orderBy: { course: { code: 'asc' } },
     })
 
-    // Also fetch courses where this faculty is the direct instructor
-    // (in case CourseOffering records don't exist)
-    const offeringCourseIds = offerings.map((o) => o.courseId)
-    const instructorCourses = await db.course.findMany({
-      where: {
-        instructorId: faculty.id,
-        isActive: true,
-        ...(offeringCourseIds.length > 0
-          ? { id: { notIn: offeringCourseIds } }
-          : {}),
-      },
-      select: { id: true, code: true, name: true, creditHours: true, courseType: true, semesterOffered: true },
-    })
-
-    // Convert instructor courses into offering-like entries.
-    // section=null signals "no section-based assignment" (legacy fallback → all sections)
-    const instructorEntries = instructorCourses.map((c) => ({
-      id: `instructor-${c.id}`,
-      courseId: c.id,
-      semesterId: semesterId || '',
-      section: null as string | null,
-      slotType: null,
-      course: c,
-      semester: semester ? { id: semester.id, name: semester.name, isCurrent: semester.isCurrent } : null,
-      studentCount: 0,
-      timetables: [] as any[],
-      pendingResults: 0,
-    }))
-
     const enriched = await Promise.all(
       offerings.map(async (o) => {
         const [studentCount, timetables, pendingResults] = await Promise.all([
@@ -110,7 +81,7 @@ export async function GET(request: NextRequest) {
     )
 
     return successResponse({
-      offerings: [...enriched, ...instructorEntries],
+      offerings: enriched,
       semester: semester ? { id: semester.id, name: semester.name } : null,
       faculty: { id: faculty.id, name: session.user.name, designation: faculty.designation },
     })

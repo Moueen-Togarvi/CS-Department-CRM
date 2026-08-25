@@ -333,11 +333,11 @@ async function main() {
         semesterOffered: c.semOffered,
         description: c.desc,
         isActive: true,
-        instructorId: facultyRecords[c.instructorIndex].faculty.id,
       },
     });
     courseRecords.push(course);
-    console.log(`  ✓ Course: ${c.code} - ${c.name} (${c.creditHours}+${c.labCreditHours}cr) → ${facultyRecords[c.instructorIndex].faculty.facultyId}`);
+    // Faculty are attached later, as CourseOfferings (section 9b).
+    console.log(`  ✓ Course: ${c.code} - ${c.name} (${c.creditHours}+${c.labCreditHours}cr)`);
   }
   console.log(`  ✓ Total: ${courseRecords.length} courses\n`);
 
@@ -534,6 +534,12 @@ async function main() {
       (t: any) => courseRecords[t.courseIdx].id === course.id
     );
 
+    // Attendance is attributed to whoever teaches the course. Courses no longer
+    // carry an instructor column, so that comes from the timetable slots.
+    const courseFacultyId: string | null = courseSlots.length
+      ? facultyRecords[courseSlots[0].facultyIdx].faculty.id
+      : null;
+
     // Determine which days of the week this course meets
     const courseDays: DayOfWeek[] = [...new Set(courseSlots.map((t: any) => t.day))];
 
@@ -588,7 +594,7 @@ async function main() {
         await prisma.attendance.create({
           data: {
             studentId: enrollment.studentId,
-            facultyId: course.instructorId,
+            facultyId: courseFacultyId,
             courseId: course.id,
             semesterId: spring2025.id,
             date: weekDate,

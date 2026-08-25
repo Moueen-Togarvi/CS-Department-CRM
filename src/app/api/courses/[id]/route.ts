@@ -1,13 +1,9 @@
 import { NextRequest } from "next/server";
+import { parsePrerequisites } from '@/lib/calculations/course'
 import { db } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
 import { updateCourseSchema } from "@/lib/validators/course";
 import { requireAuth, requireAdmin, requireRole, handleApiError, assertFacultyOwnsCourse } from "@/lib/auth-utils";
-
-function parsePrerequisites(v: string | undefined | null): string[] {
-  if (!v || v === "") return [];
-  try { return JSON.parse(v); } catch { return [v]; }
-}
 
 export async function GET(
   request: NextRequest,
@@ -20,14 +16,6 @@ export async function GET(
     const course = await db.course.findUnique({
       where: { id },
       include: {
-        instructor: {
-          select: {
-            id: true,
-            facultyId: true,
-            designation: true,
-            user: { select: { name: true, email: true, phone: true } },
-          },
-        },
         department: {
           select: { id: true, name: true, code: true },
         },
@@ -169,9 +157,6 @@ export async function PUT(
       where: { id },
       data: updateData,
       include: {
-        instructor: {
-          select: { id: true, facultyId: true, user: { select: { name: true } } },
-        },
         department: {
           select: { id: true, name: true, code: true },
         },

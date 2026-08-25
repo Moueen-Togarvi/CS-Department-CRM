@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { bulkAttendanceSchema } from '@/lib/validators/attendance'
 import { AttendanceStatus } from '@prisma/client'
 import { requireFacultyOrAdmin, assertFacultyOwnsCourse, handleApiError } from '@/lib/auth-utils'
 
@@ -8,8 +10,9 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireFacultyOrAdmin()
 
-    const body = await request.json()
-    const { courseId, semesterId, date, records } = body
+    const parsed = await parseBody(request, bulkAttendanceSchema)
+    if (!parsed.ok) return parsed.response
+    const { courseId, semesterId, date, records } = parsed.data
 
     if (!courseId || !semesterId || !date || !Array.isArray(records)) {
       return errorResponse('Missing required fields: courseId, semesterId, date, records', 400)

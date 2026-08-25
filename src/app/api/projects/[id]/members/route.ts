@@ -1,5 +1,7 @@
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
+import { parseBody } from '@/lib/validators/request'
+import { addProjectMemberSchema } from '@/lib/validators/project'
 import { requireAuth, requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
 import { NextRequest } from 'next/server'
 
@@ -38,8 +40,9 @@ export async function POST(
   try {
     await requireFacultyOrAdmin()
     const { id } = await params
-    const body = await request.json()
-    const { studentId, role = 'MEMBER' } = body
+    const parsed = await parseBody(request, addProjectMemberSchema)
+    if (!parsed.ok) return parsed.response
+    const { studentId, role } = parsed.data
 
     if (!studentId) {
       return errorResponse('Student ID is required')
