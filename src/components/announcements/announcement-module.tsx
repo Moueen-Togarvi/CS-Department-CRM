@@ -16,7 +16,12 @@ import {
   MapPin,
   Filter,
   X,
+  AlertTriangle,
+  CalendarDays,
+  Presentation,
+  Bell,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 import { PageHeader } from '@/components/shared/page-header'
 import { Button } from '@/components/ui/button'
@@ -93,6 +98,32 @@ const TYPE_COLORS: Record<string, string> = {
   SEMINAR: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
   NOTICE: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300',
   GENERAL: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+}
+
+// Tinted header band for the card view — gives the title its own visually
+// separate area at the top of the card, distinct from the body below.
+const TYPE_HEADER_BG: Record<string, string> = {
+  URGENT: 'bg-red-50 dark:bg-red-950/20',
+  EVENT: 'bg-emerald-50 dark:bg-emerald-950/20',
+  SEMINAR: 'bg-amber-50 dark:bg-amber-950/20',
+  NOTICE: 'bg-slate-50 dark:bg-slate-900/40',
+  GENERAL: 'bg-gray-50 dark:bg-gray-900/40',
+}
+
+const TYPE_ICON_COLOR: Record<string, string> = {
+  URGENT: 'text-red-600 dark:text-red-400',
+  EVENT: 'text-emerald-600 dark:text-emerald-400',
+  SEMINAR: 'text-amber-600 dark:text-amber-400',
+  NOTICE: 'text-slate-600 dark:text-slate-400',
+  GENERAL: 'text-gray-600 dark:text-gray-400',
+}
+
+const TYPE_ICONS: Record<string, typeof AlertTriangle> = {
+  URGENT: AlertTriangle,
+  EVENT: CalendarDays,
+  SEMINAR: Presentation,
+  NOTICE: Bell,
+  GENERAL: Megaphone,
 }
 
 const AUDIENCE_LABELS: Record<string, string> = {
@@ -427,12 +458,12 @@ export function AnnouncementModule() {
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="pb-2">
-                <Skeleton className="h-5 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </CardHeader>
-              <CardContent>
+            <Card key={i} className="gap-0 overflow-hidden py-0">
+              <div className="border-b bg-muted/40 px-4 py-3">
+                <Skeleton className="h-5 w-1/3 mb-2" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+              <CardContent className="px-4 py-3">
                 <Skeleton className="h-4 w-full mb-2" />
                 <Skeleton className="h-4 w-2/3" />
               </CardContent>
@@ -441,20 +472,41 @@ export function AnnouncementModule() {
         </div>
       ) : viewMode === 'card' ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {announcements.map((item: Announcement) => (
-            <Card
-              key={item.id}
-              className="group cursor-pointer transition-shadow hover:shadow-md"
-              onClick={() => openDetail(item.id)}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-2">
-                  <Badge variant="secondary" className={TYPE_COLORS[item.type] || TYPE_COLORS.GENERAL}>
-                    {item.type}
-                  </Badge>
+          {announcements.map((item: Announcement) => {
+            const TypeIcon = TYPE_ICONS[item.type] || TYPE_ICONS.GENERAL
+            return (
+              <Card
+                key={item.id}
+                className="group cursor-pointer gap-0 overflow-hidden py-0 transition-shadow hover:shadow-md"
+                onClick={() => openDetail(item.id)}
+              >
+                {/* Title band — its own area, visually separated from the
+                    content below by a tinted background and a border. */}
+                <div
+                  className={cn(
+                    'flex items-start justify-between gap-2 border-b px-4 py-3',
+                    TYPE_HEADER_BG[item.type] || TYPE_HEADER_BG.GENERAL
+                  )}
+                >
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    <div
+                      className={cn(
+                        'mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-background/80',
+                        TYPE_ICON_COLOR[item.type] || TYPE_ICON_COLOR.GENERAL
+                      )}
+                    >
+                      <TypeIcon className="size-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <Badge variant="secondary" className={cn('mb-1', TYPE_COLORS[item.type] || TYPE_COLORS.GENERAL)}>
+                        {item.type}
+                      </Badge>
+                      <CardTitle className="text-base leading-snug">{item.title}</CardTitle>
+                    </div>
+                  </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="size-8 opacity-0 group-hover:opacity-100">
+                      <Button variant="ghost" size="icon" className="size-8 shrink-0 opacity-0 group-hover:opacity-100">
                         <MoreHorizontal className="size-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -478,44 +530,44 @@ export function AnnouncementModule() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                <CardTitle className="text-base leading-tight mt-2">{item.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                  {truncate(item.content, 150)}
-                </p>
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mb-2">
-                  {item.eventDate && (
-                    <span className="flex items-center gap-1">
-                      <Calendar className="size-3" />
-                      {formatDate(item.eventDate)}
-                    </span>
-                  )}
-                  {item.eventLocation && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="size-3" />
-                      {item.eventLocation}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <span className="text-xs text-muted-foreground">
-                    By {item.createdByName}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <Badge variant="outline" className="text-xs">
-                      {AUDIENCE_LABELS[item.targetAudience] || item.targetAudience}
-                    </Badge>
-                    {!item.isPublished && (
-                      <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                        Draft
-                      </Badge>
+
+                <CardContent className="px-4 py-3">
+                  <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                    {truncate(item.content, 150)}
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mb-2">
+                    {item.eventDate && (
+                      <span className="flex items-center gap-1">
+                        <Calendar className="size-3" />
+                        {formatDate(item.eventDate)}
+                      </span>
+                    )}
+                    {item.eventLocation && (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="size-3" />
+                        {item.eventLocation}
+                      </span>
                     )}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <span className="text-xs text-muted-foreground">
+                      By {item.createdByName}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-xs">
+                        {AUDIENCE_LABELS[item.targetAudience] || item.targetAudience}
+                      </Badge>
+                      {!item.isPublished && (
+                        <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                          Draft
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       ) : (
         <div className="rounded-lg border overflow-hidden">
