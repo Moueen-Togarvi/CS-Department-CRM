@@ -65,3 +65,6 @@ Thumbs.db
 
 # Test coverage output
 /coverage
+
+# Local database dumps — never commit
+/backups/

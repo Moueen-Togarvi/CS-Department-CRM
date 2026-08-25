@@ -261,7 +261,19 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-const SESSION_OPTIONS = ['2023-2027', '2024-2028', '2025-2029', '2026-2030', '2027-2031']
+/**
+ * Session is a derived fact ("2023-2027"), not something to type or pick from
+ * a canned list — it always means "the 4 years starting at enrollment". A
+ * free-typed session used to be able to disagree with enrollmentYear (e.g. a
+ * 2025 admit saved as "2023-2027"), so it is now computed and read-only.
+ */
+function computeSession(enrollmentYear: number): string {
+  return `${enrollmentYear}-${enrollmentYear + 4}`
+}
+
+const CURRENT_YEAR = new Date().getFullYear()
+// Recent admits first; one year ahead covers early/pre-registration.
+const ENROLLMENT_YEAR_OPTIONS = Array.from({ length: 9 }, (_, i) => CURRENT_YEAR + 1 - i)
 
 // ==================== Main Component ====================
 
@@ -529,7 +541,8 @@ export function StudentModule() {
           form.setValue('cnic', detail.cnic || '')
           form.setValue('mobileNumber', detail.mobileNumber || '')
           form.setValue('fatherPhone', detail.fatherPhone || '')
-          form.setValue('session', detail.session || '')
+          // Session is derived from enrollmentYear (set above) and shown read-only;
+          // no need to load the stored string separately.
           
           const sectionVal = detail.section || ''
           let derivedShift = ''
@@ -555,10 +568,13 @@ export function StudentModule() {
 
   const onSubmit = useCallback(
     (values: FormValues) => {
+      // Session is derived from enrollmentYear, never typed or picked directly —
+      // recompute here so it can never drift from the year that was selected.
+      const payload = { ...values, session: computeSession(values.enrollmentYear) }
       if (editingStudent) {
-        updateMutation.mutate({ id: editingStudent.id, values })
+        updateMutation.mutate({ id: editingStudent.id, values: payload })
       } else {
-        createMutation.mutate(values)
+        createMutation.mutate(payload)
       }
     },
     [editingStudent, createMutation, updateMutation]
@@ -740,15 +756,18 @@ export function StudentModule() {
             </Select>
 
             <Select value={sectionFilter} onValueChange={(v) => { setSectionFilter(v); setPage(1) }}>
-              <SelectTrigger size="sm" className="w-[110px]">
+              <SelectTrigger size="sm" className="w-[135px]">
                 <SelectValue placeholder="Section" />
               </SelectTrigger>
               <SelectContent>
+                {/* The API matches Student.section exactly, so these must be the
+                    real stored values — bare "A"/"B" matched nothing. */}
                 <SelectItem value="all">All Sections</SelectItem>
-                <SelectItem value="A">A</SelectItem>
-                <SelectItem value="B">B</SelectItem>
-                <SelectItem value="C">C</SelectItem>
-                <SelectItem value="D">D</SelectItem>
+                <SelectItem value="Morning A">Morning A</SelectItem>
+                <SelectItem value="Morning B">Morning B</SelectItem>
+                <SelectItem value="Evening A">Evening A</SelectItem>
+                <SelectItem value="Evening B">Evening B</SelectItem>
+                <SelectItem value="Unassigned">Unassigned</SelectItem>
               </SelectContent>
             </Select>
 
@@ -1080,20 +1099,33 @@ function StudentFormDialog({
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="session" render={({ field }) => (
+                <FormField control={form.control} name="enrollmentYear" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Session *</FormLabel>
-                    <Select value={field.value || ''} onValueChange={field.onChange}>
-                      <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select session" /></SelectTrigger></FormControl>
+                    <FormLabel>Enrollment Year *</FormLabel>
+                    <Select value={String(field.value || CURRENT_YEAR)} onValueChange={(v) => field.onChange(Number(v))}>
+                      <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select year" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        {SESSION_OPTIONS.map((s) => (
-                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        {ENROLLMENT_YEAR_OPTIONS.map((y) => (
+                          <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )} />
+                {/* Session follows from the enrollment year automatically — not a separate
+                    choice, so it can never disagree with the year above. */}
+                <FormItem>
+                  <FormLabel>Session</FormLabel>
+                  <FormControl>
+                    <Input
+                      disabled
+                      readOnly
+                      value={computeSession(form.watch('enrollmentYear') || CURRENT_YEAR)}
+                      className="bg-muted/50 text-muted-foreground"
+                    />
+                  </FormControl>
+                </FormItem>
                 <FormField control={form.control} name="currentSemester" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Current Semester</FormLabel>
@@ -1141,20 +1173,18 @@ function StudentFormDialog({
                           </SelectTrigger>
                         </FormControl>
                          <SelectContent>
+                          {/* Shift-scoped only. A bare "A"/"B" loses the shift,
+                              which is what left old enrollments on section "A". */}
                           {shift === 'Morning' && (
                             <>
                               <SelectItem value="Morning A">Morning A</SelectItem>
                               <SelectItem value="Morning B">Morning B</SelectItem>
-                              <SelectItem value="A">A</SelectItem>
-                              <SelectItem value="B">B</SelectItem>
                             </>
                           )}
                           {shift === 'Evening' && (
                             <>
                               <SelectItem value="Evening A">Evening A</SelectItem>
                               <SelectItem value="Evening B">Evening B</SelectItem>
-                              <SelectItem value="A">A</SelectItem>
-                              <SelectItem value="B">B</SelectItem>
                             </>
                           )}
                         </SelectContent>
@@ -1421,20 +1451,33 @@ function StudentFormSheet({
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <FormField control={form.control} name="session" render={({ field }) => (
+                  <FormField control={form.control} name="enrollmentYear" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Session *</FormLabel>
-                      <Select value={field.value || ''} onValueChange={field.onChange}>
-                        <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select session" /></SelectTrigger></FormControl>
+                      <FormLabel>Enrollment Year *</FormLabel>
+                      <Select value={String(field.value || CURRENT_YEAR)} onValueChange={(v) => field.onChange(Number(v))}>
+                        <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select year" /></SelectTrigger></FormControl>
                         <SelectContent>
-                          {SESSION_OPTIONS.map((s) => (
-                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          {ENROLLMENT_YEAR_OPTIONS.map((y) => (
+                            <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
                     </FormItem>
                   )} />
+                  {/* Session follows from the enrollment year automatically — not a separate
+                      choice, so it can never disagree with the year above. */}
+                  <FormItem>
+                    <FormLabel>Session</FormLabel>
+                    <FormControl>
+                      <Input
+                        disabled
+                        readOnly
+                        value={computeSession(form.watch('enrollmentYear') || CURRENT_YEAR)}
+                        className="bg-muted/50 text-muted-foreground"
+                      />
+                    </FormControl>
+                  </FormItem>
                   <FormField control={form.control} name="currentSemester" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Current Semester</FormLabel>
@@ -1482,20 +1525,17 @@ function StudentFormSheet({
                             </SelectTrigger>
                           </FormControl>
                            <SelectContent>
+                            {/* Shift-scoped only — see the create form above. */}
                             {shift === 'Morning' && (
                               <>
                                 <SelectItem value="Morning A">Morning A</SelectItem>
                                 <SelectItem value="Morning B">Morning B</SelectItem>
-                                <SelectItem value="A">A</SelectItem>
-                                <SelectItem value="B">B</SelectItem>
                               </>
                             )}
                             {shift === 'Evening' && (
                               <>
                                 <SelectItem value="Evening A">Evening A</SelectItem>
                                 <SelectItem value="Evening B">Evening B</SelectItem>
-                                <SelectItem value="A">A</SelectItem>
-                                <SelectItem value="B">B</SelectItem>
                               </>
                             )}
                           </SelectContent>

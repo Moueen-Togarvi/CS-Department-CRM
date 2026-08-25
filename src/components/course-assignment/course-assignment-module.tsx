@@ -81,8 +81,14 @@ interface Assignment {
 const SHIFTS = ['Morning', 'Evening'] as const
 type Shift = (typeof SHIFTS)[number]
 
-function sectionsForShift(shift: Shift): string[] {
-  return shift === 'Morning' ? ['A'] : ['A', 'B']
+/**
+ * Letter part of a section; the shift is prepended when the offering is saved
+ * ("Morning" + "A" -> "Morning A"). Both shifts run A and B, matching the
+ * options the student form offers — Morning previously stopped at A, so a
+ * "Morning B" student's course could never be assigned a teacher.
+ */
+function sectionsForShift(_shift: Shift): string[] {
+  return ['A', 'B']
 }
 
 function parseSection(section: string): { shift: string; letter: string } {
