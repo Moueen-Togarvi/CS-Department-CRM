@@ -41,3 +41,38 @@ export const updateTimetableSlotSchema = baseTimetableSlot
     (data) => !(data.startTime && data.endTime) || endsAfterItStarts(data as { startTime: string; endTime: string }),
     { message: 'endTime must be later than startTime', path: ['endTime'] }
   )
+
+/** Renames a whole timetable column, moving every slot that starts at oldStartTime to newStartTime. */
+export const shiftTimeColumnSchema = z
+  .object({
+    semesterId: cuidSchema,
+    oldStartTime: timeOfDaySchema,
+    newStartTime: timeOfDaySchema,
+    section: z.string().min(1).max(40).optional(),
+    academicSemester: z.string().optional(),
+    facultyId: cuidSchema.optional(),
+    roomId: cuidSchema.optional(),
+    shift: z.string().optional(),
+  })
+  .refine((data) => data.newStartTime !== data.oldStartTime, {
+    message: 'newStartTime must differ from oldStartTime',
+    path: ['newStartTime'],
+  })
+
+/** Marks or clears a weekday as having no classes for one semester/section. */
+export const dayOffSchema = z.object({
+  semesterId: cuidSchema,
+  section: z.string().min(1).max(40),
+  day: z.enum(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']),
+})
+
+/** Deletes every slot starting at a given time, scoped like shiftTimeColumnSchema. */
+export const removeTimeColumnSchema = z.object({
+  semesterId: cuidSchema,
+  startTime: timeOfDaySchema,
+  section: z.string().min(1).max(40).optional(),
+  academicSemester: z.string().optional(),
+  facultyId: cuidSchema.optional(),
+  roomId: cuidSchema.optional(),
+  shift: z.string().optional(),
+})

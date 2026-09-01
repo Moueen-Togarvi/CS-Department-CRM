@@ -15,6 +15,12 @@ import {
   X,
   User,
   Layers,
+  Sun,
+  Moon,
+  GraduationCap,
+  FlaskConical,
+  FolderKanban,
+  Presentation,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -53,6 +59,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { PageHeader } from '@/components/shared/page-header'
+import { SlotDetailCard, type SlotDetail } from './slot-detail-card'
+import {
+  DAYS,
+  DAY_LABELS,
+  DAY_FULL,
+  SLOT_TYPE_DOT,
+  SLOT_TYPE_OPTIONS,
+} from './constants'
 
 // ============== TYPES ==============
 interface Semester {
@@ -104,12 +118,13 @@ interface WeeklyData {
   days: string[]
   timeSlots: string[]
   grid: Record<string, Record<string, GridSlot[]>>
+  daysOff: string[]
 }
 
 interface TimetableSlot {
   id: string
   courseId: string
-  course: { id: string; code: string; name: string; courseType: string; creditHours: number }
+  course: { id: string; code: string; name: string; courseType: string; creditHours: number; semesterOffered?: number | null }
   facultyId: string
   faculty: { id: string; facultyId: string; name: string; designation: string }
   semesterId: string
@@ -122,43 +137,66 @@ interface TimetableSlot {
   slotType: string
 }
 
-const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
-const DAY_LABELS: Record<string, string> = {
-  MONDAY: 'Mon',
-  TUESDAY: 'Tue',
-  WEDNESDAY: 'Wed',
-  THURSDAY: 'Thu',
-  FRIDAY: 'Fri',
-  SATURDAY: 'Sat',
-}
-const DAY_FULL: Record<string, string> = {
-  MONDAY: 'Monday',
-  TUESDAY: 'Tuesday',
-  WEDNESDAY: 'Wednesday',
-  THURSDAY: 'Thursday',
-  FRIDAY: 'Friday',
-  SATURDAY: 'Saturday',
-}
-
-const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00']
-
-const SLOT_TYPE_BG: Record<string, string> = {
-  THEORY: 'bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-100',
-  LAB: 'bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-100',
-  PROJECT: 'bg-rose-50 border-rose-200 text-rose-900 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-100',
-  SEMINAR: 'bg-cyan-50 border-cyan-200 text-cyan-900 dark:bg-cyan-950/40 dark:border-cyan-800 dark:text-cyan-100',
-}
-
-const SLOT_TYPE_DOT: Record<string, string> = {
-  THEORY: 'bg-emerald-500',
-  LAB: 'bg-amber-500',
-  PROJECT: 'bg-rose-500',
-  SEMINAR: 'bg-cyan-500',
-}
-
-const SLOT_TYPE_OPTIONS = ['THEORY', 'LAB', 'PROJECT', 'SEMINAR']
+const TIME_SLOTS = ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00']
 
 type ViewMode = 'section' | 'faculty' | 'room'
+
+const SLOT_TYPE_ICON: Record<string, typeof GraduationCap> = {
+  THEORY: GraduationCap,
+  LAB: FlaskConical,
+  PROJECT: FolderKanban,
+  SEMINAR: Presentation,
+}
+
+/** Each slot type gets its own gradient so the board reads at a glance. */
+const SLOT_TYPE_GRADIENT: Record<string, string> = {
+  THEORY: 'linear-gradient(150deg, #6EE7B7 0%, #34D399 55%, #10B981 100%)',
+  LAB: 'linear-gradient(150deg, #FCD34D 0%, #FBBF24 55%, #F59E0B 100%)',
+  PROJECT: 'linear-gradient(150deg, #FDA4AF 0%, #FB7185 55%, #F43F5E 100%)',
+  SEMINAR: 'linear-gradient(150deg, #A5F3FC 0%, #67E8F9 55%, #22D3EE 100%)',
+}
+
+/** Decorative dotted texture for the code panel. */
+function SlotDots({ uid }: { uid: string }) {
+  return (
+    <svg width="60" height="40" viewBox="0 0 60 40" fill="none" aria-hidden="true">
+      <defs>
+        <pattern id={`sd-${uid}`} width="9" height="9" patternUnits="userSpaceOnUse">
+          <circle cx="1.6" cy="1.6" r="1.4" fill="currentColor" />
+        </pattern>
+      </defs>
+      <rect width="60" height="40" fill={`url(#sd-${uid})`} />
+    </svg>
+  )
+}
+
+/** Shift has no column of its own - it is read out of the section string. */
+function deriveShift(section: string): 'Morning' | 'Evening' {
+  return (section || '').toLowerCase().includes('evening') ? 'Evening' : 'Morning'
+}
+
+/**
+ * Section strings are inconsistent ("A", "Morning", "Morning A"), so show only
+ * the trailing letter. A bare "Morning"/"Evening" carries no section, and the
+ * shift is already shown alongside, so it renders nothing.
+ */
+function sectionLabel(section: string): string | null {
+  const trimmed = (section || '').trim()
+  if (/^(morning|evening)$/i.test(trimmed)) return null
+  const match = trimmed.match(/([A-Za-z])\s*$/)
+  return match ? `Sec ${match[1].toUpperCase()}` : null
+}
+
+/** "Dr. Sarah Khan" -> "Dr. Khan"; "Ali Raza" -> "Raza". */
+function shortenName(name: string): string {
+  const parts = (name || '').split(' ').filter(Boolean)
+  if (parts.length === 0) return ''
+  const first = parts[0].toLowerCase()
+  if (first.startsWith('dr') || first.startsWith('prof') || first.startsWith('mr') || first.startsWith('ms')) {
+    return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]}` : parts[0]
+  }
+  return parts[parts.length - 1]
+}
 
 export function TimetableModule() {
   const user = useAuthStore((s) => s.user)
@@ -222,7 +260,7 @@ export function TimetableModule() {
   const [selectedSemester, setSelectedSemester] = useState<string>('')
   const [selectedAcademicSemester, setSelectedAcademicSemester] = useState<string>('1')
   const [selectedShift, setSelectedShift] = useState<string>('Morning')
-  const [selectedSection, setSelectedSection] = useState<string>('Morning')
+  const [selectedSection, setSelectedSection] = useState<string>('Morning A')
   const [selectedFaculty, setSelectedFaculty] = useState<string>('')
   const [selectedRoom, setSelectedRoom] = useState<string>('')
   const [viewMode, setViewMode] = useState<ViewMode>('section')
@@ -230,6 +268,9 @@ export function TimetableModule() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editingSlot, setEditingSlot] = useState<TimetableSlot | null>(null)
   const [deletingSlot, setDeletingSlot] = useState<TimetableSlot | null>(null)
+  const [detailSlot, setDetailSlot] = useState<SlotDetail | null>(null)
+  const [editingColumn, setEditingColumn] = useState<string | null>(null)
+  const [columnTimeDraft, setColumnTimeDraft] = useState('')
 
   const [formCourseId, setFormCourseId] = useState('')
   const [formFacultyId, setFormFacultyId] = useState('')
@@ -243,14 +284,12 @@ export function TimetableModule() {
   const [conflictWarning, setConflictWarning] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
-  // Enforce Section filter changes when Shift filter changes
+  // Enforce Section filter changes when Shift filter changes.
+  // Keep Section valid for the chosen Shift. The API matches section strings
+  // tolerantly, so "Morning A" also picks up slots stored as plain "Morning".
   useEffect(() => {
-    if (selectedShift === 'Morning') {
-      setSelectedSection('Morning')
-    } else if (selectedShift === 'Evening') {
-      if (selectedSection !== 'Evening A' && selectedSection !== 'Evening B') {
-        setSelectedSection('Evening A')
-      }
+    if (selectedSection !== `${selectedShift} A` && selectedSection !== `${selectedShift} B`) {
+      setSelectedSection(`${selectedShift} A`)
     }
   }, [selectedShift])
 
@@ -423,6 +462,86 @@ export function TimetableModule() {
     onError: (err: Error) => toast.error(err.message),
   })
 
+  const shiftColumnMutation = useMutation({
+    mutationFn: async ({ oldStartTime, newStartTime }: { oldStartTime: string; newStartTime: string }) => {
+      const res = await fetch('/api/timetable/weekly', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          semesterId: currentSemester,
+          oldStartTime,
+          newStartTime,
+          section: effectiveSection && effectiveSection !== '__all__' ? effectiveSection : undefined,
+          academicSemester: effectiveAcademicSemester && effectiveAcademicSemester !== '__all__' ? effectiveAcademicSemester : undefined,
+          facultyId: effectiveFaculty,
+          roomId: effectiveRoom,
+          shift: selectedShift,
+        }),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error)
+      return json
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timetable-weekly'] })
+      queryClient.invalidateQueries({ queryKey: ['timetable-list'] })
+      toast.success('Time column updated')
+      setEditingColumn(null)
+    },
+    onError: (err: Error) => {
+      toast.error(err.message)
+    },
+  })
+
+  const removeColumnMutation = useMutation({
+    mutationFn: async (startTime: string) => {
+      const res = await fetch('/api/timetable/weekly', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          semesterId: currentSemester,
+          startTime,
+          section: effectiveSection && effectiveSection !== '__all__' ? effectiveSection : undefined,
+          academicSemester: effectiveAcademicSemester && effectiveAcademicSemester !== '__all__' ? effectiveAcademicSemester : undefined,
+          facultyId: effectiveFaculty,
+          roomId: effectiveRoom,
+          shift: selectedShift,
+        }),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error)
+      return json
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timetable-weekly'] })
+      queryClient.invalidateQueries({ queryKey: ['timetable-list'] })
+      toast.success('Time slot removed')
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  const toggleDayOffMutation = useMutation({
+    mutationFn: async ({ day, isOff }: { day: string; isOff: boolean }) => {
+      const res = await fetch('/api/timetable/days-off', {
+        method: isOff ? 'DELETE' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          semesterId: currentSemester,
+          section: effectiveSection && effectiveSection !== '__all__' ? effectiveSection : selectedShift,
+          day,
+        }),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error)
+      return json
+    },
+    onSuccess: (_data, { isOff }) => {
+      queryClient.invalidateQueries({ queryKey: ['timetable-weekly'] })
+      toast.success(isOff ? 'Day restored' : 'Day marked as off')
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
   // ---- Handlers ----
   function openCreateDialog() {
     setEditingSlot(null)
@@ -510,6 +629,24 @@ export function TimetableModule() {
     setIsSaving(false)
   }
 
+  function startEditingColumn(ts: string) {
+    if (!isAdmin) return
+    setEditingColumn(ts)
+    setColumnTimeDraft(ts)
+  }
+
+  function commitColumnEdit(oldStartTime: string) {
+    if (!columnTimeDraft || columnTimeDraft === oldStartTime) {
+      setEditingColumn(null)
+      return
+    }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(columnTimeDraft)) {
+      toast.error('Enter a valid time (HH:MM)')
+      return
+    }
+    shiftColumnMutation.mutate({ oldStartTime, newStartTime: columnTimeDraft })
+  }
+
   function handleSave() {
     if (!formCourseId || !formFacultyId || !formRoomId || !currentSemester) {
       toast.error('Please fill all required fields')
@@ -534,6 +671,16 @@ export function TimetableModule() {
       createMutation.mutate(data)
     }
   }
+
+  const nextAvailableTimeSlot = useMemo(() => {
+    if (!weeklyData || weeklyData.timeSlots.length === 0) return '08:00'
+    const last = weeklyData.timeSlots[weeklyData.timeSlots.length - 1]
+    const idx = TIME_SLOTS.indexOf(last)
+    if (idx !== -1 && idx < TIME_SLOTS.length - 1) return TIME_SLOTS[idx + 1]
+    // Last column is outside the known range - just add an hour.
+    const [h] = last.split(':').map(Number)
+    return `${String(Math.min(h + 1, 23)).padStart(2, '0')}:00`
+  }, [weeklyData])
 
   // ---- Build flat slot list for the grid ----
   const flatSlots = useMemo(() => {
@@ -609,20 +756,18 @@ export function TimetableModule() {
                     </Select>
                   </div>
 
-                  {selectedShift === 'Evening' && (
-                    <div className="flex flex-col gap-0.5">
-                      <Label className="text-[10px] font-medium text-muted-foreground">Section</Label>
-                      <Select value={selectedSection} onValueChange={setSelectedSection}>
-                        <SelectTrigger className="w-[110px] h-7 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Evening A">Evening A</SelectItem>
-                          <SelectItem value="Evening B">Evening B</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                  <div className="flex flex-col gap-0.5">
+                    <Label className="text-[10px] font-medium text-muted-foreground">Section</Label>
+                    <Select value={selectedSection} onValueChange={setSelectedSection}>
+                      <SelectTrigger className="w-[110px] h-7 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={`${selectedShift} A`}>{selectedShift} A</SelectItem>
+                        <SelectItem value={`${selectedShift} B`}>{selectedShift} B</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </>
               )}
 
@@ -700,73 +845,146 @@ export function TimetableModule() {
               ))}
             </div>
           ) : weeklyData && weeklyData.days.length > 0 ? (
-            <div className="overflow-x-auto custom-scrollbar">
-              <div className="min-w-[780px]">
-                {/* Header */}
+            <div>
+              <div>
+                {/* Header - time columns */}
                 <div className="grid sticky top-0 z-10 bg-muted/80 backdrop-blur-sm border-b"
-                  style={{ gridTemplateColumns: '72px repeat(6, 1fr)' }}>
+                  style={{ gridTemplateColumns: `88px repeat(${weeklyData.timeSlots.length}, 1fr) ${isAdmin ? '96px' : ''}`.trim() }}>
                   <div className="p-2 text-[11px] font-semibold text-muted-foreground border-r flex items-center justify-center">
-                    <Clock className="size-3 mr-1" />
-                    Time
+                    <CalendarDays className="size-3 mr-1" />
+                    Day
                   </div>
-                  {weeklyData.days.map((day, idx) => {
-                    const isSelectedDay = day === selectedDayName
-                    return (
-                      <div key={day} className={cn(
-                        'p-2 text-center border-r last:border-r-0 transition-colors',
-                        idx === 0 && 'border-l-0',
-                        isSelectedDay && 'bg-emerald-500/10 dark:bg-emerald-500/20'
-                      )}>
-                        <div className={cn("text-xs font-bold", isSelectedDay && "text-emerald-600 dark:text-emerald-400 font-extrabold")}>
-                          {DAY_LABELS[day]} {weekDates[day] && `(${weekDates[day]})`}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground hidden sm:block">{DAY_FULL[day]}</div>
-                      </div>
-                    )
-                  })}
+                  {weeklyData.timeSlots.map((ts) => (
+                    <div
+                      key={ts}
+                      className={cn(
+                        'p-2 text-center border-r last:border-r-0 flex items-center justify-center gap-1',
+                        isAdmin && editingColumn !== ts && 'cursor-pointer hover:bg-muted/60 group/th'
+                      )}
+                      onClick={() => editingColumn !== ts && startEditingColumn(ts)}
+                    >
+                      <Clock className="size-3 text-muted-foreground shrink-0" />
+                      {editingColumn === ts ? (
+                        <input
+                          autoFocus
+                          type="time"
+                          value={columnTimeDraft}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => setColumnTimeDraft(e.target.value)}
+                          onBlur={() => commitColumnEdit(ts)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') commitColumnEdit(ts)
+                            if (e.key === 'Escape') setEditingColumn(null)
+                          }}
+                          disabled={shiftColumnMutation.isPending}
+                          className="w-[78px] text-[11px] font-mono font-semibold text-foreground bg-background border rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                      ) : (
+                        <span className="text-[11px] font-mono font-semibold text-muted-foreground group-hover/th:text-foreground">
+                          {ts}
+                        </span>
+                      )}
+                      {isAdmin && editingColumn !== ts && (
+                        <>
+                          <Pencil className="size-2.5 text-muted-foreground/0 group-hover/th:text-muted-foreground/60 transition-colors" />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (confirm(`Remove the ${ts} time slot? This deletes every class scheduled there for this view.`)) {
+                                removeColumnMutation.mutate(ts)
+                              }
+                            }}
+                            title="Remove this time slot"
+                            className="flex size-3.5 items-center justify-center rounded-full text-muted-foreground/0 transition-colors hover:bg-destructive/10 hover:text-destructive group-hover/th:text-muted-foreground/60"
+                          >
+                            <X className="size-2.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => openCreateDialogForSlot(selectedDayName || weeklyData.days[0], nextAvailableTimeSlot)}
+                      className="flex items-center justify-center gap-1 border-r p-2 text-[11px] font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                      title="Add another time slot to this schedule"
+                    >
+                      <Plus className="size-3.5" />
+                      Add Slot
+                    </button>
+                  )}
                 </div>
 
-                {/* Body - flat grid approach */}
+                {/* Body - flat grid approach, days as rows */}
                 <div className="relative"
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '72px repeat(6, 1fr)',
-                    gridTemplateRows: `repeat(${weeklyData.timeSlots.length}, 64px)`,
+                    gridTemplateColumns: `88px repeat(${weeklyData.timeSlots.length}, 1fr) ${isAdmin ? '96px' : ''}`.trim(),
+                    gridTemplateRows: `repeat(${weeklyData.days.length}, 152px)`,
                   }}>
-                  {/* Time labels */}
-                  {weeklyData.timeSlots.map((ts, tsIdx) => (
-                    <div
-                      key={ts}
-                      className="absolute left-0 border-r border-b flex items-center justify-center bg-muted/30 z-[1]"
-                      style={{
-                        gridColumn: '1',
-                        gridRow: `${tsIdx + 1}`,
-                        width: '72px',
-                        height: '64px',
-                      }}
-                    >
-                      <span className="text-[11px] font-mono font-semibold text-muted-foreground">{ts}</span>
-                    </div>
-                  ))}
+                  {/* Day labels */}
+                  {weeklyData.days.map((day, dayIdx) => {
+                    const isSelectedDay = day === selectedDayName
+                    const isOff = weeklyData.daysOff.includes(day)
+                    return (
+                      <div
+                        key={day}
+                        className={cn(
+                          'group/day sticky left-0 border-r border-b flex flex-col items-center justify-center gap-1 bg-muted/30 z-[1] transition-colors',
+                          isSelectedDay && !isOff && 'bg-emerald-500/10 dark:bg-emerald-500/20',
+                          isOff && 'bg-muted/60'
+                        )}
+                        style={{ gridColumn: '1', gridRow: `${dayIdx + 1}`, width: '88px', height: '136px' }}
+                      >
+                        <span className={cn(
+                          'text-xs font-bold',
+                          isSelectedDay && !isOff && 'text-emerald-600 dark:text-emerald-400 font-extrabold',
+                          isOff && 'text-muted-foreground line-through'
+                        )}>
+                          {DAY_LABELS[day]} {weekDates[day] && `(${weekDates[day]})`}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground hidden sm:block">{DAY_FULL[day]}</span>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => toggleDayOffMutation.mutate({ day, isOff })}
+                            disabled={toggleDayOffMutation.isPending}
+                            className={cn(
+                              'rounded-full px-2 py-0.5 text-[9px] font-bold transition-colors',
+                              isOff
+                                ? 'bg-destructive/15 text-destructive hover:bg-destructive/25'
+                                : 'text-muted-foreground/0 group-hover/day:bg-muted group-hover/day:text-muted-foreground'
+                            )}
+                          >
+                            {isOff ? 'Off · tap to restore' : 'Mark off'}
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
 
                   {/* Empty cells (background grid) */}
                   {weeklyData.days.map((day, dayIdx) => {
                     const isSelectedDay = day === selectedDayName
+                    const isOff = weeklyData.daysOff.includes(day)
                     return weeklyData.timeSlots.map((ts, tsIdx) => (
                       <div
                         key={`${day}-${ts}`}
                         className={cn(
-                          "border-b border-r last:border-r-0 hover:bg-muted/10 transition-colors flex items-center justify-center group",
-                          isAdmin && "cursor-pointer",
-                          isSelectedDay && "bg-emerald-50/15 dark:bg-emerald-950/5"
+                          "border-b border-r last:border-r-0 transition-colors flex items-center justify-center group",
+                          isOff ? "bg-muted/40 bg-[repeating-linear-gradient(135deg,transparent,transparent_8px,var(--border)_8px,var(--border)_9px)]" : "hover:bg-muted/10",
+                          isAdmin && !isOff && "cursor-pointer",
+                          isSelectedDay && !isOff && "bg-emerald-50/15 dark:bg-emerald-950/5"
                         )}
                         style={{
-                          gridColumn: `${dayIdx + 2}`,
-                          gridRow: `${tsIdx + 1}`,
+                          gridColumn: `${tsIdx + 2}`,
+                          gridRow: `${dayIdx + 1}`,
                         }}
-                        onClick={() => openCreateDialogForSlot(day, ts)}
+                        onClick={() => !isOff && openCreateDialogForSlot(day, ts)}
                       >
-                        {isAdmin && (
+                        {isAdmin && !isOff && (
                           <Plus className="size-4 text-muted-foreground/0 group-hover:text-muted-foreground/40 transition-colors" />
                         )}
                       </div>
@@ -777,164 +995,92 @@ export function TimetableModule() {
                   {flatSlots.map((slot) => {
                     const tsIdx = weeklyData.timeSlots.indexOf(slot.startTime)
                     const span = Math.max(1, slot.span || 1)
-                    const typeBg = SLOT_TYPE_BG[slot.slotType] || SLOT_TYPE_BG.THEORY
+                    const day = weeklyData.days[slot._dayIdx!]
+                    const shift = deriveShift(slot.section)
+                    const ShiftIcon = shift === 'Evening' ? Moon : Sun
+                    const sectionText = sectionLabel(slot.section)
+                    const TypeIcon = SLOT_TYPE_ICON[slot.slotType] || GraduationCap
 
                     return (
                       <div
                         key={slot.id}
                         className={cn(
-                          'relative z-[2] rounded-md border m-0.5 p-1.5 overflow-hidden transition-all hover:shadow-md cursor-pointer',
-                          typeBg,
-                          weeklyData.days[slot._dayIdx!] === selectedDayName && 'ring-2 ring-emerald-500/80 ring-offset-1 dark:ring-offset-slate-900 shadow-sm'
+                          'group/slot @container relative z-[2] m-0.5 flex flex-col overflow-hidden rounded-xl bg-card shadow-sm ring-1 ring-black/5 transition-all hover:-translate-y-px hover:shadow-lg cursor-pointer @[220px]:flex-row dark:ring-white/10',
+                          day === selectedDayName && 'ring-2 ring-emerald-500/70'
                         )}
                         style={{
-                          gridColumn: `${slot._dayIdx! + 2}`,
-                          gridRow: `${tsIdx + 1} / span ${Math.min(span, weeklyData.timeSlots.length - tsIdx)}`,
+                          gridColumn: `${tsIdx + 2} / span ${Math.min(span, weeklyData.timeSlots.length - tsIdx)}`,
+                          gridRow: `${slot._dayIdx! + 1}`,
                         }}
-                        onClick={() => {
-                          if (isAdmin) {
-                            const fakeSlot: any = {
-                              id: slot.id,
-                              courseId: slot.course.id,
-                              course: slot.course,
-                              facultyId: slot.faculty.id,
-                              faculty: { id: slot.faculty.id, facultyId: '', name: slot.faculty.name, designation: slot.faculty.designation },
-                              semesterId: currentSemester,
-                              roomId: slot.room.id,
-                              room: slot.room,
-                              section: slot.section,
-                              day: weeklyData.days[slot._dayIdx!],
-                              startTime: slot.startTime,
-                              endTime: slot.endTime,
-                              slotType: slot.slotType,
-                            }
-                            openEditDialog(fakeSlot)
-                          }
-                        }}
+                        onClick={() => setDetailSlot({ ...slot, day })}
                       >
-                        <div className="flex items-start justify-between gap-1">
-                          <span className="text-[11px] font-extrabold leading-tight truncate">
+                        {/* Course code panel - stacks above the details in a narrow column, sits beside it once there is room */}
+                        <div
+                          className="relative flex shrink-0 flex-row items-center gap-2 px-2 py-1.5 text-emerald-950 @[220px]:w-[58px] @[220px]:flex-col @[220px]:justify-center @[220px]:gap-1 @[220px]:px-1 @[220px]:py-2"
+                          style={{ background: SLOT_TYPE_GRADIENT[slot.slotType] || SLOT_TYPE_GRADIENT.THEORY }}
+                        >
+                          <div className="pointer-events-none absolute -bottom-2 -left-1 hidden text-white opacity-40 @[220px]:block">
+                            <SlotDots uid={slot.id} />
+                          </div>
+                          <div className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full bg-white @[220px]:size-7">
+                            <TypeIcon className="size-3.5 text-emerald-700 @[220px]:size-4" />
+                          </div>
+                          <span className="relative z-10 min-w-0 flex-1 truncate text-left text-sm font-extrabold leading-tight tracking-tight @[220px]:w-full @[220px]:break-words @[220px]:text-center">
                             {slot.course.code}
                           </span>
-                          {isAdmin && (
-                            <div className="flex items-center gap-0.5 shrink-0">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  // We'll find the slot from the list
-                                  const fakeSlot: any = {
-                                    id: slot.id,
-                                    courseId: slot.course.id,
-                                    course: slot.course,
-                                    facultyId: slot.faculty.id,
-                                    faculty: { id: slot.faculty.id, facultyId: '', name: slot.faculty.name, designation: slot.faculty.designation },
-                                    semesterId: currentSemester,
-                                    roomId: slot.room.id,
-                                    room: slot.room,
-                                    section: slot.section,
-                                    day: weeklyData.days[slot._dayIdx!],
-                                    startTime: slot.startTime,
-                                    endTime: slot.endTime,
-                                    slotType: slot.slotType,
-                                  }
-                                  openEditDialog(fakeSlot)
-                                }}
-                                className="size-5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center"
-                              >
-                                <Pencil className="size-3" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  const fakeSlot: any = {
-                                    id: slot.id,
-                                    course: slot.course,
-                                    day: weeklyData.days[slot._dayIdx!],
-                                    startTime: slot.startTime,
-                                    endTime: slot.endTime,
-                                  }
-                                  setDeletingSlot(fakeSlot)
-                                }}
-                                className="size-5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 flex items-center justify-center"
-                              >
-                                <Trash2 className="size-3" />
-                              </button>
-                            </div>
+                          {slot.course.semesterOffered != null && (
+                            <span className="relative z-10 shrink-0 rounded-full bg-white px-1.5 text-[9px] font-bold leading-5 tracking-wide text-emerald-800">
+                              SEM {slot.course.semesterOffered}
+                            </span>
                           )}
+                          <span className="relative z-10 hidden shrink-0 rounded bg-emerald-950 px-1.5 text-[8px] font-bold uppercase leading-4 tracking-wider text-white @[220px]:inline-block">
+                            {slot.slotType}
+                          </span>
                         </div>
-                        <p className="text-[10px] leading-tight opacity-75 line-clamp-1 mt-0.5">
-                          {slot.course.name}
-                        </p>
-                        {span > 1 ? (
-                          <div className="mt-1 space-y-0.5 text-[9px] opacity-75">
-                            {span > 1 && (
-                              <div className="flex items-center gap-1">
-                                <Clock className="size-2.5 shrink-0" />
-                                <span>{slot.startTime}-{slot.endTime}</span>
-                              </div>
-                            )}
+
+                        {/* Details */}
+                        <div className="flex min-w-0 flex-1 flex-col gap-1.5 px-3 py-2.5">
+                          <p className="min-w-0 break-words text-[12.5px] font-bold leading-[1.2] tracking-tight text-foreground">
+                            {slot.course.name}
+                          </p>
+                          <div className="h-px w-full bg-border/70" />
+
+                          {/* Tinted field boxes - each on its own full-width row so values never truncate */}
+                          <div className="flex flex-1 flex-col justify-center gap-1 text-[10px] leading-tight">
                             {viewMode !== 'room' && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="size-2.5 shrink-0" />
-                                <span className="truncate">{slot.room.name}</span>
+                              <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50/80 px-2 py-1 dark:bg-emerald-950/30">
+                                <MapPin className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                <span className="min-w-0 flex-1 break-words font-bold text-foreground">{slot.room.name}</span>
                               </div>
                             )}
+
                             {viewMode !== 'faculty' && (
-                              <div className="flex items-center gap-1">
-                                <User className="size-2.5 shrink-0" />
-                                <span className="truncate">{slot.faculty.name}</span>
+                              <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50/80 px-2 py-1 dark:bg-emerald-950/30">
+                                <User className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                <span className="min-w-0 flex-1 break-words font-bold text-foreground">{shortenName(slot.faculty.name)}</span>
                               </div>
                             )}
-                            <div className="flex items-center gap-1">
-                              <Layers className="size-2.5 shrink-0" />
-                              <span>Sec {slot.section}</span>
+
+                            <div className="flex flex-wrap items-center gap-1.5 text-[9px]">
+                              {sectionText && (
+                                <span className="flex min-w-0 items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 font-bold text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
+                                  <Layers className="size-2.5 shrink-0" />
+                                  <span>{sectionText}</span>
+                                </span>
+                              )}
+                              <span className="flex min-w-0 items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 font-bold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                                <ShiftIcon className="size-2.5 shrink-0" />
+                                <span>{shift}</span>
+                              </span>
                             </div>
                           </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 text-[9px] opacity-65 mt-0.5 truncate">
-                            {viewMode === 'section' && (
-                              <>
-                                <span className="font-semibold text-foreground/80 shrink-0">📍 {slot.room.name}</span>
-                                <span className="opacity-45 shrink-0">•</span>
-                                <span className="truncate">👤 {(() => {
-                                  const name = slot.faculty.name;
-                                  const parts = name.split(' ');
-                                  if (parts[0].toLowerCase().startsWith('dr') || parts[0].toLowerCase().startsWith('prof')) {
-                                    return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]}` : parts[0];
-                                  }
-                                  return parts[parts.length - 1];
-                                })()}</span>
-                              </>
-                            )}
-                            {viewMode === 'faculty' && (
-                              <>
-                                <span className="font-semibold text-foreground/80 shrink-0">📍 {slot.room.name}</span>
-                                <span className="opacity-45 shrink-0">•</span>
-                                <span className="font-medium bg-black/5 dark:bg-white/5 px-1 rounded text-[8px] shrink-0">Sec {slot.section}</span>
-                              </>
-                            )}
-                            {viewMode === 'room' && (
-                              <>
-                                <span className="font-semibold bg-black/5 dark:bg-white/5 px-1 rounded text-[8px] shrink-0">Sec {slot.section}</span>
-                                <span className="opacity-45 shrink-0">•</span>
-                                <span className="truncate">👤 {(() => {
-                                  const name = slot.faculty.name;
-                                  const parts = name.split(' ');
-                                  if (parts[0].toLowerCase().startsWith('dr') || parts[0].toLowerCase().startsWith('prof')) {
-                                    return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]}` : parts[0];
-                                  }
-                                  return parts[parts.length - 1];
-                                })()}</span>
-                              </>
-                            )}
-                          </div>
-                        )}
+                        </div>
                       </div>
                     )
                   })}
                 </div>
 
-                {/* Legend */}
+                                {/* Legend */}
                 <div className="flex items-center gap-4 px-4 py-2.5 border-t bg-muted/20 flex-wrap">
                   <span className="text-[11px] font-medium text-muted-foreground">Type:</span>
                   {SLOT_TYPE_OPTIONS.map((t) => (
@@ -963,7 +1109,7 @@ export function TimetableModule() {
       {/* Slot List */}
       <SlotList
         semesterId={currentSemester}
-        section={effectiveSection}
+        section={effectiveSection === '__all__' ? undefined : effectiveSection}
         academicSemester={effectiveAcademicSemester}
         facultyId={effectiveFaculty}
         roomId={effectiveRoom}
@@ -971,6 +1117,61 @@ export function TimetableModule() {
         onDelete={(s) => setDeletingSlot(s)}
         isAdmin={isAdmin}
       />
+
+      {/* Slot Detail */}
+      <Dialog open={!!detailSlot} onOpenChange={(o) => !o && setDetailSlot(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-0 bg-transparent p-0 shadow-none sm:max-w-[820px]">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{detailSlot ? `${detailSlot.course.code} - ${detailSlot.course.name}` : 'Slot'}</DialogTitle>
+          </DialogHeader>
+          {detailSlot && (
+            <>
+              <SlotDetailCard slot={detailSlot} />
+              {isAdmin && (
+                <div className="flex justify-end gap-2 px-1">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      const slot = detailSlot
+                      setDetailSlot(null)
+                      openEditDialog({
+                        id: slot.id,
+                        courseId: slot.course.id,
+                        course: slot.course,
+                        facultyId: slot.faculty.id,
+                        faculty: { id: slot.faculty.id, facultyId: '', name: slot.faculty.name, designation: slot.faculty.designation },
+                        semesterId: currentSemester,
+                        roomId: slot.room.id,
+                        room: slot.room,
+                        section: slot.section,
+                        day: slot.day,
+                        startTime: slot.startTime,
+                        endTime: slot.endTime,
+                        slotType: slot.slotType,
+                      } as any)
+                    }}
+                  >
+                    <Pencil className="size-3.5" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      setDeletingSlot(detailSlot as any)
+                      setDetailSlot(null)
+                    }}
+                  >
+                    <Trash2 className="size-3.5" />
+                    Delete
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Create/Edit Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={(o) => !o && closeDialog()}>
@@ -1191,19 +1392,19 @@ function SlotList({
                 key={slot.id}
                 className="flex items-center gap-3 p-2.5 rounded-md border hover:bg-muted/30 transition-colors group"
               >
-                <div className={cn('w-1.5 h-10 rounded-full shrink-0', SLOT_TYPE_DOT[slot.slotType])} />
-                <div className="flex-1 min-w-0">
+                <div className={cn('w-1.5 self-stretch rounded-full shrink-0', SLOT_TYPE_DOT[slot.slotType])} />
+                <div className="flex-[2] min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-bold">{slot.course.code}</span>
-                    <span className="text-xs text-muted-foreground truncate max-w-[200px]">{slot.course.name}</span>
+                    <span className="text-sm font-bold shrink-0">{slot.course.code}</span>
+                    <span className="text-xs text-muted-foreground break-words">{slot.course.name}</span>
                   </div>
-                  <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground mt-0.5 flex-wrap">
-                    <span>{DAY_LABELS[slot.day]}</span>
-                    <span className="font-mono">{slot.startTime}–{slot.endTime}</span>
-                    <span>{slot.faculty.name}</span>
-                    <span className="flex items-center gap-0.5"><Building className="size-2.5" />{slot.room.name}</span>
-                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5">Sec {slot.section}</Badge>
-                  </div>
+                </div>
+                <div className="flex flex-[3] items-center gap-2.5 text-[11px] text-muted-foreground flex-wrap justify-end">
+                  <span>{DAY_LABELS[slot.day]}</span>
+                  <span className="font-mono">{slot.startTime}–{slot.endTime}</span>
+                  <span>{slot.faculty.name}</span>
+                  <span className="flex items-center gap-0.5"><Building className="size-2.5" />{slot.room.name}</span>
+                  <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5">Sec {slot.section}</Badge>
                 </div>
                 {isAdmin && (
                   <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">

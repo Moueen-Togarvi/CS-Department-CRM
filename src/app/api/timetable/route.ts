@@ -52,7 +52,12 @@ export async function GET(request: NextRequest) {
         where.section = { in: studentCompatibleSections }
       }
     } else {
-      if (section) where.section = section
+      if (section) {
+        // "Morning A" must also match slots stored as the bare shift
+        // ("Morning") or as just the letter, since section strings vary.
+        const compatible = getCompatibleSections(section, null)
+        where.section = compatible.length > 0 ? { in: compatible } : section
+      }
     }
 
     if (academicSemester) {

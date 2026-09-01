@@ -1,9 +1,11 @@
 import { NextRequest } from 'next/server'
-import { getCompatibleSections } from '@/lib/calculations/timetable'
+import { getCompatibleSections, timeOverlaps } from '@/lib/calculations/timetable'
+import { parseBody } from '@/lib/validators/request'
+import { shiftTimeColumnSchema, removeTimeColumnSchema } from '@/lib/validators/timetable'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { DayOfWeek } from '@prisma/client'
-import { requireAuth } from '@/lib/auth-utils'
+import { requireAdmin, requireAuth, handleApiError } from '@/lib/auth-utils'
 
 const DAYS_ORDER: DayOfWeek[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00']
@@ -61,8 +63,11 @@ export async function GET(request: NextRequest) {
       if (studentCompatibleSections.length > 0) {
         where.section = { in: studentCompatibleSections }
       }
-    } else {
-      if (section) where.section = section
+    } else if (section) {
+      // "Morning A" must also match slots stored as the bare shift ("Morning")
+      // or as just the letter ("A"), since section strings are inconsistent.
+      const compatible = getCompatibleSections(section, shift)
+      where.section = compatible.length > 0 ? { in: compatible } : section
     }
 
     if (facultyId) where.facultyId = facultyId
@@ -175,13 +180,130 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const daysOff = section
+      ? (
+          await db.timetableDayOff.findMany({
+            where: { semesterId, section },
+            select: { day: true },
+          })
+        ).map((d) => d.day)
+      : []
+
     return successResponse({
       days: DAYS_ORDER,
       timeSlots,
       grid,
+      daysOff,
     })
   } catch (error) {
     console.error('GET /api/timetable/weekly error:', error)
     return errorResponse('Failed to fetch weekly timetable', 500)
+  }
+}
+
+/** Renames a whole time column (e.g. 08:00 -> 08:30), moving every slot in it by the same offset. */
+export async function PATCH(request: NextRequest) {
+  try {
+    await requireAdmin()
+
+    const parsed = await parseBody(request, shiftTimeColumnSchema)
+    if (!parsed.ok) return parsed.response
+    const { semesterId, oldStartTime, newStartTime, section, academicSemester, facultyId, roomId, shift } =
+      parsed.data
+
+    const where: any = { semesterId, startTime: oldStartTime }
+    if (section) {
+      const effectiveShift = shift || (section.toLowerCase().includes('evening') ? 'Evening' : 'Morning')
+      const compatible = getCompatibleSections(section, effectiveShift)
+      where.section = compatible.length > 0 ? { in: compatible } : section
+    }
+    if (facultyId) where.facultyId = facultyId
+    if (roomId) where.roomId = roomId
+    if (academicSemester) {
+      where.course = { semesterOffered: parseInt(academicSemester, 10) }
+    }
+
+    const slotsToMove = await db.timetable.findMany({ where })
+    if (slotsToMove.length === 0) {
+      return errorResponse('No slots found in this time column to move', 404)
+    }
+
+    const toMin = (t: string) => {
+      const [h, m] = t.split(':').map(Number)
+      return h * 60 + (m || 0)
+    }
+    const toTime = (mins: number) => {
+      const h = Math.floor(mins / 60) % 24
+      const m = mins % 60
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+    }
+    const offset = toMin(newStartTime) - toMin(oldStartTime)
+    const movedIds = new Set(slotsToMove.map((s) => s.id))
+
+    // Check every moved slot's new time against everything else in the semester
+    // that isn't itself being moved (room + faculty conflicts).
+    const others = await db.timetable.findMany({
+      where: { semesterId, id: { notIn: Array.from(movedIds) } },
+    })
+
+    for (const slot of slotsToMove) {
+      const newEnd = toTime(toMin(slot.endTime) + offset)
+      if (newEnd <= newStartTime || toMin(newEnd) >= 24 * 60) {
+        return errorResponse('The new time would push a slot past midnight or invert its duration', 400)
+      }
+      const conflict = others.find(
+        (c) =>
+          c.day === slot.day &&
+          (c.roomId === slot.roomId || c.facultyId === slot.facultyId) &&
+          timeOverlaps(newStartTime, newEnd, c.startTime, c.endTime)
+      )
+      if (conflict) {
+        return errorResponse(
+          `Cannot move to ${newStartTime}: conflicts with an existing slot on ${slot.day}`,
+          409
+        )
+      }
+    }
+
+    await db.$transaction(
+      slotsToMove.map((slot) =>
+        db.timetable.update({
+          where: { id: slot.id },
+          data: { startTime: newStartTime, endTime: toTime(toMin(slot.endTime) + offset) },
+        })
+      )
+    )
+
+    return successResponse({ moved: slotsToMove.length }, 'Time column updated successfully')
+  } catch (error) {
+    return handleApiError(error, 'Failed to update time column')
+  }
+}
+
+/** Removes every slot in one time column, scoped to the current semester/section/faculty/room filters. */
+export async function DELETE(request: NextRequest) {
+  try {
+    await requireAdmin()
+    const parsed = await parseBody(request, removeTimeColumnSchema)
+    if (!parsed.ok) return parsed.response
+    const { semesterId, startTime, section, academicSemester, facultyId, roomId, shift } = parsed.data
+
+    const where: any = { semesterId, startTime }
+    if (section) {
+      const effectiveShift = shift || (section.toLowerCase().includes('evening') ? 'Evening' : 'Morning')
+      const compatible = getCompatibleSections(section, effectiveShift)
+      where.section = compatible.length > 0 ? { in: compatible } : section
+    }
+    if (facultyId) where.facultyId = facultyId
+    if (roomId) where.roomId = roomId
+    if (academicSemester) {
+      where.course = { semesterOffered: parseInt(academicSemester, 10) }
+    }
+
+    const result = await db.timetable.deleteMany({ where })
+
+    return successResponse({ removed: result.count }, 'Time slot column removed')
+  } catch (error) {
+    return handleApiError(error, 'Failed to remove time column')
   }
 }
