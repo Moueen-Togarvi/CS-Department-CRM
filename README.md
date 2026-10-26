@@ -63,8 +63,8 @@ These are public demo credentials. Never deploy the seeded accounts to a product
 
 ## Verification and production
 
-Apply Prisma schema changes in the deployment environment before starting the
-new application version. Login rate limits use the `RateLimitBucket` table.
+Before deploying a release with database changes, run `npx prisma migrate deploy`
+against the production database. Login rate limits use the `RateLimitBucket` table.
 
 ```bash
 npm run lint
