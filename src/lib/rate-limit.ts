@@ -1,10 +1,9 @@
 /**
- * Fixed-window rate limiter for credential endpoints.
+ * In-memory fixed-window limiter retained for its unit tests.
+ * Runtime login endpoints use the shared PostgreSQL limiter.
  *
- * Deliberately in-memory: this app runs as a single Next process, and the goal
- * is to stop online password guessing, not to survive a distributed attack. On
- * a multi-instance deploy each instance keeps its own counters, which weakens
- * the limit proportionally — move the store to Redis before scaling out.
+ * Runtime rate limits are shared across application instances; this helper is
+ * only a small deterministic seam for tests.
  */
 
 interface Window {

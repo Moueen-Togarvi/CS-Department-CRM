@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth, handleApiError } from '@/lib/auth-utils'
-import { ALLOWED_MIME_TYPES, isAllowedMimeType } from '@/lib/upload-safety'
+import { ALLOWED_MIME_TYPES, isAllowedMimeType, matchesFileSignature } from '@/lib/upload-safety'
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,6 +32,9 @@ export async function POST(request: NextRequest) {
 
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
+    if (!matchesFileSignature(mimeType, buffer)) {
+      return NextResponse.json({ error: 'File content does not match its declared type' }, { status: 415 })
+    }
 
     const upload = await db.upload.create({
       data: {

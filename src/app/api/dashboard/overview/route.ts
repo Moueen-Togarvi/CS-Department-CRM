@@ -11,13 +11,14 @@ export async function GET(request: NextRequest) {
     const paramDate = searchParams.get('date')
     const paramDay = searchParams.get('day')
     
-    let today = now.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
+    const weekday = (date: Date) => new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: 'Asia/Karachi' }).format(date).toUpperCase()
+    let today = weekday(now)
     if (paramDay) {
       today = paramDay.toUpperCase()
     } else if (paramDate) {
       const d = new Date(paramDate)
       if (!isNaN(d.getTime())) {
-        today = d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
+        today = weekday(d)
       }
     }
     const role = session.user.role

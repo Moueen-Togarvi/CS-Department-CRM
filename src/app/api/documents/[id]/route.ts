@@ -3,7 +3,7 @@ import { successResponse, errorResponse } from '@/lib/api-response'
 import { parseBody } from '@/lib/validators/request'
 import { updateDocumentSchema } from '@/lib/validators/document'
 import { NextRequest } from 'next/server'
-import { requireAuth, requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
+import { requireAuth, requireFacultyOrAdmin, assertFacultyOwnsCourse, AuthError, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(
   _request: NextRequest,
@@ -39,7 +39,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireFacultyOrAdmin()
+    const session = await requireFacultyOrAdmin()
     const { id } = await params
     const parsed = await parseBody(request, updateDocumentSchema)
     if (!parsed.ok) return parsed.response
@@ -49,6 +49,15 @@ export async function PUT(
     const existing = await db.document.findUnique({ where: { id } })
     if (!existing) {
       return errorResponse('Document not found', 404)
+    }
+    if (session.user.role === 'FACULTY') {
+      if (existing.uploadedBy !== session.user.id && existing.courseId) {
+        try { await assertFacultyOwnsCourse(session.user.id, existing.courseId) }
+        catch { throw new AuthError('You cannot edit this document', 403) }
+      } else if (existing.uploadedBy !== session.user.id) {
+        throw new AuthError('You cannot edit this document', 403)
+      }
+      if (courseId) await assertFacultyOwnsCourse(session.user.id, courseId)
     }
 
     const updateData: any = {}
@@ -87,11 +96,16 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireFacultyOrAdmin()
+    const session = await requireFacultyOrAdmin()
     const { id } = await params
     const existing = await db.document.findUnique({ where: { id } })
     if (!existing) {
       return errorResponse('Document not found', 404)
+    }
+    if (session.user.role === 'FACULTY' && existing.uploadedBy !== session.user.id) {
+      if (!existing.courseId) throw new AuthError('You cannot delete this document', 403)
+      try { await assertFacultyOwnsCourse(session.user.id, existing.courseId) }
+      catch { throw new AuthError('You cannot delete this document', 403) }
     }
 
     await db.document.delete({ where: { id } })

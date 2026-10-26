@@ -591,6 +591,14 @@ model Upload {
   createdAt DateTime @default(now())
 }
 
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
 model CourseOffering {
   id         String   @id @default(cuid())
   courseId   String

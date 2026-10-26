@@ -59,9 +59,12 @@ After seeding, these accounts are available:
 | Faculty | `sarah.khan@csdept.edu` | `faculty123` |
 | Student | `CS-2023-001@student.csdept.edu` | `student123` |
 
-Change these passwords before using the application outside local/demo use.
+These are public demo credentials. Never deploy the seeded accounts to a production database; replace their passwords and disable or remove demo users before launch.
 
 ## Verification and production
+
+Apply Prisma schema changes in the deployment environment before starting the
+new application version. Login rate limits use the `RateLimitBucket` table.
 
 ```bash
 npm run lint

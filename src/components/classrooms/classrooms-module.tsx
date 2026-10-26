@@ -40,7 +40,7 @@ export function ClassroomsModule() {
   const [activeTab, setActiveTab] = useState<'classes' | 'rooms'>('classes')
 
   // Classes View states
-  const [selectedGroup, setSelectedGroup] = useState<{ semester: number; section: string } | null>(null)
+  const [selectedGroup, setSelectedGroup] = useState<{ semester: number; section: string; departmentId: string; batch: string | null } | null>(null)
   const [cardSemesterFilter, setCardSemesterFilter] = useState('all')
   const [cardShiftFilter, setCardShiftFilter] = useState('all')
   
@@ -64,7 +64,8 @@ export function ClassroomsModule() {
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
 
   // Advance Semester (promote) state
-  const [promoteClass, setPromoteClass] = useState<{ semester: number; section: string; count: number } | null>(null)
+  const [promoteClass, setPromoteClass] = useState<{ semester: number; section: string; departmentId: string; batch: string | null; count: number } | null>(null)
+  const [targetSemesterId, setTargetSemesterId] = useState('')
   const [isPromoting, setIsPromoting] = useState(false)
 
   // Load rooms and prefill state
@@ -96,6 +97,16 @@ export function ClassroomsModule() {
     queryFn: () => fetch('/api/students/stats', { cache: 'no-store' }).then((r) => r.json()),
   })
   const stats = statsRaw?.data
+  const { data: semestersRaw } = useQuery<{ success: boolean; data: Array<{ id: string; name: string; status: string; isCurrent: boolean }> }>({
+    queryKey: ['semesters'],
+    queryFn: () => fetch('/api/semesters').then((r) => r.json()),
+  })
+  const availableTerms = semestersRaw?.data?.filter((term) => term.status === 'ACTIVE' || term.status === 'UPCOMING') ?? []
+  useEffect(() => {
+    if (promoteClass && promoteClass.semester < 8 && !targetSemesterId) {
+      setTargetSemesterId(availableTerms.find((term) => term.isCurrent)?.id ?? '')
+    }
+  }, [promoteClass, availableTerms, targetSemesterId])
 
   const availableSemesters = useMemo(() => {
     if (!stats?.bySemesterSection) return [1, 2, 3, 4, 5, 6, 7, 8]
@@ -111,6 +122,8 @@ export function ClassroomsModule() {
     params.set('limit', String(pageSize))
     params.set('semester', String(selectedGroup.semester))
     params.set('section', selectedGroup.section)
+    params.set('departmentId', selectedGroup.departmentId)
+    params.set('batch', selectedGroup.batch ?? '__null__')
     if (search) params.set('search', search)
     if (statusFilter !== 'all') params.set('status', statusFilter)
     if (sorting.length > 0) {
@@ -175,7 +188,10 @@ export function ClassroomsModule() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           semester: promoteClass.semester,
-          section: promoteClass.section,
+          departmentId: promoteClass.departmentId,
+          batch: promoteClass.batch,
+          section: promoteClass.section === 'Unassigned' ? null : promoteClass.section,
+          ...(promoteClass.semester < 8 ? { semesterId: targetSemesterId } : {}),
         }),
       })
       const data = await res.json()
@@ -427,12 +443,12 @@ export function ClassroomsModule() {
                         const isAssigned = item.room && item.room !== 'N/A' && item.room !== 'Room: TBD'
                         return (
                           <Card
-                            key={`${item.semester}-${item.section}`}
+                            key={`${item.semester}-${item.section}-${item.departmentId}-${item.batch ?? 'no-batch'}`}
                             className="group relative cursor-pointer overflow-hidden border border-slate-200/85 dark:border-slate-800 border-t-[3px] border-t-emerald-600 shadow-[0_2px_8px_rgba(0,0,0,0.02)] bg-white dark:bg-slate-950 rounded-xl hover:shadow-[0_6px_16px_-4px_rgba(0,0,0,0.06)] transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between"
                             onClick={() => {
-                              setSelectedGroup({ semester: item.semester, section: item.section })
+                              setSelectedGroup({ semester: item.semester, section: item.section, departmentId: item.departmentId, batch: item.batch })
                               setSearch('')
-                              setStatusFilter('all')
+                              setStatusFilter('ACTIVE')
                               setPage(1)
                             }}
                           >
@@ -441,7 +457,7 @@ export function ClassroomsModule() {
                               <div className="flex items-center justify-between w-full">
                                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-emerald-200/50 dark:border-emerald-900/20 bg-emerald-50/40 dark:bg-emerald-950/15 text-emerald-700 dark:text-emerald-400 text-[9px] font-bold tracking-wide">
                                   <span className="size-1 rounded-full bg-emerald-500 shrink-0" />
-                                  <span>{getProgramName(item.section)}</span>
+                                  <span>{item.departmentCode || getProgramName(item.section)} · {item.batch || 'No batch'}</span>
                                 </div>
 
                                 {isAdmin && (
@@ -469,8 +485,11 @@ export function ClassroomsModule() {
                                         setPromoteClass({
                                           semester: item.semester,
                                           section: item.section,
+                                          departmentId: item.departmentId,
+                                          batch: item.batch,
                                           count: item.count,
                                         });
+                                        setTargetSemesterId(availableTerms.find((term) => term.isCurrent)?.id ?? '')
                                       }}>
                                         <ArrowRight className="size-4 mr-2" />
                                         Advance Semester
@@ -560,10 +579,10 @@ export function ClassroomsModule() {
                 <Separator orientation="vertical" className="h-6" />
                 <div>
                   <h2 className="text-base font-semibold tracking-tight">
-                    Semester {selectedGroup.semester} - Section {selectedGroup.section}
+                    Semester {selectedGroup.semester} - Section {selectedGroup.section} - {selectedGroup.batch || 'No batch'}
                   </h2>
                   <p className="text-xs text-muted-foreground">
-                    Showing student directory for Semester {selectedGroup.semester}, Section {selectedGroup.section}
+                    Showing active students for Semester {selectedGroup.semester}, Section {selectedGroup.section}, Batch {selectedGroup.batch || 'not assigned'}
                   </p>
                 </div>
               </div>
@@ -752,11 +771,23 @@ export function ClassroomsModule() {
                   <span className="font-bold text-foreground">{promoteClass?.count}</span> student(s) of{' '}
                   <span className="font-bold text-foreground">Semester {promoteClass?.semester} ({promoteClass?.section})</span> to{' '}
                   <span className="font-bold text-foreground">Semester {(promoteClass?.semester ?? 0) + 1}</span>.
-                  They will be auto-enrolled in the next semester&apos;s active courses.
+                  They will be enrolled in active course offerings for the selected academic term. Courses with unmet prerequisites will be skipped.
                 </>
               )}
             </DialogDescription>
           </DialogHeader>
+
+          {promoteClass && promoteClass.semester < 8 && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Academic term for new enrollments</label>
+              <Select value={targetSemesterId} onValueChange={setTargetSemesterId}>
+                <SelectTrigger><SelectValue placeholder="Select academic term" /></SelectTrigger>
+                <SelectContent>
+                  {availableTerms.map((term) => <SelectItem key={term.id} value={term.id}>{term.name}{term.isCurrent ? ' (Current)' : ''}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 p-3 text-xs text-amber-800 dark:text-amber-300">
             This action affects all students in this class and cannot be undone. Please verify before confirming.
@@ -775,7 +806,7 @@ export function ClassroomsModule() {
               size="sm"
               className="font-bold bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={handlePromote}
-              disabled={isPromoting}
+              disabled={isPromoting || (!!promoteClass && promoteClass.semester < 8 && (!targetSemesterId || availableTerms.length === 0))}
             >
               {isPromoting && <Loader2 className="size-4 animate-spin mr-2" />}
               {promoteClass && promoteClass.semester >= 8 ? 'Mark as Graduated' : 'Confirm Promotion'}

@@ -19,19 +19,15 @@ export async function GET(
         department: {
           select: { id: true, name: true, code: true },
         },
-        enrollments: {
-          include: {
-            student: {
-              include: {
-                user: { select: { name: true, email: true } },
-              },
+        ...(session.user.role === 'STUDENT' ? {} : {
+          enrollments: {
+            include: {
+              student: { include: { user: { select: { name: true, email: true } } } },
+              semester: { select: { id: true, name: true, isCurrent: true } },
             },
-            semester: {
-              select: { id: true, name: true, isCurrent: true },
-            },
+            orderBy: { createdAt: "desc" },
           },
-          orderBy: { createdAt: "desc" },
-        },
+        }),
         documents: {
           select: {
             id: true,

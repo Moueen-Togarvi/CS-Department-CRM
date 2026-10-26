@@ -30,7 +30,7 @@ export async function GET(
         'X-Content-Type-Options': 'nosniff',
         'Content-Security-Policy': "default-src 'none'; img-src 'self'; object-src 'none'; sandbox",
         // Private now that a session is required.
-        'Cache-Control': 'private, max-age=31536000, immutable',
+        'Cache-Control': 'private, no-store',
       },
     })
   } catch (error) {

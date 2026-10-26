@@ -4,7 +4,7 @@ import { successResponse, errorResponse } from '@/lib/api-response'
 import { parseBody } from '@/lib/validators/request'
 import { bulkAttendanceSchema } from '@/lib/validators/attendance'
 import { AttendanceStatus } from '@prisma/client'
-import { requireFacultyOrAdmin, assertFacultyOwnsCourse, handleApiError } from '@/lib/auth-utils'
+import { requireFacultyOrAdmin, assertFacultyOwnsCourse, getFacultyCourseSections, handleApiError, AuthError } from '@/lib/auth-utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,10 +37,27 @@ export async function POST(request: NextRequest) {
       ? await assertFacultyOwnsCourse(session.user.id, courseId, semesterId)
       : await db.faculty.findUnique({ where: { userId: session.user.id } })
 
+    const enrollmentWhere = {
+      studentId: { in: [...new Set(records.map((r) => r.studentId))] },
+      courseId,
+      semesterId,
+      status: 'ENROLLED',
+    }
+    const enrollments = await db.enrollment.findMany({ where: enrollmentWhere, select: { studentId: true, section: true } })
+    if (enrollments.length !== new Set(records.map((r) => r.studentId)).size) {
+      return errorResponse('Every student must be enrolled in this course and semester', 400)
+    }
+    if (session.user.role === 'FACULTY') {
+      const sections = await getFacultyCourseSections(session.user.id, courseId, semesterId)
+      if (enrollments.some((e) => !sections.includes(e.section))) {
+        throw new AuthError('You are not assigned to every submitted section', 403)
+      }
+    }
+
     const dateObj = new Date(date)
 
     // Upsert each attendance record
-    const results = await Promise.all(
+    const results = await db.$transaction(
       records.map((rec: { studentId: string; status: AttendanceStatus; remarks?: string }) =>
         db.attendance.upsert({
           where: {

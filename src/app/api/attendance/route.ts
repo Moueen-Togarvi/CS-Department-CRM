@@ -36,16 +36,19 @@ export async function GET(request: NextRequest) {
     } else if (session.user.role === 'FACULTY') {
       const faculty = await db.faculty.findUnique({ where: { userId: session.user.id } })
       if (faculty) {
-        // Show attendance for courses this faculty teaches (via CourseOffering)
-        const offerings = await db.courseOffering.findMany({
-          where: { facultyId: faculty.id, isActive: true },
-          select: { courseId: true },
-        })
-        const allCourseIds = [...new Set(offerings.map((o) => o.courseId))]
-        // Only filter by faculty courseIds if no specific courseId was requested
-        if (!courseId) {
-          where.courseId = allCourseIds.length > 0 ? { in: allCourseIds } : '__none__'
-        }
+        const [offerings, timetable] = await Promise.all([
+          db.courseOffering.findMany({ where: { facultyId: faculty.id, isActive: true }, select: { courseId: true, semesterId: true, section: true } }),
+          db.timetable.findMany({ where: { facultyId: faculty.id }, select: { courseId: true, semesterId: true, section: true } }),
+        ])
+        const assignments = [...offerings, ...timetable].filter((a) =>
+          (!courseId || a.courseId === courseId) && (!semesterId || a.semesterId === semesterId)
+        )
+        where.OR = assignments.map((a) => ({
+          courseId: a.courseId,
+          semesterId: a.semesterId,
+          student: { enrollments: { some: { courseId: a.courseId, semesterId: a.semesterId, section: a.section } } },
+        }))
+        if (assignments.length === 0) where.courseId = '__none__'
       } else {
         where.courseId = '__none__'
       }

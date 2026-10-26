@@ -45,9 +45,9 @@ export async function GET(request: NextRequest) {
         _count: true,
       }),
       db.student.groupBy({
-        by: ['currentSemester', 'section'],
+        by: ['currentSemester', 'section', 'departmentId', 'batch'],
         where: {
-          status: { not: 'INACTIVE' },
+          status: 'ACTIVE',
           ...scopeWhere,
         },
         _count: true,
@@ -81,6 +81,8 @@ export async function GET(request: NextRequest) {
         floor: a.floor ?? undefined,
       }
     }
+    const departments = await db.department.findMany({ select: { id: true, code: true } })
+    const departmentCodeById = new Map(departments.map((department) => [department.id, department.code]))
 
     const bySemesterSection = await Promise.all(
       bySemesterSectionRaw.map(async (item) => {
@@ -126,6 +128,9 @@ export async function GET(request: NextRequest) {
         return {
           semester,
           section,
+          departmentId: item.departmentId,
+          departmentCode: departmentCodeById.get(item.departmentId) ?? '',
+          batch: item.batch,
           count: item._count,
           room: roomName,
           floor: floor,

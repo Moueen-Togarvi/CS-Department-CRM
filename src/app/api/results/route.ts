@@ -4,7 +4,7 @@ import { successResponse, errorResponse, paginatedResponse } from '@/lib/api-res
 import { parseBody } from '@/lib/validators/request'
 import { createResultSchema } from '@/lib/validators/result'
 import { parsePaginationParams, skipTake } from '@/lib/pagination'
-import { requireAuth, requireFacultyOrAdmin, assertFacultyOwnsCourse, getStudentForUser, handleApiError } from '@/lib/auth-utils'
+import { requireAuth, requireFacultyOrAdmin, assertFacultyOwnsCourse, getFacultyCourseSections, getStudentForUser, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,13 +30,22 @@ export async function GET(request: NextRequest) {
       where.studentId = student?.id ?? '__none__'
     } else if (session.user.role === 'FACULTY') {
       const faculty = await db.faculty.findUnique({ where: { userId: session.user.id } })
-      const offerings = faculty
-        ? await db.courseOffering.findMany({ where: { facultyId: faculty.id }, select: { courseId: true } })
-        : []
-      const courseIds = offerings.map((o) => o.courseId)
-      where.courseId = courseIds.length
-        ? { in: courseIds }
-        : (courseId ? courseId : '__none__')
+      const assignments = faculty ? await db.courseOffering.findMany({
+        where: { facultyId: faculty.id, isActive: true, ...(semesterId ? { semesterId } : {}), ...(courseId ? { courseId } : {}) },
+        select: { courseId: true, semesterId: true, section: true },
+      }) : []
+      const timetable = faculty ? await db.timetable.findMany({
+        where: { facultyId: faculty.id, ...(semesterId ? { semesterId } : {}), ...(courseId ? { courseId } : {}) },
+        select: { courseId: true, semesterId: true, section: true },
+      }) : []
+      const scopeRows = [...assignments, ...timetable]
+      const scoped = await Promise.all(scopeRows.map(async (a) => ({
+        ...a,
+        sections: await getFacultyCourseSections(session.user.id, a.courseId, a.semesterId),
+      })))
+      const allowedRows = scoped.filter((a) => a.sections.includes(a.section))
+      where.OR = allowedRows.map((a) => ({ courseId: a.courseId, semesterId: a.semesterId, student: { enrollments: { some: { courseId: a.courseId, semesterId: a.semesterId, section: a.section } } } }))
+      if (!allowedRows.length) where.courseId = '__none__'
     } else if (studentId) {
       where.studentId = studentId
     }
@@ -125,6 +134,8 @@ export async function POST(request: NextRequest) {
     // Faculty may only grade their own courses
     if (session.user.role === 'FACULTY') {
       await assertFacultyOwnsCourse(session.user.id, enrollment.courseId, enrollment.semesterId)
+      const sections = await getFacultyCourseSections(session.user.id, enrollment.courseId, enrollment.semesterId)
+      if (!sections.includes(enrollment.section)) return errorResponse('You are not assigned to this section', 403)
     }
 
     // Check if result is locked

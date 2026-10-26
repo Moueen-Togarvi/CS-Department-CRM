@@ -9,9 +9,8 @@ import {
   clientIp,
   LOGIN_RATE_LIMIT,
   loginRateLimitKey,
-  rateLimit,
-  resetRateLimit,
 } from "@/lib/rate-limit";
+import { sharedRateLimit, resetSharedRateLimit } from '@/lib/shared-rate-limit'
 
 // Extend NextAuth types
 declare module "next-auth" {
@@ -76,7 +75,7 @@ export const authOptions: NextAuthOptions = {
         // unlimited password guesses against any known email address.
         const ip = clientIp(new Headers((req?.headers ?? {}) as Record<string, string>));
         const rateKey = loginRateLimitKey(ip, credentials.email);
-        if (!rateLimit(rateKey, LOGIN_RATE_LIMIT).allowed) {
+        if (!(await sharedRateLimit(rateKey, LOGIN_RATE_LIMIT)).allowed) {
           throw new Error("Too many sign-in attempts. Please try again later.");
         }
 
@@ -103,7 +102,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Successful sign-in — don't hold earlier typos against this user.
-        resetRateLimit(rateKey);
+        await resetSharedRateLimit(rateKey);
 
         // Update last login
         await db.user.update({

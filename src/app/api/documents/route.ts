@@ -5,7 +5,7 @@ import { createDocumentSchema } from '@/lib/validators/document'
 import { parsePaginationParams, skipTake } from '@/lib/pagination'
 import { NextRequest } from 'next/server'
 import { DocumentCategory } from '@prisma/client'
-import { requireAuth, requireFacultyOrAdmin, handleApiError } from '@/lib/auth-utils'
+import { requireAuth, requireFacultyOrAdmin, assertFacultyOwnsCourse, handleApiError } from '@/lib/auth-utils'
 
 const DOC_INCLUDE = {
   uploadedByUser: { select: { id: true, name: true } },
@@ -85,6 +85,8 @@ export async function POST(request: NextRequest) {
     if (!title || !fileUrl || !courseId || !semesterNumber) {
       return errorResponse('Title, file URL, course, and semester are required')
     }
+
+    if (session.user.role === 'FACULTY') await assertFacultyOwnsCourse(session.user.id, courseId)
 
     const uploadedBy = session.user.id
 

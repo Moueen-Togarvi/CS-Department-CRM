@@ -143,6 +143,9 @@ export interface StudentStats {
   bySemesterSection: Array<{
     semester: number
     section: string
+    departmentId: string
+    departmentCode: string
+    batch: string | null
     count: number
     room?: string
     floor?: number | null
@@ -1095,7 +1098,7 @@ function StudentFormDialog({
                 <FormField control={form.control} name="studentId" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Student ID *</FormLabel>
-                    <FormControl><Input placeholder="CS-2025-016" {...field} disabled={!!editingStudent} /></FormControl>
+                    <FormControl><Input placeholder="GBNACOSC1234567" {...field} disabled={!!editingStudent} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -1447,7 +1450,7 @@ function StudentFormSheet({
                   <FormField control={form.control} name="studentId" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Student ID *</FormLabel>
-                      <FormControl><Input placeholder="CS-2025-016" {...field} disabled={!!editingStudent} /></FormControl>
+                      <FormControl><Input placeholder="GBNACOSC1234567" {...field} disabled={!!editingStudent} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />

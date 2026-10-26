@@ -7,9 +7,8 @@ import {
   clientIp,
   LOGIN_RATE_LIMIT,
   loginRateLimitKey,
-  rateLimit,
-  resetRateLimit,
 } from '@/lib/rate-limit'
+import { sharedRateLimit, resetSharedRateLimit } from '@/lib/shared-rate-limit'
 
 // GET /api/auth/login — check session
 export async function GET() {
@@ -28,7 +27,7 @@ export async function POST(req: NextRequest) {
     // Throttle before touching the database, so guessing costs an attacker
     // nothing less than a full window regardless of whether the account exists.
     const key = loginRateLimitKey(clientIp(req.headers), email)
-    const limit = rateLimit(key, LOGIN_RATE_LIMIT)
+    const limit = await sharedRateLimit(key, LOGIN_RATE_LIMIT)
     if (!limit.allowed) {
       return NextResponse.json(
         { error: 'Too many sign-in attempts. Please try again later.' },
@@ -67,7 +66,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Successful sign-in — don't hold earlier typos against this user.
-    resetRateLimit(key)
+    await resetSharedRateLimit(key)
 
     // Update last login
     await db.user.update({

@@ -3,18 +3,19 @@ import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { successResponse, errorResponse } from '@/lib/api-response'
 import { updateStudentSchema } from '@/lib/validators/student'
-import { requireFacultyOrAdmin, requireAdmin, handleApiError } from '@/lib/auth-utils'
+import { requireFacultyOrAdmin, requireAdmin, getFacultySectionScope, scopeToWhere, handleApiError } from '@/lib/auth-utils'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireFacultyOrAdmin()
+    const session = await requireFacultyOrAdmin()
     const { id } = await params
+    const scope = session.user.role === 'FACULTY' ? scopeToWhere(await getFacultySectionScope(session)) : {}
 
     const student = await db.student.findUnique({
-      where: { id },
+      where: { id, ...scope },
       include: {
         user: {
           select: {

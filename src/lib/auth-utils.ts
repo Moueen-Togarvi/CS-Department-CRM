@@ -21,6 +21,9 @@ export async function requireAuth(): Promise<Session> {
   if (!session?.user?.id) {
     throw new AuthError("Unauthorized: Please log in to continue", 401);
   }
+  const user = await db.user.findUnique({ where: { id: session.user.id }, select: { role: true, isActive: true } })
+  if (!user?.isActive) throw new AuthError("Unauthorized: Account is inactive", 401)
+  session.user.role = user.role
   return session;
 }
 

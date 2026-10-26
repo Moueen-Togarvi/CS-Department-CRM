@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const section = searchParams.get('section') || undefined
     const sessionParam = searchParams.get('session') || undefined
     const shift = searchParams.get('shift') || undefined
+    const departmentId = searchParams.get('departmentId') || undefined
 
     // Faculty section scope (semester + section level)
     const facultyScope = await getFacultySectionScope(session)
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (batch && batch !== 'all') {
-      where.batch = batch
+      where.batch = batch === '__null__' ? null : batch
     }
 
     // Apply faculty section scope
@@ -70,6 +71,8 @@ export async function GET(request: NextRequest) {
     if (shift && shift !== 'all') {
       where.shift = shift
     }
+
+    if (departmentId) where.departmentId = departmentId
 
     const orderBy: Prisma.StudentOrderByWithRelationInput = {}
     if (sort === 'studentId') {
