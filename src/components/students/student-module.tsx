@@ -993,7 +993,7 @@ function StudentFormDialog({
                 <FormField control={form.control} name="cnic" render={({ field }) => (
                   <FormItem>
                     <FormLabel>CNIC Number</FormLabel>
-                    <FormControl><Input placeholder="37405-1234567-8" {...field} /></FormControl>
+                    <FormControl><Input placeholder="31101-1234567-8" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -1348,7 +1348,7 @@ function StudentFormSheet({
                   <FormField control={form.control} name="cnic" render={({ field }) => (
                     <FormItem>
                       <FormLabel>CNIC Number</FormLabel>
-                      <FormControl><Input placeholder="37405-1234567-8" {...field} /></FormControl>
+                      <FormControl><Input placeholder="31101-1234567-8" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />

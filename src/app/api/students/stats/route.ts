@@ -84,61 +84,66 @@ export async function GET(request: NextRequest) {
     const departments = await db.department.findMany({ select: { id: true, code: true } })
     const departmentCodeById = new Map(departments.map((department) => [department.id, department.code]))
 
-    const bySemesterSection = await Promise.all(
-      bySemesterSectionRaw.map(async (item) => {
-        const semester = item.currentSemester
-        const section = item.section || 'Unassigned'
-        const key = `${semester}-${section}`
-        const customMapping = fileMappings[key]
+    const sections = [...new Set(bySemesterSectionRaw.map((item) => item.section).filter((section): section is string => Boolean(section)))]
+    const semesters = [...new Set(bySemesterSectionRaw.map((item) => item.currentSemester))]
+    const timetableEntries = sections.length && semesters.length
+      ? await db.timetable.findMany({
+          where: { section: { in: sections }, course: { semesterOffered: { in: semesters } } },
+          select: {
+            section: true,
+            course: { select: { semesterOffered: true } },
+            room: { select: { name: true, floor: true, building: true } },
+          },
+        })
+      : []
+    const roomBySemesterSection = new Map<string, (typeof timetableEntries)[number]['room']>()
+    for (const entry of timetableEntries) {
+      const key = `${entry.course.semesterOffered}-${entry.section}`
+      if (!roomBySemesterSection.has(key)) roomBySemesterSection.set(key, entry.room)
+    }
 
-        let roomName = 'N/A'
-        let floor: number | null = null
-        let building: string | null = null
-        let shift = 'Morning'
+    const bySemesterSection = bySemesterSectionRaw.map((item) => {
+      const semester = item.currentSemester
+      const section = item.section || 'Unassigned'
+      const key = `${semester}-${section}`
+      const customMapping = fileMappings[key]
 
-        if (section.toLowerCase().includes('evening')) {
-          shift = 'Evening'
-        } else if (section.toLowerCase().includes('morning')) {
-          shift = 'Morning'
+      let roomName = 'N/A'
+      let floor: number | null = null
+      let building: string | null = null
+      let shift = 'Morning'
+
+      if (section.toLowerCase().includes('evening')) {
+        shift = 'Evening'
+      } else if (section.toLowerCase().includes('morning')) {
+        shift = 'Morning'
+      }
+
+      if (customMapping) {
+        roomName = customMapping.roomName || 'N/A'
+        floor = customMapping.floor !== undefined ? customMapping.floor : null
+      } else if (section !== 'Unassigned') {
+        const room = roomBySemesterSection.get(key)
+        if (room) {
+          roomName = room.name
+          floor = room.floor
+          building = room.building
         }
+      }
 
-        if (customMapping) {
-          roomName = customMapping.roomName || 'N/A'
-          floor = customMapping.floor !== undefined ? customMapping.floor : null
-        } else if (section !== 'Unassigned') {
-          const timetableEntry = await db.timetable.findFirst({
-            where: {
-              section: section,
-              course: {
-                semesterOffered: semester,
-              },
-            },
-            include: {
-              room: true,
-            },
-          })
-
-          if (timetableEntry?.room) {
-            roomName = timetableEntry.room.name
-            floor = timetableEntry.room.floor
-            building = timetableEntry.room.building
-          }
-        }
-
-        return {
-          semester,
-          section,
-          departmentId: item.departmentId,
-          departmentCode: departmentCodeById.get(item.departmentId) ?? '',
-          batch: item.batch,
-          count: item._count,
-          room: roomName,
-          floor: floor,
-          building: building,
-          shift: shift,
-        }
-      })
-    )
+      return {
+        semester,
+        section,
+        departmentId: item.departmentId,
+        departmentCode: departmentCodeById.get(item.departmentId) ?? '',
+        batch: item.batch,
+        count: item._count,
+        room: roomName,
+        floor,
+        building,
+        shift,
+      }
+    })
 
     return successResponse({ total, active, byBatch, bySemester, bySemesterSection })
   } catch (error) {
