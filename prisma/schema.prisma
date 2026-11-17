@@ -237,8 +237,7 @@ model Student {
   session          String?
   section          String?
   shift            String?
-  classShift       String?
-  classSection     String?
+  shiftedFrom      String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

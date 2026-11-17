@@ -193,7 +193,7 @@ export async function GET(request: NextRequest) {
       ? await db.student.findUnique({
           where: { id: studentId },
           select: {
-            id: true, studentId: true, currentSemester: true, section: true, classShift: true, classSection: true,
+            id: true, studentId: true, currentSemester: true, section: true, shift: true, shiftedFrom: true,
             gpa: true, totalCredits: true, program: true,
             user: { select: { name: true } },
           },
@@ -204,7 +204,7 @@ export async function GET(request: NextRequest) {
       return successResponse({ role: 'STUDENT', attendanceRate: 0, courses: [], todayClasses: [], recentAnnouncements: [], upcomingEvents: [] })
     }
 
-    const classSection = student.classSection || student.section
+    const studentSection = student.section
 
     const [attendanceRecords, enrolledCourses, todayClasses, recentAnnouncements, upcomingEvents] = await Promise.all([
       db.attendance.findMany({
@@ -224,7 +224,7 @@ export async function GET(request: NextRequest) {
           day: today as any,
           OR: [
             { course: { enrollments: { some: { studentId: student.id, status: 'ENROLLED' } } } },
-            ...(classSection ? [{ section: classSection }] : []),
+            ...(studentSection ? [{ section: studentSection }] : []),
             ...(student.currentSemester ? [{ course: { semesterOffered: student.currentSemester } }] : []),
           ],
         },
@@ -264,7 +264,7 @@ export async function GET(request: NextRequest) {
       ? Math.round((present / attendanceRecords.length) * 100)
       : 0
 
-    const sectionVal = student.classSection || student.section || ''
+    const sectionVal = student.section || ''
     let derivedShift = ''
     if (sectionVal.startsWith('Evening')) {
       derivedShift = 'Evening'
@@ -277,8 +277,9 @@ export async function GET(request: NextRequest) {
       studentName: student.user.name,
       studentId: student.studentId,
       semester: student.currentSemester,
-      section: student.classSection || student.section,
-      shift: student.classShift || derivedShift || null,
+      section: student.section,
+      shift: student.shift || derivedShift || null,
+      shiftedFrom: student.shiftedFrom,
       gpa: student.gpa,
       totalCredits: student.totalCredits,
       program: student.program,

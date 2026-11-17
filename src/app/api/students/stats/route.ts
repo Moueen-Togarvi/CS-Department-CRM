@@ -13,13 +13,6 @@ export async function GET(request: NextRequest) {
     // Faculty section scope (semester + section level)
     const facultyScope = await getFacultySectionScope(session)
     const scopeWhere = scopeToWhere(facultyScope) as Prisma.StudentWhereInput
-    if (facultyScope !== null && 'OR' in scopeWhere && Array.isArray(scopeWhere.OR)) {
-      scopeWhere.OR = scopeWhere.OR.map((scope) => {
-        if (typeof scope !== 'object' || !scope || !('section' in scope)) return scope
-        const { section, ...rest } = scope
-        return { ...rest, classSection: section }
-      }) as Prisma.StudentWhereInput['OR']
-    }
 
     const [total, active, byBatchRaw, bySemesterRaw, bySemesterSectionRaw] = await Promise.all([
       db.student.count({
@@ -52,7 +45,7 @@ export async function GET(request: NextRequest) {
         _count: true,
       }),
       db.student.groupBy({
-        by: ['currentSemester', 'classSection', 'classShift', 'departmentId', 'batch'],
+        by: ['currentSemester', 'section', 'shift', 'departmentId', 'batch'],
         where: {
           status: 'ACTIVE',
           ...scopeWhere,
@@ -91,7 +84,7 @@ export async function GET(request: NextRequest) {
     const departments = await db.department.findMany({ select: { id: true, code: true } })
     const departmentCodeById = new Map(departments.map((department) => [department.id, department.code]))
 
-    const sections = [...new Set(bySemesterSectionRaw.map((item) => item.classSection).filter((section): section is string => Boolean(section)))]
+    const sections = [...new Set(bySemesterSectionRaw.map((item) => item.section).filter((section): section is string => Boolean(section)))]
     const semesters = [...new Set(bySemesterSectionRaw.map((item) => item.currentSemester))]
     const timetableEntries = sections.length && semesters.length
       ? await db.timetable.findMany({
@@ -111,18 +104,18 @@ export async function GET(request: NextRequest) {
 
     const bySemesterSection = bySemesterSectionRaw.map((item) => {
       const semester = item.currentSemester
-      const section = item.classSection || 'Unassigned'
+      const section = item.section || 'Unassigned'
       const key = `${semester}-${section}`
       const customMapping = fileMappings[key]
 
       let roomName = 'N/A'
       let floor: number | null = null
       let building: string | null = null
-      let shift = item.classShift || 'Morning'
+      let shift = item.shift || 'Morning'
 
-      if (!item.classShift && section.toLowerCase().includes('evening')) {
+      if (!item.shift && section.toLowerCase().includes('evening')) {
         shift = 'Evening'
-      } else if (!item.classShift && section.toLowerCase().includes('morning')) {
+      } else if (!item.shift && section.toLowerCase().includes('morning')) {
         shift = 'Morning'
       }
 

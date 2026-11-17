@@ -121,7 +121,7 @@ export function ClassroomsModule() {
     params.set('page', String(page))
     params.set('limit', String(pageSize))
     params.set('semester', String(selectedGroup.semester))
-    params.set('classSection', selectedGroup.section)
+    params.set('section', selectedGroup.section)
     params.set('departmentId', selectedGroup.departmentId)
     params.set('batch', selectedGroup.batch ?? '__null__')
     if (search) params.set('search', search)
@@ -623,8 +623,8 @@ export function ClassroomsModule() {
                     columns={columns}
                     data={students}
                     isLoading={isLoadingStudents}
-                    rowClassName={(student) => (student.shift?.toLowerCase() !== student.classShift?.toLowerCase() || student.section?.toLowerCase() !== student.classSection?.toLowerCase()) ? 'bg-orange-50 hover:bg-orange-100/80 dark:bg-orange-950/25 dark:hover:bg-orange-950/40' : undefined}
-                    rowTitle={(student) => (student.shift?.toLowerCase() !== student.classShift?.toLowerCase() || student.section?.toLowerCase() !== student.classSection?.toLowerCase()) ? `Yeh student ${student.shift} section se ${student.classShift} mein shift hua hai.` : undefined}
+                    rowClassName={(student) => student.shiftedFrom === 'Evening' && student.shift === 'Morning' ? 'bg-orange-50 hover:bg-orange-100/80 dark:bg-orange-950/25 dark:hover:bg-orange-950/40' : undefined}
+                    rowTitle={(student) => student.shiftedFrom === 'Evening' && student.shift === 'Morning' ? 'Yeh student Evening se Morning shift hua hai.' : undefined}
                     pageCount={pagination?.totalPages}
                     pageIndex={page - 1}
                     pageSize={pageSize}

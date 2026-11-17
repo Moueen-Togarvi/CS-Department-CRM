@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       const student = studentId
         ? await db.student.findUnique({
             where: { id: studentId },
-            select: { currentSemester: true, section: true, classSection: true },
+            select: { currentSemester: true, section: true },
           })
         : null
 
@@ -25,9 +25,8 @@ export async function GET(request: NextRequest) {
       ]
       if (student) {
         where.OR.push({ targetSemester: student.currentSemester })
-        const classSection = student.classSection || student.section
-        if (classSection) {
-          where.OR.push({ targetSemester: student.currentSemester, targetSection: classSection })
+        if (student.section) {
+          where.OR.push({ targetSemester: student.currentSemester, targetSection: student.section })
         }
       }
     } else if (session.user.role === 'FACULTY') {

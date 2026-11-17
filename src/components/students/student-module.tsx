@@ -124,8 +124,7 @@ export interface StudentRow {
   email: string
   batch: string | null
   shift: string | null
-  classShift: string | null
-  classSection: string | null
+  shiftedFrom: string | null
   section: string | null
   enrollmentYear: number
   currentSemester: number
@@ -184,8 +183,7 @@ export interface StudentDetail {
   session: string | null
   section: string | null
   shift: string | null
-  classShift: string | null
-  classSection: string | null
+  shiftedFrom: string | null
   createdAt: string
   updatedAt: string
   user: {
@@ -267,8 +265,6 @@ const formSchema = z.object({
   session: z.string().optional(),
   shift: z.string().optional(),
   section: z.string().optional(),
-  classShift: z.string().optional(),
-  classSection: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -283,12 +279,8 @@ function computeSession(enrollmentYear: number): string {
   return `${enrollmentYear}-${String((enrollmentYear + 4) % 100).padStart(2, '0')}`
 }
 
-function isShiftedToDifferentClass(student: Pick<StudentRow, 'shift' | 'section' | 'classShift' | 'classSection'>) {
-  const feeShift = student.shift?.toLowerCase()
-  const classShift = (student.classShift || student.shift)?.toLowerCase()
-  const feeSection = student.section?.toLowerCase()
-  const classSection = (student.classSection || student.section)?.toLowerCase()
-  return Boolean((feeShift && classShift && feeShift !== classShift) || (feeSection && classSection && feeSection !== classSection))
+function isShiftedToDifferentClass(student: Pick<StudentRow, 'shift' | 'shiftedFrom'>) {
+  return student.shift === 'Morning' && student.shiftedFrom === 'Evening'
 }
 
 /** "Morning A" / "Evening B" / legacy "A" → "A"/"B"; shift is its own column. */
@@ -471,8 +463,6 @@ export function StudentModule() {
       session: '',
       shift: '',
       section: '',
-      classShift: '',
-      classSection: '',
     },
   })
 
@@ -505,19 +495,7 @@ export function StudentModule() {
         form.setValue('section', 'Evening A')
       }
     }
-    if (!form.getValues('classShift')) {
-      form.setValue('classShift', shiftVal)
-      form.setValue('classSection', shiftVal === 'Morning' ? 'Morning A' : 'Evening A')
-    }
   }, [shiftVal, form])
-
-  const classShiftVal = form.watch('classShift')
-  useEffect(() => {
-    if (!classShiftVal) return
-    const classSection = form.getValues('classSection')
-    if (classShiftVal === 'Morning' && !classSection?.startsWith('Morning')) form.setValue('classSection', 'Morning A')
-    if (classShiftVal === 'Evening' && !classSection?.startsWith('Evening')) form.setValue('classSection', 'Evening A')
-  }, [classShiftVal, form])
 
   const resetForm = useCallback(() => {
     form.reset({
@@ -545,8 +523,6 @@ export function StudentModule() {
       session: '',
       shift: '',
       section: '',
-      classShift: '',
-      classSection: '',
     })
   }, [form])
 
@@ -604,8 +580,6 @@ export function StudentModule() {
             : sectionVal
           form.setValue('shift', derivedShift)
           form.setValue('section', normalizedSection)
-          form.setValue('classShift', detail.classShift || derivedShift)
-          form.setValue('classSection', detail.classSection || normalizedSection)
         }
       } catch (err) {
         console.error('Failed to load student details for editing', err)
@@ -660,8 +634,8 @@ export function StudentModule() {
               </Avatar>
               <span className="font-medium truncate max-w-[160px]">{name}</span>
               {isShiftedToDifferentClass(row.original) && (
-                <Badge title={`Yeh student ${row.original.shift} section se ${row.original.classShift} mein shift hua hai.`} className="shrink-0 border-orange-200 bg-orange-100 text-orange-800 hover:bg-orange-100 dark:border-orange-900 dark:bg-orange-950/60 dark:text-orange-300">
-                  {row.original.shift} → {row.original.classShift}
+                <Badge title="Yeh student Evening se Morning shift hua hai." className="shrink-0 border-orange-200 bg-orange-100 text-orange-800 hover:bg-orange-100 dark:border-orange-900 dark:bg-orange-950/60 dark:text-orange-300">
+                  Evening → Morning
                 </Badge>
               )}
             </div>
@@ -679,7 +653,7 @@ export function StudentModule() {
       },
       {
         accessorKey: 'shift',
-        header: 'Fee/Exam Shift',
+        header: 'Shift',
         cell: ({ row }) => {
           const shift = row.getValue('shift') as string | null
           if (!shift) return <span className="text-muted-foreground">—</span>
@@ -888,7 +862,7 @@ export function StudentModule() {
               manualPagination
               onRowClick={openDetail}
             rowClassName={(student) => isShiftedToDifferentClass(student) ? 'bg-orange-50 hover:bg-orange-100/80 dark:bg-orange-950/25 dark:hover:bg-orange-950/40' : undefined}
-            rowTitle={(student) => isShiftedToDifferentClass(student) ? `Yeh student ${student.shift} section se ${student.classShift} mein shift hua hai.` : undefined}
+            rowTitle={(student) => isShiftedToDifferentClass(student) ? 'Yeh student Evening se Morning shift hua hai.' : undefined}
               emptyMessage="No students found matching your criteria."
               emptyIcon={<GraduationCap className="size-10 text-muted-foreground/40" />}
             />
@@ -1217,7 +1191,7 @@ function StudentFormDialog({
                 )} />
                 <FormField control={form.control} name="shift" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Fee/Exam Shift *</FormLabel>
+                    <FormLabel>Shift *</FormLabel>
                     <Select value={field.value || ''} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger className="w-full">
@@ -1236,7 +1210,7 @@ function StudentFormDialog({
                   const shift = form.watch('shift')
                   return (
                     <FormItem>
-                      <FormLabel>Fee/Exam Section *</FormLabel>
+                      <FormLabel>Section *</FormLabel>
                       <Select 
                         value={field.value || ''} 
                         onValueChange={field.onChange}
@@ -1266,30 +1240,6 @@ function StudentFormDialog({
                       <FormMessage />
                     </FormItem>
                   )
-                }} />
-                <FormField control={form.control} name="classShift" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Class Shift</FormLabel>
-                    <Select value={field.value || ''} onValueChange={field.onChange}>
-                      <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select class shift" /></SelectTrigger></FormControl>
-                      <SelectContent><SelectItem value="Morning">Morning</SelectItem><SelectItem value="Evening">Evening</SelectItem></SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="classSection" render={({ field }) => {
-                  const shift = form.watch('classShift')
-                  return <FormItem>
-                    <FormLabel>Class Section</FormLabel>
-                    <Select value={field.value || ''} onValueChange={field.onChange} disabled={!shift}>
-                      <FormControl><SelectTrigger className="w-full"><SelectValue placeholder={shift ? 'Select class section' : 'Select class shift first'} /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {shift === 'Morning' && <SelectItem value="Morning A">Morning A</SelectItem>}
-                        {shift === 'Evening' && <><SelectItem value="Evening A">Evening A</SelectItem><SelectItem value="Evening B">Evening B</SelectItem></>}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
                 }} />
               </div>
             </div>
@@ -1592,7 +1542,7 @@ function StudentFormSheet({
                   )} />
                   <FormField control={form.control} name="shift" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Fee/Exam Shift *</FormLabel>
+                      <FormLabel>Shift *</FormLabel>
                       <Select value={field.value || ''} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger className="w-full">
@@ -1611,7 +1561,7 @@ function StudentFormSheet({
                     const shift = form.watch('shift')
                     return (
                       <FormItem>
-                        <FormLabel>Fee/Exam Section *</FormLabel>
+                        <FormLabel>Section *</FormLabel>
                         <Select 
                           value={field.value || ''} 
                           onValueChange={field.onChange}
@@ -1640,30 +1590,6 @@ function StudentFormSheet({
                         <FormMessage />
                       </FormItem>
                     )
-                  }} />
-                  <FormField control={form.control} name="classShift" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Class Shift</FormLabel>
-                      <Select value={field.value || ''} onValueChange={field.onChange}>
-                        <FormControl><SelectTrigger className="w-full"><SelectValue placeholder="Select class shift" /></SelectTrigger></FormControl>
-                        <SelectContent><SelectItem value="Morning">Morning</SelectItem><SelectItem value="Evening">Evening</SelectItem></SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="classSection" render={({ field }) => {
-                    const shift = form.watch('classShift')
-                    return <FormItem>
-                      <FormLabel>Class Section</FormLabel>
-                      <Select value={field.value || ''} onValueChange={field.onChange} disabled={!shift}>
-                        <FormControl><SelectTrigger className="w-full"><SelectValue placeholder={shift ? 'Select class section' : 'Select class shift first'} /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          {shift === 'Morning' && <SelectItem value="Morning A">Morning A</SelectItem>}
-                          {shift === 'Evening' && <><SelectItem value="Evening A">Evening A</SelectItem><SelectItem value="Evening B">Evening B</SelectItem></>}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
                   }} />
                 </div>
               </div>
@@ -1867,12 +1793,10 @@ function ProfileTab({ student }: { student: StudentDetail }) {
           <InfoRow icon={<GraduationCap className="size-4" />} label="Program" value={`${student.program} ${student.department.name}`} />
           <InfoRow icon={<Calendar className="size-4" />} label="Session" value={student.enrollmentYear ? computeSession(student.enrollmentYear) : (student.session || 'N/A')} />
           <InfoRow icon={<Shield className="size-4" />} label="Student ID" value={student.studentId} />
-          <InfoRow icon={<Calendar className="size-4" />} label="Fee/Exam Shift" value={student.shift ? student.shift.charAt(0).toUpperCase() + student.shift.slice(1).toLowerCase() : 'Not assigned'} />
-          <InfoRow icon={<Calendar className="size-4" />} label="Class Shift" value={student.classShift || student.shift || 'Not assigned'} />
+          <InfoRow icon={<Calendar className="size-4" />} label="Shift" value={student.shift ? student.shift.charAt(0).toUpperCase() + student.shift.slice(1).toLowerCase() : 'Not assigned'} />
           <InfoRow icon={<Calendar className="size-4" />} label="Enrollment Year" value={String(student.enrollmentYear)} />
-          {student.section && <InfoRow icon={<Users className="size-4" />} label="Fee/Exam Section" value={student.section} />}
-          {(student.classSection || student.section) && <InfoRow icon={<Users className="size-4" />} label="Class Section" value={student.classSection || student.section || 'Not assigned'} />}
-          {isShiftedToDifferentClass(student) && <div className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-900 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-200">Yeh student {student.shift} section se {student.classShift} mein shift hua hai.</div>}
+          {student.section && <InfoRow icon={<Users className="size-4" />} label="Section" value={student.section} />}
+          {isShiftedToDifferentClass(student) && <div className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-900 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-200">Yeh student Evening se Morning shift hua hai.</div>}
         </Section>
 
         <Section title="Personal Details">

@@ -209,12 +209,11 @@ export async function PUT(
     }
     if (data.shift !== undefined) {
       studentUpdateData.shift = data.shift
-    }
-    if (data.classShift !== undefined) {
-      studentUpdateData.classShift = data.classShift || null
-    }
-    if (data.classSection !== undefined) {
-      studentUpdateData.classSection = data.classSection || null
+      if (data.shift !== existing.shift) {
+        studentUpdateData.shiftedFrom = existing.shift?.toLowerCase() === 'evening' && data.shift?.toLowerCase() === 'morning'
+          ? 'Evening'
+          : null
+      }
     }
 
     const student = await db.$transaction(async (tx) => {
@@ -246,8 +245,7 @@ export async function PUT(
       email: student.user.email,
       batch: student.batch,
       shift: student.shift,
-      classShift: student.classShift,
-      classSection: student.classSection,
+      shiftedFrom: student.shiftedFrom,
       currentSemester: student.currentSemester,
       program: student.program,
       gpa: student.gpa,

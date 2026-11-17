@@ -45,7 +45,7 @@ export async function GET(
       courseId,
       ...(semesterParam ? { semesterId: semesterParam } : {}),
       ...(forAttendance
-        ? { student: { classSection: sectionParam || (attendanceSections.length ? { in: attendanceSections } : undefined) } }
+        ? { student: { section: sectionParam || (attendanceSections.length ? { in: attendanceSections } : undefined) } }
         : scope.where),
     };
 
@@ -83,7 +83,7 @@ export async function GET(
             ? { currentSemester: course.semesterOffered }
             : {}),
           ...(forAttendance
-            ? { classSection: sectionParam || (attendanceSections.length ? { in: attendanceSections } : undefined) }
+            ? { section: sectionParam || (attendanceSections.length ? { in: attendanceSections } : undefined) }
             : scope.where),
         },
         include: {

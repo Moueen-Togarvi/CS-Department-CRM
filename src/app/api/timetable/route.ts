@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         where: { userId: session.user.id },
       })
       if (student) {
-        studentCompatibleSections = getCompatibleSections(student.classSection || student.section, student.session)
+        studentCompatibleSections = getCompatibleSections(student.section, student.session)
         academicSemester = String(student.currentSemester)
       }
     } else if (session.user.role === 'FACULTY') {
