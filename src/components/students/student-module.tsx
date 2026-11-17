@@ -536,53 +536,57 @@ export function StudentModule() {
     async (student: StudentRow) => {
       setEditingStudent(student)
       resetForm()
-      setFormOpen(true)
       
       try {
         const res = await fetch(`/api/students/${student.id}`).then((r) => r.json())
-        if (res.success && res.data) {
-          const detail = res.data
-          form.setValue('name', detail.user.name || '')
-          form.setValue('email', detail.user.email || '')
-          form.setValue('studentId', detail.studentId || '')
-          form.setValue('currentSemester', detail.currentSemester || 1)
-          form.setValue('program', detail.program || 'BS')
-          form.setValue('batch', detail.batch || '')
-          form.setValue('gender', detail.gender || '')
-          form.setValue('departmentId', detail.departmentId || '')
-          form.setValue('enrollmentYear', detail.enrollmentYear || new Date().getFullYear())
-          form.setValue('phone', detail.user.phone || '')
-          form.setValue('address', detail.address || '')
-          form.setValue('guardianName', detail.guardianName || '')
-          form.setValue('guardianPhone', detail.guardianPhone || '')
-          form.setValue('emergencyContact', detail.emergencyContact || '')
-          form.setValue('profilePicture', detail.profilePicture || '')
-          form.setValue('fatherName', detail.fatherName || '')
-          form.setValue('cnic', detail.cnic || '')
-          form.setValue('mobileNumber', detail.mobileNumber || '')
-          form.setValue('fatherPhone', detail.fatherPhone || '')
-          // Session is derived from enrollmentYear (set above) and shown read-only;
-          // no need to load the stored string separately.
-          
-          const sectionVal = detail.section || ''
-          // Fall back to the stored shift for legacy rows whose section is a bare letter.
-          let derivedShift = detail.shift
-            ? detail.shift.charAt(0).toUpperCase() + detail.shift.slice(1).toLowerCase()
-            : ''
-          if (sectionVal.startsWith('Evening')) {
-            derivedShift = 'Evening'
-          } else if (sectionVal.startsWith('Morning') || sectionVal === 'Morning') {
-            derivedShift = 'Morning'
-          }
-          // Legacy bare "A"/"B" → "Evening B" etc., so the shift effect keeps it.
-          const normalizedSection = /^[AB]$/i.test(sectionVal.trim()) && derivedShift
-            ? `${derivedShift} ${sectionVal.trim().toUpperCase()}`
-            : sectionVal
-          form.setValue('shift', derivedShift)
-          form.setValue('section', normalizedSection)
+        if (!res.success || !res.data) throw new Error(res.error || 'Failed to load student details')
+
+        const detail = res.data
+        const sectionVal = detail.section || ''
+        // Fall back to the stored shift for legacy rows whose section is a bare letter.
+        let derivedShift = detail.shift
+          ? detail.shift.charAt(0).toUpperCase() + detail.shift.slice(1).toLowerCase()
+          : ''
+        if (sectionVal.startsWith('Evening')) {
+          derivedShift = 'Evening'
+        } else if (sectionVal.startsWith('Morning') || sectionVal === 'Morning') {
+          derivedShift = 'Morning'
         }
+        // Legacy bare "A"/"B" → "Evening B" etc., so the shift effect keeps it.
+        const normalizedSection = /^[AB]$/i.test(sectionVal.trim()) && derivedShift
+          ? `${derivedShift} ${sectionVal.trim().toUpperCase()}`
+          : sectionVal
+
+        form.reset({
+          name: detail.user.name || '',
+          email: detail.user.email || '',
+          password: '',
+          studentId: detail.studentId || '',
+          departmentId: detail.departmentId || '',
+          currentSemester: detail.currentSemester ?? 1,
+          enrollmentYear: detail.enrollmentYear || new Date().getFullYear(),
+          batch: detail.batch || '',
+          program: detail.program || 'BS',
+          gender: detail.gender || '',
+          dateOfBirth: detail.dateOfBirth ? new Date(detail.dateOfBirth).toISOString().slice(0, 10) : '',
+          phone: detail.user.phone || '',
+          address: detail.address || '',
+          guardianName: detail.guardianName || '',
+          guardianPhone: detail.guardianPhone || '',
+          emergencyContact: detail.emergencyContact || '',
+          profilePicture: detail.profilePicture || '',
+          fatherName: detail.fatherName || '',
+          cnic: detail.cnic || '',
+          mobileNumber: detail.mobileNumber || '',
+          fatherPhone: detail.fatherPhone || '',
+          session: '',
+          shift: derivedShift,
+          section: normalizedSection,
+        })
+        setFormOpen(true)
       } catch (err) {
         console.error('Failed to load student details for editing', err)
+        toast.error('Could not load student details. Please try again.')
       }
     },
     [form, resetForm]
