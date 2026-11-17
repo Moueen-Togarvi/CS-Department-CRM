@@ -25,6 +25,8 @@ export const createStudentSchema = z.object({
   session: z.string().optional(),
   shift: z.string().optional(),
   section: z.string().optional(),
+  classShift: z.string().optional(),
+  classSection: z.string().optional(),
 })
 
 export type CreateStudentInput = z.infer<typeof createStudentSchema>
@@ -52,6 +54,8 @@ export const updateStudentSchema = z.object({
   session: z.string().optional(),
   shift: z.string().optional(),
   section: z.string().optional(),
+  classShift: z.string().optional(),
+  classSection: z.string().optional(),
 })
 
 export type UpdateStudentInput = z.infer<typeof updateStudentSchema>

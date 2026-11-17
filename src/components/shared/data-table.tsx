@@ -43,6 +43,8 @@ interface DataTableProps<TData, TValue> {
   emptyMessage?: string
   emptyIcon?: React.ReactNode
   onRowClick?: (row: TData) => void
+  rowClassName?: (row: TData) => string | undefined
+  rowTitle?: (row: TData) => string | undefined
 }
 
 export function DataTable<TData, TValue>({
@@ -59,6 +61,8 @@ export function DataTable<TData, TValue>({
   emptyMessage = 'No data found.',
   emptyIcon,
   onRowClick,
+  rowClassName,
+  rowTitle,
 }: DataTableProps<TData, TValue>) {
   const [internalSorting, setInternalSorting] = useState<SortingState>([])
   const sorting = controlledSorting ?? internalSorting
@@ -150,7 +154,8 @@ export function DataTable<TData, TValue>({
             {table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
-                className={onRowClick ? 'cursor-pointer' : ''}
+                className={[onRowClick ? 'cursor-pointer' : '', rowClassName?.(row.original)].filter(Boolean).join(' ')}
+                title={rowTitle?.(row.original)}
                 onClick={() => onRowClick?.(row.original)}
               >
                 {row.getVisibleCells().map((cell) => (

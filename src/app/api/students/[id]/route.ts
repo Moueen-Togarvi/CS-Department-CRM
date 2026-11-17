@@ -210,6 +210,12 @@ export async function PUT(
     if (data.shift !== undefined) {
       studentUpdateData.shift = data.shift
     }
+    if (data.classShift !== undefined) {
+      studentUpdateData.classShift = data.classShift || null
+    }
+    if (data.classSection !== undefined) {
+      studentUpdateData.classSection = data.classSection || null
+    }
 
     const student = await db.$transaction(async (tx) => {
       if (Object.keys(userUpdateData).length > 0) {
@@ -240,6 +246,8 @@ export async function PUT(
       email: student.user.email,
       batch: student.batch,
       shift: student.shift,
+      classShift: student.classShift,
+      classSection: student.classSection,
       currentSemester: student.currentSemester,
       program: student.program,
       gpa: student.gpa,

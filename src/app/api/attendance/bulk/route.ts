@@ -43,13 +43,13 @@ export async function POST(request: NextRequest) {
       semesterId,
       status: 'ENROLLED',
     }
-    const enrollments = await db.enrollment.findMany({ where: enrollmentWhere, select: { studentId: true, section: true } })
+    const enrollments = await db.enrollment.findMany({ where: enrollmentWhere, select: { studentId: true, section: true, student: { select: { classSection: true } } } })
     if (enrollments.length !== new Set(records.map((r) => r.studentId)).size) {
       return errorResponse('Every student must be enrolled in this course and semester', 400)
     }
     if (session.user.role === 'FACULTY') {
       const sections = await getFacultyCourseSections(session.user.id, courseId, semesterId)
-      if (enrollments.some((e) => !sections.includes(e.section))) {
+      if (enrollments.some((e) => !sections.includes(e.student.classSection || e.section))) {
         throw new AuthError('You are not assigned to every submitted section', 403)
       }
     }

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
         where.OR = assignments.map((a) => ({
           courseId: a.courseId,
           semesterId: a.semesterId,
-          student: { enrollments: { some: { courseId: a.courseId, semesterId: a.semesterId, section: a.section } } },
+          student: { classSection: a.section, enrollments: { some: { courseId: a.courseId, semesterId: a.semesterId } } },
         }))
         if (assignments.length === 0) where.courseId = '__none__'
       } else {

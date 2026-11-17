@@ -381,7 +381,9 @@ export function ProfileModule() {
                       <InfoItem label="Session" value={profile.student.session} icon={Calendar} />
                       <InfoItem label="Batch" value={profile.student.batch} icon={Hash} />
                       <InfoItem label="CGPA" value={profile.student.gpa} icon={Award} />
-                      <InfoItem label="Section" value={profile.student.section} icon={Hash} />
+                      <InfoItem label="Class Shift" value={profile.student.classShift || profile.student.shift} icon={Calendar} />
+                      <InfoItem label="Fee/Exam Shift" value={profile.student.shift} icon={Calendar} />
+                      <InfoItem label="Class Section" value={profile.student.classSection || profile.student.section} icon={Hash} />
                       <InfoItem label="Department" value={profile.student.department ? `${profile.student.department.name} (${profile.student.department.code})` : undefined} icon={Building2} />
                     </InfoGroup>
 

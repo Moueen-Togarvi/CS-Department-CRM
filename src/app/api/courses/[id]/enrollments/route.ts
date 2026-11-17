@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
-import { requireAuth, assertFacultyOwnsCourse, resolveSectionScope, handleApiError } from "@/lib/auth-utils";
+import { requireAuth, assertFacultyOwnsCourse, getFacultyCourseSections, resolveSectionScope, handleApiError } from "@/lib/auth-utils";
 
 export async function GET(
   request: NextRequest,
@@ -13,6 +13,7 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const sectionParam = searchParams.get("section") || undefined;
     const semesterParam = searchParams.get("semesterId") || undefined;
+    const forAttendance = searchParams.get("forAttendance") === "true";
 
     // Students may not fetch course enrollments (faculty/admin only)
     if (session.user.role === "STUDENT") {
@@ -37,10 +38,15 @@ export async function GET(
       return errorResponse("Course not found", 404);
     }
 
+    const attendanceSections = forAttendance && session.user.role === "FACULTY"
+      ? await getFacultyCourseSections(session.user.id, courseId, semesterParam)
+      : [];
     const baseWhere = {
       courseId,
       ...(semesterParam ? { semesterId: semesterParam } : {}),
-      ...scope.where,
+      ...(forAttendance
+        ? { student: { classSection: sectionParam || (attendanceSections.length ? { in: attendanceSections } : undefined) } }
+        : scope.where),
     };
 
     // Try enrollments first (any status)
@@ -76,7 +82,9 @@ export async function GET(
           ...(course.semesterOffered
             ? { currentSemester: course.semesterOffered }
             : {}),
-          ...scope.where,
+          ...(forAttendance
+            ? { classSection: sectionParam || (attendanceSections.length ? { in: attendanceSections } : undefined) }
+            : scope.where),
         },
         include: {
           user: { select: { name: true, email: true } },

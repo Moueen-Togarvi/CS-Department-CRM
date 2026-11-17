@@ -19,8 +19,10 @@ export async function GET(request: NextRequest) {
     const semester = searchParams.get('semester') || undefined
     const status = searchParams.get('status') || undefined
     const section = searchParams.get('section') || undefined
+    const classSection = searchParams.get('classSection') || undefined
     const sessionParam = searchParams.get('session') || undefined
     const shift = searchParams.get('shift') || undefined
+    const classShift = searchParams.get('classShift') || undefined
     const departmentId = searchParams.get('departmentId') || undefined
 
     // Faculty section scope (semester + section level)
@@ -44,7 +46,15 @@ export async function GET(request: NextRequest) {
 
     // Apply faculty section scope
     if (facultyScope !== null) {
-      where.AND = [scopeToWhere(facultyScope) as Prisma.StudentWhereInput]
+      const facultyWhere = scopeToWhere(facultyScope) as Prisma.StudentWhereInput
+      if (classSection && 'OR' in facultyWhere && Array.isArray(facultyWhere.OR)) {
+        facultyWhere.OR = facultyWhere.OR.map((scope) => {
+          if (typeof scope !== 'object' || !scope || !('section' in scope)) return scope
+          const { section: scopedSection, ...rest } = scope
+          return { ...rest, classSection: scopedSection }
+        }) as Prisma.StudentWhereInput['OR']
+      }
+      where.AND = [facultyWhere]
     }
 
     // Semester URL param (further restricts within scope)
@@ -63,6 +73,9 @@ export async function GET(request: NextRequest) {
         where.section = section
       }
     }
+    if (classSection && classSection !== 'all') {
+      where.classSection = classSection === 'Unassigned' ? null : classSection
+    }
 
     if (sessionParam && sessionParam !== 'all') {
       where.session = sessionParam
@@ -70,6 +83,9 @@ export async function GET(request: NextRequest) {
 
     if (shift && shift !== 'all') {
       where.shift = shift
+    }
+    if (classShift && classShift !== 'all') {
+      where.classShift = classShift
     }
 
     if (departmentId) where.departmentId = departmentId
@@ -85,6 +101,10 @@ export async function GET(request: NextRequest) {
       orderBy.currentSemester = order
     } else if (sort === 'gpa') {
       orderBy.gpa = order
+    } else if (sort === 'section') {
+      orderBy.section = order
+    } else if (sort === 'enrollmentYear') {
+      orderBy.enrollmentYear = order
     } else if (sort === 'status') {
       orderBy.status = order
     } else {
@@ -118,6 +138,11 @@ export async function GET(request: NextRequest) {
       email: s.user.email,
       batch: s.batch,
       shift: s.shift,
+      classShift: s.classShift,
+      classSection: s.classSection,
+      section: s.section,
+      session: s.session,
+      enrollmentYear: s.enrollmentYear,
       currentSemester: s.currentSemester,
       program: s.program,
       gpa: s.gpa,
@@ -203,6 +228,8 @@ export async function POST(request: NextRequest) {
           session: data.session || null,
           section: data.section || null,
           shift: data.shift || null,
+          classShift: data.classShift || data.shift || null,
+          classSection: data.classSection || data.section || null,
         },
         include: {
           user: {
@@ -223,6 +250,8 @@ export async function POST(request: NextRequest) {
         email: student.user.email,
         batch: student.batch,
         shift: student.shift,
+        classShift: student.classShift,
+        classSection: student.classSection,
         currentSemester: student.currentSemester,
         program: student.program,
         gpa: student.gpa,

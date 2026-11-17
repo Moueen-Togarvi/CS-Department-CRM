@@ -120,6 +120,7 @@ function MarkAttendancePanel({
       const params = new URLSearchParams({ limit: '200' })
       if (semesterId) params.set('semesterId', semesterId)
       if (section) params.set('section', section)
+      params.set('forAttendance', 'true')
       const res = await fetch(`/api/courses/${courseId}/enrollments?${params}`)
       const json = await res.json()
       return (json.data?.enrollments || []) as EnrolledStudent[]
